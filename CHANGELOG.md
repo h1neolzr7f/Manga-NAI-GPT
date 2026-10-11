@@ -2,6 +2,28 @@
 
 Version numbers apply to **this fork only**, not to upstream Manga Editor Desu.
 
+## 1.5.0 — 2026-10-11
+
+Minor update (not a 2.0). Chinese notes below; English summary after.
+
+### 中文
+- **改一块**：把「修瑕疵 / AI 填充 / 自定义修改」合成一个新手入口，预设「去掉杂物」（本机 LaMa，免费）、「换成…」、「自由修改」（GPT 3 张候选）；旧向导仍可在 Ctrl+K / 专业模式打开。首页任务 6 个。
+- **角色库**：参考图 → CCIP 身份；本页自动认人；生成时自动带参考（真实 GPT 自动带参尚未验证）。
+- **非破坏 AI 图层**：选区 + 一句话 → 3 张候选 → 可换 / 重生 / 对比 / 还原；格框保护。
+- **阅读顺序 + 自动放对白气泡**：避脸、避原有字、按日漫从右到左；「画一页」直接用。
+- **粘贴剧本 → 整页**：规则拆页/格/对白（中日英标记），不用大模型。
+- **命令面板 Ctrl+K** + **历史面板**：每步中文名、时间、缩略图，可跳回任一步。
+- **PSD 导入 / 导出**（ag-psd）：文字可编辑、AI 层带蒙版；导出压缩后黑白页约 6 MB，带色偏页约 16–18 MB（无损）。
+- **MNAI_PORT**：可换端口，两份编辑器可并排跑。
+- A/B（v1.0.0 vs 本版，同 mock GPT）：剧本成页格子阅读顺序错误 4→0；气泡挡脸 5→0；历史可按名称找回；PSD 从无到有。
+
+**已知限制：** 改一块「换成…/自由修改」与角色库自动带参考的**真实 GPT 画质未再验证**；彩色页 PSD 约 16–18 MB；Windows 未在真机验证；换角色在复杂多人格仍不稳定；分格检测需要白分隔线。
+
+### English
+- **Edit an area** merges fix / AI fill / free edit into one beginner entry (remove locally for free / replace / free edit with 3 GPT candidates).
+- Character library (CCIP), non-destructive AI layers, reading-order balloon placement, paste-a-script → page, Ctrl+K command palette + labelled history with thumbnails, PSD import/export, configurable `MNAI_PORT`.
+- Known limits: real GPT quality for edit-area replace and character-library auto-ref not re-verified; colour PSD ~16–18 MB; Windows not verified on a real machine.
+
 ## 1.0.0 — 2026-10-11 · first public release as **Manga-NAI-GPT**
 
 - New name and repository: https://github.com/h1neolzr7f/Manga-NAI-GPT (fork of Manga Editor Desu by new-sankaku, GPL-3.0).

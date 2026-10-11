@@ -127,7 +127,7 @@ async function after(browser) {
       const rec = { page: i + 1, panels: page.length, ops: ops.length, opList: [...ops], seconds: Math.round((Date.now() - t0) / 1000), status };
       if (i === 3) { // a 自定义修改 touch-up on the last panel
         ops = [];
-        await click(p, '#taskBtn-custom', '自定义修改');
+        await p.evaluate(() => TaskLauncher.start('custom'));   // folded into 改一块 on the home screen
         const r = await p.evaluate(() => { const ps = canvas.getObjects().filter(o => o.isPanel); const b = ps[ps.length - 1].getBoundingRect(); const u = canvas.upperCanvasEl.getBoundingClientRect(); const sx = u.width / canvas.getWidth(), sy = u.height / canvas.getHeight(); return { x: u.left + b.left * sx, y: u.top + b.top * sy, w: b.width * sx, h: b.height * sy }; });
         await p.mouse.move(r.x + r.w * 0.05, r.y + r.h * 0.05); await p.mouse.down(); await p.mouse.move(r.x + r.w * 0.6, r.y + r.h * 0.45, { steps: 10 }); await p.mouse.up(); op('框选天空');
         await type(p, '#mangaGptPrompt', '在天空加一道淡淡的彩虹，其余保持不变', '写修改');

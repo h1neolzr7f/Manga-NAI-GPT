@@ -19,11 +19,14 @@ Manga-NAI-GPT is built on [Manga Editor Desu](https://github.com/new-sankaku/man
 
 ## Features
 
+**New in 1.5:** Edit an area (remove / replace / free edit), character library, non-destructive AI layers, automatic balloons, paste-a-script → page, Ctrl+K command palette + thumbnail history, PSD I/O, `MNAI_PORT`. See [CHANGELOG](CHANGELOG.md).
+
+
 | Task | What it does | Needs |
 |---|---|---|
 | **换角色 Character swap** | Finds the characters → click the one to replace → upload a reference → preview / compare → apply; can repeat for the same character in other panels (face matching) | Image service + local detection |
 | **改字幕 Captions** | Text is detected on import → edit the lines → old text erased, new text typeset to the bubble (CJK line-breaking, keep SFX option) | Local (free) |
-| **修瑕疵 / 去杂物 Fix / remove** | Box it → preview → apply; seams and tone are matched | Local LaMa or image service |
+| **改一块 Edit an area** | Paint an area → "remove" (local, free) / "replace with…" / "free edit" (3 candidates) → becomes an editable, revertible layer; seams and tone are matched | Local LaMa or image service |
 | **分层 Layers** | Smart click-select (3 candidates) or split by panels in one click | Local (free) |
 | **画一页 Draw a page** | Choose panel count or reuse this page's grid → one line of scene + dialogue per panel → generate | Image service |
 | **AI 生图 Generate** | NovelAI text-to-image / image-to-image | NovelAI token |
@@ -82,7 +85,7 @@ The browser opens `http://127.0.0.1:8000/index.html`. The launcher window is the
 
 **Double-clicking `index.html` doesn't work?** Use the launcher; browsers disable most features on `file://`.
 
-**Port 8000 in use?** If an editor is already running the launcher just opens the browser; otherwise close the program using the port.
+**Port 8000 in use?** If an editor is already running the launcher just opens the browser; otherwise close the program using the port. Or pick another port: `MNAI_PORT=8001 ./start.sh` (Linux / macOS) and open `http://127.0.0.1:8001/index.html` - this also lets two versions run side by side.
 
 **Do I need GPT / NovelAI?** No. Lettering, captions, text removal, layers and pro mode work fully offline; only swap, draw-a-page and custom edits need an image service.
 

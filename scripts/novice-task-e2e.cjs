@@ -1162,7 +1162,11 @@ async function main() {
     const { ctx, p, errors } = await beginnerEditor();
     try {
       const before = wizCalls.length;
-      await op.click(p.locator('#taskBtn-' + taskId), '任务按钮');
+      // 修瑕疵 / 自定义修改 are folded into 改一块 on the home screen; their wizards stay one Ctrl+K search away
+      if (await p.locator('#taskBtn-' + taskId).count()) await op.click(p.locator('#taskBtn-' + taskId), '任务按钮');
+      else {
+        await op.key('Control+k', '找功能'); await p.locator('#cmdPaletteInput').fill(taskId === 'fix' ? '修瑕疵' : '自定义'); await op.key('Enter', '打开向导');
+      }
       // 换角色 opens the automatic v2 wizard; the box-select GPT path is one click away
       if (taskId === 'swap') await op.click(p.locator('#autoSwapManual'), '改用手动框选');
       await p.waitForSelector('#mangaGptTaskHead', { timeout: 5000 });
@@ -1223,7 +1227,7 @@ async function main() {
       await p.keyboard.press('Escape');
       const proAfterReload = await p.evaluate(() => document.body.classList.contains('ui-pro'));
       await openMore(p); await op.click(p.locator('#uiModeToggle'), '新手模式');
-      const backToBeginner = (await p.locator('#taskBar .task-btn:visible').count()) === 7;
+      const backToBeginner = (await p.locator('#taskBar .task-btn:visible').count()) === 6;   // 6 tasks: 改一块 replaces 修瑕疵 / AI 填充 / 自定义修改
       const surface = () => p.evaluate(() => getComputedStyle(document.body).getPropertyValue('--ui-surface').trim());
       const darkSurface = await surface();
       await openMore(p); await op.click(p.locator('#themeToggle'), '浅色/深色');
@@ -1232,7 +1236,7 @@ async function main() {
       light.kept = await p.evaluate(() => document.body.classList.contains('light-mode'));
       await p.keyboard.press('Escape'); await openMore(p); await op.click(p.locator('#themeToggle'), '切回深色');
       light.back = await p.evaluate(() => document.body.classList.contains('dark-mode') && !document.documentElement.classList.contains('light-mode'));
-      return { pass: homeShown && afterImportHidden && tasks === 7 && proEntriesHidden && pro.gptOpen && pro.smartOpen && pro.tasksHidden && pro.toolsBack && layoutOk(lay1440) && layoutOk(lay1280) && menuOpen && menuEsc && proAfterReload && backToBeginner && light.cls && light.changed && light.kept && light.back && !errors.length,
+      return { pass: homeShown && afterImportHidden && tasks === 6 && proEntriesHidden && pro.gptOpen && pro.smartOpen && pro.tasksHidden && pro.toolsBack && layoutOk(lay1440) && layoutOk(lay1280) && menuOpen && menuEsc && proAfterReload && backToBeginner && light.cls && light.changed && light.kept && light.back && !errors.length,
         detail: { lay1440, lay1280, menuOpen, menuEsc, homeShown, afterImportHidden, tasks, proEntriesHidden, pro, proAfterReload, backToBeginner, light, errors } };
     } finally { await ctx.close(); }
   });
@@ -1382,12 +1386,12 @@ async function main() {
         const o = canvas.getObjects();
         return { panels: o.filter(x => x.isPanel && x.type === 'polygon').length, images: o.filter(x => x.type === 'image').length,
           clipped: o.filter(x => x.type === 'image' && x.clipPath).length, texts: o.filter(x => x.type === 'textbox').map(x => x.text),
-          bubbles: o.filter(x => x.type === 'ellipse').length, thumbs: document.querySelectorAll('#btm-image-container .btm-image').length };
+          bubbles: o.filter(x => x.balloon && x.balloon.role === 'shape').length, thumbs: document.querySelectorAll('#btm-image-container .btm-image').length };
       });
       const calls = wizCalls.slice(before);
       await snap('wizard-page');
       // the text sits inside its bubble
-      const inside = await p.evaluate(() => canvas.getObjects().filter(x => x.type === 'textbox').every(t => { const e = canvas.getObjects().find(x => x.type === 'ellipse' && x.name === '对白气泡 ' + t.name.split(' ')[1]); const a = t.getBoundingRect(true), b = e.getBoundingRect(true); return a.left >= b.left && a.top >= b.top && a.left + a.width <= b.left + b.width && a.top + a.height <= b.top + b.height; }));
+      const inside = await p.evaluate(() => canvas.getObjects().filter(x => x.type === 'textbox').every(t => { const e = canvas.getObjects().find(x => x.balloon && x.balloon.role === 'shape' && t.balloon && x.balloon.id === t.balloon.id); const a = t.getBoundingRect(true), b = e.getBoundingRect(true); return a.left >= b.left && a.top >= b.top && a.left + a.width <= b.left + b.width && a.top + a.height <= b.top + b.height; }));
       await p.locator('#taskWizardClose').click();
       await p.evaluate(() => document.activeElement && document.activeElement.blur());
       await op.key('Control+z', '撤销');
@@ -1395,11 +1399,13 @@ async function main() {
       const afterUndo = await p.evaluate(() => canvas.getObjects().filter(x => x.type === 'image').length);
       // regression: when every frame failed the page holds only panel frames; its error says "用「自定义修改」重画那一格", so that wizard must open
       await p.evaluate(() => { canvas.getObjects().filter(x => x.type === 'image').forEach(x => canvas.remove(x)); const f = new fabric.Polygon([{ x: 60, y: 60 }, { x: 600, y: 60 }, { x: 600, y: 500 }, { x: 60, y: 500 }], { fill: 'transparent', stroke: '#000', strokeWidth: 3, isPanel: true }); canvas.add(f); canvas.renderAll(); });
-      await op.click(p.locator('#taskBtn-custom'), '自定义修改（重画失败格）');
-      await p.waitForTimeout(500);
-      const retry = await p.evaluate(() => ({ task: document.getElementById('mangaGptPanel').dataset.task, visible: !document.getElementById('mangaGptPanel').hidden && document.getElementById('mangaGptPrompt').getBoundingClientRect().height > 0 }));
+      const hint = await p.locator('#taskPageStatus').innerText().catch(() => '');
+      await op.click(p.locator('#taskBtn-fill'), '改一块（重画失败格）');
+      await p.locator('#aiFillCard').waitFor({ state: 'visible', timeout: 8000 });
+      await op.click(p.locator('[data-preset="free"]'), '自由修改');
+      const retry = { hint, task: (await p.locator('[data-preset="free"]').getAttribute('aria-checked')) === 'true' ? 'free' : '', visible: await p.locator('#aiFillPrompt').isVisible() };
       return { pass: /3 次/.test(cost) && /第 1 格还没写画面/.test(emptyMsg) && /整页完成/.test(status) && st.panels === 3 && st.images === 3 && st.clipped === 3 &&
-        st.bubbles === 2 && st.texts.join('|') === '今天也要加油！|再见啦，明天见！' && inside && st.thumbs >= 1 && calls.length === 3 && calls.every(c => c.op === 'generate' && /单幅画面/.test(c.prompt) && /不要再分格/.test(c.prompt)) && afterUndo === 0 && retry.task === 'custom' && retry.visible && !errors.length,
+        st.bubbles === 2 && st.texts.join('|') === '今天也要加油！|再见啦，明天见！' && inside && st.thumbs >= 1 && calls.length === 3 && calls.every(c => c.op === 'generate' && /单幅画面/.test(c.prompt) && /不要再分格/.test(c.prompt)) && afterUndo === 0 && retry.task === 'free' && retry.visible && !errors.length,
         detail: { retry, cost, emptyMsg, status, st, inside, calls: calls.map(c => c.op + ':' + c.prompt.slice(0, 30)), afterUndo, errors } };
     } finally { await ctx.close(); }
   });

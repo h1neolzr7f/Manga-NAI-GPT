@@ -535,6 +535,7 @@ if(typeof jumpToHistoryIndex==='function')jumpToHistoryIndex(index);
 function renderHistory(){
 var box=$('naiHistoryList');
 if(!box)return;
+if(window.CommandHistory){window.CommandHistory.render(box);return;}
 box.innerHTML='';
 if(typeof stateStack==='undefined'){
 box.textContent='还没有历史。';

@@ -44,4 +44,12 @@ assert.equal(api.normalizeExportDpi(10),96,'範囲外の正数は下限へ丸め
 assert.equal(api.resolveExportDpi(-5),300,'resolveExportDpi の既定は据え置き');
 assert.equal(api.resolveExportDpi(undefined),300);
 
+// imported pictures are pixels, never millimetres; aspect kept
+{
+  const f = api.resolveImagePageSize;
+  const a = f(400, 300); if (a.height !== 512 || Math.abs(a.width / a.height - 4 / 3) > 0.01) throw new Error('small image: ' + JSON.stringify(a));
+  const b = f(5000, 7000); if (b.height !== 4096 || Math.abs(b.width / b.height - 5 / 7) > 0.01) throw new Error('big image: ' + JSON.stringify(b));
+  const c = f(1654, 2339); if (c.width !== 1654 || c.height !== 2339 || c.scale !== 1) throw new Error('normal image unchanged');
+  const d = f(300, 9000); if (d.height !== 4096 || d.width < 100) throw new Error('very thin: ' + JSON.stringify(d));
+}
 console.log('manga page size smoke test passed');

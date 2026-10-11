@@ -1159,7 +1159,14 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
 if __name__ == '__main__':
     ensure_user_data_dirs()
-    PORT = 8000
+    # MNAI_PORT lets two copies (e.g. v1 and 2.0) run side by side; loopback-only bind is unchanged
+    try:
+        PORT = int(os.environ.get('MNAI_PORT') or 8000)
+        if not 1024 <= PORT <= 65535:
+            raise ValueError
+    except ValueError:
+        print('[ERROR] MNAI_PORT 必须是 1024–65535 之间的端口号 / MNAI_PORT must be a port number 1024-65535')
+        sys.exit(2)
     ADDRESS = (os.environ.get('NAI_BIND') or '127.0.0.1').strip() or '127.0.0.1'
     try:
         httpd_instance = ThreadedTCPServer((ADDRESS, PORT), CORSRequestHandler)

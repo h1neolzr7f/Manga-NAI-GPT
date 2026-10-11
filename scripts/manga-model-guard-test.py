@@ -120,12 +120,12 @@ class HttpTest(unittest.TestCase):
         cls.httpd.server_close()
 
     def post(self, path, body):
-        # gpt_image_proxy._authorized_local_request pins the editor to port 8000 Host/Origin.
+        # gpt_image_proxy._authorized_local_request pins the editor to the served port (MNAI_PORT, default 8000) Host/Origin.
         conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=20)
         data = json.dumps(body).encode()
         try:
             conn.request("POST", path, body=data, headers={
-                "Host": "127.0.0.1:8000", "Origin": "http://127.0.0.1:8000", "Sec-Fetch-Site": "same-origin",
+                "Host": "127.0.0.1:%d" % self.port, "Origin": "http://127.0.0.1:%d" % self.port, "Sec-Fetch-Site": "same-origin",
                 "Content-Type": "application/json", "Content-Length": str(len(data))})
             resp = conn.getresponse()
             return resp.status, json.loads(resp.read() or b"{}")

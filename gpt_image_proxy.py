@@ -364,7 +364,9 @@ def _authorized_local_request(handler):
     try:
         peer = ipaddress.ip_address(handler.client_address[0])
         host = handler.headers.get("Host", "")
-        local_hosts = ("localhost:8000", "127.0.0.1:8000", "[::1]:8000")
+        # the port the editor is actually served on (MNAI_PORT, default 8000), so two copies can run side by side
+        port = int(getattr(getattr(handler, "server", None), "server_address", ("", 8000))[1])
+        local_hosts = tuple(h + ":" + str(port) for h in ("localhost", "127.0.0.1", "[::1]"))
         if not peer.is_loopback or host.lower() not in local_hosts:
             return False
         origin = handler.headers.get("Origin", "")

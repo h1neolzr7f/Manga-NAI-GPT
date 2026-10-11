@@ -32,6 +32,7 @@ Python 运行依赖（pip 安装，不打包）：PyTorch CPU（BSD-3）、onnxr
 | Fabric.js（含 eraser 构建） | 5.3.0 / 5.2.1 | MIT | https://github.com/fabricjs/fabric.js |
 | Bootstrap | 5.2.3 | MIT | https://github.com/twbs/bootstrap |
 | i18next | — | MIT | https://github.com/i18next/i18next |
+| ag-psd（PSD 读写，首次使用时才加载；`js/ui/third/ag-psd/`，附 LICENSE） | 31.0.3（本项目小改：可写灰度 Grayscale 文档，见文件内 “Manga-NAI-GPT patch”） | MIT | https://github.com/Agamnentzar/ag-psd |
 | Tippy.js + Popper | 6.x / 2.11.8 | MIT | https://github.com/atomiks/tippyjs |
 | JSZip | 3.7.1 | MIT 或 GPL-3.0（双许可，选 MIT） | https://github.com/Stuk/jszip |
 | localForage | 1.10.0 | Apache-2.0 | https://github.com/localForage/localForage |
@@ -74,6 +75,7 @@ Python 运行依赖（pip 安装，不打包）：PyTorch CPU（BSD-3）、onnxr
 - fabric-brush：项目原有笔刷实现，自定义印章笔沿用其 dab/spacing 思路。
 - perfect-freehand：仅参考起收笔与平滑的公开算法思路，未复制其源码。
 - Image2：当前默认不调用，也没有将生成结果加入仓库。
+- 2.0 设计参考（仅思路，未复制代码）：PhotoCraft（命令层 + 历史，https://github.com/storytold/photocraft）、Graphite（非破坏编辑，Apache-2.0）、miniPaint（MIT）、Krita AI Diffusion（GPL-3.0，仅参考交互）、Magiv2（角色库思路，arXiv:2408.00298）。
 
 ## Windows 安装器内置运行时
 

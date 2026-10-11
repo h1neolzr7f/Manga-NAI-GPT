@@ -1,12 +1,13 @@
 name: Windows offline checks
 
-# Static Windows readiness: unit tests + launcher syntax/encoding on windows-latest.
+# Launcher CRLF/BOM checks + real 一键启动.bat smoke (path with spaces/Chinese, GPT guard, MNAI_PORT).
 # Not a substitute for a real Windows run (no GUI, no local AI models, no real double-click).
 on:
   pull_request:
   push:
     branches:
       - "main"
+      - "dev/**"
   workflow_dispatch:
 
 permissions:
@@ -34,7 +35,7 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check "Pillow>=11,<13"
           python -m py_compile 99_server.py gpt_image_proxy.py manga_smart_ocr.py manga_model_guard.py manga_character_detect.py manga_sam_select.py manga_text_detector.py manga_lama_inpaint.py manga_ocr_refiner.py manga_ocr_preclean.py manga_bubble_ocr.py prompt_helper_images.py
-          $tests = @('manga-smart-ocr-test.py','manga-ocr-refiner-test.py','manga-lama-inpaint-test.py','manga-lama-pixel-test.py','manga-ocr-preclean-test.py','manga-bubble-ocr-test.py','manga-model-guard-test.py','manga-text-detector-test.py','manga-sam-select-test.py','manga-character-detect-test.py','gpt-image-proxy-smoke-test.py','prompt-helper-images-test.py')
+          $tests = @('manga-smart-ocr-test.py','manga-ocr-refiner-test.py','manga-lama-inpaint-test.py','manga-lama-pixel-test.py','manga-ocr-preclean-test.py','manga-bubble-ocr-test.py','manga-model-guard-test.py','manga-text-detector-test.py','manga-sam-select-test.py','manga-character-detect-test.py','character-library-test.py','gpt-image-proxy-smoke-test.py','prompt-helper-images-test.py')
           foreach ($t in $tests) { Write-Host "== $t"; python "scripts/$t"; if ($LASTEXITCODE -ne 0) { throw "$t failed" } }
       - name: Launchers parse (PowerShell) and ship as CRLF + BOM in the ZIP download
         shell: pwsh
@@ -52,3 +53,127 @@ jobs:
             if ($f.Extension -eq '.ps1' -and -not ($b[0] -eq 0xEF -and $b[1] -eq 0xBB -and $b[2] -eq 0xBF)) { throw "$($f.Name): .ps1 without UTF-8 BOM (Windows PowerShell 5.1 would misread Chinese text)" }
             Write-Host "ok $($f.Name) ($crlf CRLF)"
           }
+
+  # Real start on windows-latest: 一键启动.bat must bring up the server from a path
+  # with spaces + Chinese characters; GPT proxy same-origin guard must answer.
+  windows-start:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 安装AI功能.bat -DryRun (no downloads)
+        shell: cmd
+        env:
+          MNAI_NO_PAUSE: "1"
+        run: |
+          call "安装AI功能.bat" -DryRun
+          if errorlevel 1 exit /b 1
+      - name: 一键启动.bat from path with spaces + Chinese (Ci)
+        shell: pwsh
+        env:
+          MNAI_NO_PAUSE: "1"
+          MNAI_CI: "1"
+          NAI_QUIET: "1"
+        run: |
+          $ErrorActionPreference = "Stop"
+          $link = Join-Path $env:RUNNER_TEMP "Manga NAI 测试"
+          if (Test-Path -LiteralPath $link) { cmd /c "rmdir `"$link`"" }
+          cmd /c "mklink /J `"$link`" `"$pwd`""
+          if ($LASTEXITCODE -ne 0) { throw "mklink failed" }
+          Set-Location -LiteralPath $link
+          $bat = Join-Path $link "一键启动.bat"
+          if (-not (Test-Path -LiteralPath $bat)) { throw "missing $bat" }
+          $out = Join-Path $env:RUNNER_TEMP "mnai-start.out.txt"
+          $err = Join-Path $env:RUNNER_TEMP "mnai-start.err.txt"
+          Remove-Item $out, $err -ErrorAction SilentlyContinue
+          # -Ci => no browser, no pause; prints MNAI_READY then keeps the server alive
+          $proc = Start-Process -FilePath $bat -ArgumentList "-Ci" -WorkingDirectory $link -PassThru -NoNewWindow `
+            -RedirectStandardOutput $out -RedirectStandardError $err
+          $ready = $false
+          for ($i = 0; $i -lt 60; $i++) {
+            Start-Sleep -Seconds 2
+            if (Test-Path -LiteralPath $out) {
+              $t = Get-Content -LiteralPath $out -Raw -ErrorAction SilentlyContinue
+              if ($t -match "MNAI_READY") { $ready = $true; Write-Host $t; break }
+            }
+            try {
+              $r = Invoke-WebRequest -Uri "http://127.0.0.1:8000/index.html" -UseBasicParsing -TimeoutSec 3
+              if ($r.StatusCode -eq 200 -and $r.Content -match "Manga") { $ready = $true; Write-Host "HTTP ready (no token yet)"; break }
+            } catch {}
+            if ($proc.HasExited) { break }
+          }
+          if (-not $ready) {
+            Write-Host "=== stdout ==="; if (Test-Path $out) { Get-Content $out }
+            Write-Host "=== stderr ==="; if (Test-Path $err) { Get-Content $err }
+            Write-Host "=== start.log ==="; $log = Join-Path $link "user_data\start.log"; if (Test-Path $log) { Get-Content $log }
+            try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue; taskkill /PID $proc.Id /T /F | Out-Null } catch {}
+            throw "server not ready within 120s"
+          }
+          $page = Invoke-WebRequest -Uri "http://127.0.0.1:8000/index.html" -UseBasicParsing -TimeoutSec 10
+          if ($page.StatusCode -ne 200) { throw "index.html status $($page.StatusCode)" }
+          if ($page.Content -notmatch "Manga-NAI-GPT|manga-editor|nai学长") { throw "index.html unexpected body" }
+          # GPT proxy same-origin guard (must accept the page origin on this port)
+          $body = '{"operation":"config"}'
+          $headers = @{
+            "Host" = "127.0.0.1:8000"
+            "Origin" = "http://127.0.0.1:8000"
+            "Sec-Fetch-Site" = "same-origin"
+            "Content-Type" = "application/json"
+          }
+          $cfg = Invoke-WebRequest -Uri "http://127.0.0.1:8000/gpt-image-proxy" -Method POST -Headers $headers -Body $body -UseBasicParsing -TimeoutSec 10
+          Write-Host "gpt-image-proxy:" $cfg.Content
+          if ($cfg.Content -notmatch '"ok"\s*:\s*true') { throw "proxy config not ok: $($cfg.Content)" }
+          # foreign origin must be rejected
+          try {
+            $bad = Invoke-WebRequest -Uri "http://127.0.0.1:8000/gpt-image-proxy" -Method POST -Headers @{
+              "Host"="127.0.0.1:8000"; "Origin"="http://127.0.0.1:9999"; "Sec-Fetch-Site"="same-origin"; "Content-Type"="application/json"
+            } -Body $body -UseBasicParsing -TimeoutSec 10
+            if ($bad.Content -match '"ok"\s*:\s*true') { throw "foreign origin was accepted" }
+          } catch {
+            if ($_.Exception.Response -and [int]$_.Exception.Response.StatusCode -ge 400) {
+              Write-Host "foreign origin rejected as expected:" ([int]$_.Exception.Response.StatusCode)
+            } elseif ($_.ErrorDetails.Message -match 'Only the local|same origin') {
+              Write-Host "foreign origin rejected as expected (body)"
+            } else { throw }
+          }
+          Write-Host "PASS 一键启动 from Chinese+spaces path"
+          taskkill /PID $proc.Id /T /F 2>$null | Out-Null
+          Start-Sleep -Seconds 2
+      - name: MNAI_PORT alternate port via launcher
+        shell: pwsh
+        env:
+          MNAI_NO_PAUSE: "1"
+          MNAI_CI: "1"
+          MNAI_PORT: "8012"
+          NAI_QUIET: "1"
+        run: |
+          $ErrorActionPreference = "Stop"
+          $out = Join-Path $env:RUNNER_TEMP "mnai-8012.out.txt"
+          $err = Join-Path $env:RUNNER_TEMP "mnai-8012.err.txt"
+          Remove-Item $out, $err -ErrorAction SilentlyContinue
+          $bat = Join-Path $pwd "一键启动.bat"
+          $proc = Start-Process -FilePath $bat -ArgumentList "-Ci" -WorkingDirectory $pwd -PassThru -NoNewWindow `
+            -RedirectStandardOutput $out -RedirectStandardError $err
+          $ready = $false
+          for ($i = 0; $i -lt 45; $i++) {
+            Start-Sleep -Seconds 2
+            try {
+              $r = Invoke-WebRequest -Uri "http://127.0.0.1:8012/index.html" -UseBasicParsing -TimeoutSec 3
+              if ($r.StatusCode -eq 200) { $ready = $true; break }
+            } catch {}
+            if ($proc.HasExited) { break }
+          }
+          if (-not $ready) {
+            if (Test-Path $out) { Get-Content $out }
+            if (Test-Path $err) { Get-Content $err }
+            taskkill /PID $proc.Id /T /F 2>$null | Out-Null
+            throw "port 8012 not ready"
+          }
+          $headers = @{ "Host"="127.0.0.1:8012"; "Origin"="http://127.0.0.1:8012"; "Sec-Fetch-Site"="same-origin"; "Content-Type"="application/json" }
+          $cfg = Invoke-WebRequest -Uri "http://127.0.0.1:8012/gpt-image-proxy" -Method POST -Headers $headers -Body '{"operation":"config"}' -UseBasicParsing
+          if ($cfg.Content -notmatch '"ok"\s*:\s*true') { throw "8012 proxy not ok" }
+          Write-Host "PASS MNAI_PORT=8012"
+          taskkill /PID $proc.Id /T /F 2>$null | Out-Null

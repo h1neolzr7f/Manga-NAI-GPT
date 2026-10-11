@@ -277,6 +277,27 @@ def faces(rgb, session, size=640):
     return res
 
 
+_face_cache = {}
+
+
+def face_boxes(payload):
+    """Anime face boxes only (fast, ~0.2 s CPU), for balloon placement. Never asks to download: without the
+    optional character models it answers available=False and the client avoids busy artwork only."""
+    if not (runtime_available() and extra_cached()):
+        return {"ok": True, "available": False, "faces": []}
+    import numpy as np
+    from PIL import Image
+    raw, _w, _h = read_image(payload.get("image"))
+    key = hashlib.sha1(raw).hexdigest()
+    if key not in _face_cache:
+        rgb = np.array(Image.open(io.BytesIO(raw)).convert("RGB"))
+        _face_cache[key] = {"ok": True, "available": True, "width": int(rgb.shape[1]), "height": int(rgb.shape[0]),
+                            "faces": faces(rgb, _get_extra(False)["face"])}
+        while len(_face_cache) > 8:
+            _face_cache.pop(next(iter(_face_cache)))
+    return _face_cache[key]
+
+
 def ccip_embed(rgb, mask, box, session):
     """CCIP feature of one character: its box crop with everything outside the mask painted white."""
     import cv2

@@ -21,4 +21,16 @@ assert.throws(()=>lib.normalize({...card,references:[png,png,png,png]}),/3 张/)
 assert.throws(()=>lib.fromDocument({...lib.toDocument([card]),characters:[card,card]}),/重复 ID/);
 assert.throws(()=>lib.fromDocument({schemaVersion:987,characters:[card]}),/不受支持/);
 assert.throws(()=>lib.toDocument(Array(25).fill(card)),/超过上限/);
+// 2.0 identity block: optional, validated, survives export/import, feeds the prompt
+const feat='A'.repeat(4096);
+const withId=lib.normalize({...card,identity:{features:[feat,'short','!'.repeat(4096)],palette:[{rgb:'#FF0000',share:0.6,lab:[53,80,67]},{rgb:'red',share:1,lab:[1,2,3]}],tags:'双马尾'}});
+assert.equal(withId.identity.features.length,1);
+assert.equal(withId.identity.palette.length,1);
+assert.equal(withId.identity.palette[0].rgb,'#ff0000');
+assert.equal(lib.fromDocument(lib.toDocument([withId]))[0].identity.features[0],feat);
+assert(lib.withCharacterPrompt('',withId).includes('双马尾'));
+assert(lib.withCharacterPrompt('',withId).includes('#ff0000'));
+assert.equal(lib.normalize({...card,identity:{features:Array(12).fill(feat)}}).identity.features.length,lib.MAX_FEATURES);
+assert(!('identity' in lib.normalize(card)));
+assert.throws(()=>lib.normalize({...card,identity:[feat]}),/身份数据无效/);
 console.log('PASS character bible schema, local reference filters, import/export and constrained prompts');

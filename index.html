@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="zh" class="dark-mode">
-<!-- Manga Editor Desu · nai学长魔改版 1.0.3 — unofficial modified build (GPL-3.0). Upstream: https://github.com/new-sankaku/manga-editor-desu -->
+<!-- Manga-NAI-GPT 1.5.0 — unofficial fork of Manga Editor Desu (GPL-3.0). Upstream: https://github.com/new-sankaku/manga-editor-desu -->
 <!-- ========== Head ========== -->
 <head>
-    <title>Manga Editor Desu · nai学长魔改版 1.0.3</title>
+    <title>Manga-NAI-GPT 1.5</title>
 
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#121111">
@@ -11,10 +11,10 @@
     <link rel="icon" href="03_images/icon/icon_full_192_192.png">
     <link rel="shortcut icon" href="03_images/icon/icon_full_192_192.png">
 
-    <meta property="og:title" content="Manga Editor Desu · nai学长魔改版" />
+    <meta property="og:title" content="Manga-NAI-GPT 1.5" />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="03_images/PagePreview/Git/Preview.png" />
-    <meta property="og:description" content="Manga Editor Desu · nai学长魔改版：致敬原作的非官方 NovelAI 一键包。" />
+    <meta property="og:description" content="Manga-NAI-GPT 1.5：新手任务卡 + 本机 AI + GPT/NovelAI 漫画编辑器（非官方分支）。" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta property="og:site_name" content="Manga Editor Desu" />
     <meta property="og:locale" content="en_US" />
@@ -29,12 +29,12 @@
     <meta property="og:locale:alternate" content="de_DE" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Manga Editor Desu · nai学长魔改版" />
+    <meta property="og:image:alt" content="Manga-NAI-GPT 1.5" />
     <meta charset="UTF-8">
     <meta name="description"
-        content="Manga Editor Desu · nai学长魔改版：基于原作的非官方修改，本地漫画编辑 + NovelAI 出图。与上游无附属关系。">
+        content="Manga-NAI-GPT 1.5：基于 Manga Editor Desu 的非官方分支。本地漫画编辑 + 本机 AI + GPT/NovelAI。与上游无附属关系。">
     <meta name="keywords"
-        content="Manga Editor Desu, nai学长魔改版, NovelAI, manga-editor-desu fork, comic panels">
+        content="Manga-NAI-GPT, Manga Editor Desu, NovelAI, manga editor, comic panels">
     <!-- Google Analytics removed for offline use -->
     <!-- System CJK faces only. Do not alias missing Google fonts to YaHei. -->
     <style>
@@ -202,15 +202,15 @@ const b = `<svg viewBox="0 0 100 100" width="100%" height="100%" style="position
 <body>
 
     <div itemscope itemtype="http://schema.org/SoftwareApplication">
-        <meta itemprop="name" content="Manga Editor Desu · nai学长魔改版">
+        <meta itemprop="name" content="Manga-NAI-GPT 1.5">
         <meta itemprop="description"
-            content="Manga Editor Desu unofficial fork · nai学长魔改版，NovelAI 出图。">
+            content="Manga-NAI-GPT 1.5 — unofficial Manga Editor Desu fork with local AI + GPT/NovelAI.">
         <meta itemprop="applicationCategory" content="Multimedia">
 
 
 <!-- ========== Navbar ========== -->
         <nav id="desu-nav" class="navbar navbar-expand custom-navbar" style="display: none;">
-<span class="navbar-logo-text" id="navbar-logo">DESU<br><span class="navbar-logo-ver">nai学长魔改</span></span>
+<span class="navbar-logo-text" id="navbar-logo">DESU<br><span class="navbar-logo-ver">nai学长魔改 · 1.5</span></span>
             <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavDropdown"
                 aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
@@ -2479,7 +2479,7 @@ const b = `<svg viewBox="0 0 100 100" width="100%" height="100%" style="position
     <link rel="stylesheet" href="css/ui/tutorial.css?v=7.3" media="print" onload="this.media='all'">
     <link rel="stylesheet" href="css/styles-css.css?v=7.5">
     <link rel="stylesheet" href="css/ui-theme.css?v=1.0.1.1.1.1.1">
-    <link rel="stylesheet" href="css/task-launcher.css?v=2.1.1.4.1">
+    <link rel="stylesheet" href="css/task-launcher.css?v=m1">
 
 <!-- ========== Third-party Scripts ========== -->
     <script src="third/lz4/wasm.js"></script>
@@ -2513,7 +2513,7 @@ const b = `<svg viewBox="0 0 100 100" width="100%" height="100%" style="position
     <script src="js/sidebar/pen/fabric/brushes/stroke.js?v=7.2"></script>
     <script src="js/core/manga-page-size.js?v=1.3" defer></script>
     <script src="js/core/util/png-bit-depth.js?v=1.0" defer></script>
-    <script src="js/core/settings.js?v=9.1" defer></script>
+    <script src="js/core/settings.js?v=bl1" defer></script>
     <script src="js/core/debug.js?v=7.3" defer></script>
     <script src="js/core/logger.js?v=7.5" defer></script>
     <script src="js/ui/util/focus-trap.js?v=7.2" defer></script>
@@ -2524,7 +2524,7 @@ const b = `<svg viewBox="0 0 100 100" width="100%" height="100%" style="position
     <script src="js/ui/tutorial.js?v=8.3" defer></script>
     <script src="js/ui/beginner-guide.js?v=2.4" defer></script>
     <script src="js/ui/visual-studio.js?v=1.6.1" defer></script>
-    <script src="js/ui/visual-ps-tools.js?v=1.3" defer></script>
+    <script src="js/ui/visual-ps-tools.js?v=h21.3" defer></script>
     <script src="js/ui/toast.js?v=7.4" defer></script>
     <script src="js/ui/util/ui-util.js?v=7.3" defer></script>
     <script src="js/ui/util/event-delegator.js?v=7.6" defer></script>
@@ -2550,7 +2550,7 @@ const b = `<svg viewBox="0 0 100 100" width="100%" height="100%" style="position
 
     <script src="js/core/util/load-util.js?v=7.3" defer></script>
     <script src="js/core/util/js-util.js?v=7.2" defer></script>
-    <script src="js/core/util/fabric-util.js?v=8.10" defer></script>
+    <script src="js/core/util/fabric-util.js?v=im2" defer></script>
     <script src="js/core/util/fabric-text-focus.js?v=1.0"></script>
     <script src="js/core/util/html-canvas-util.js?v=7.2" defer></script>
     <script src="js/core/util/image-util.js?v=7.11" defer></script>
@@ -3059,27 +3059,36 @@ setAutoSizeingControlMini();
   <div id="simStudioStatus" class="simulator-chat-status">点一种界面，进入对应模拟器。</div>
 </div>
 
-    <script src="js/ai/gpt-region-editor.js?v=1.14.1.1.1.1.1.1.1.1" defer></script>
+    <script src="js/ai/gpt-region-editor.js?v=1.15" defer></script>
     <script src="js/ai/manga-model-request.js?v=1.1.1.1" defer></script>
     <script src="js/ai/manga-smart-text-core.js?v=1.4" defer></script>
-    <script src="js/ai/manga-smart-text-editor.js?v=1.8.1" defer></script>
+    <script src="js/ai/manga-smart-text-editor.js?v=1.8.2" defer></script>
     <script src="js/ai/manga-text-ink-mask.js?v=1.1" defer></script>
     <script src="js/ai/manga-lama-inpaint-ui.js?v=1.1.1" defer></script>
-    <script src="js/ai/sam-click-select.js?v=1.1" defer></script>
+    <script src="js/ai/sam-click-select.js?v=2.0" defer></script>
     <script src="js/ai/auto-swap.js?v=1.8.1.1" defer></script>
     <script src="js/ai/manga-page-structure.js?v=1.1" defer></script>
     <script src="js/ai/manga-bubble-detector.js?v=1.0" defer></script>
     <script src="js/ai/manga-page-structure-ui.js?v=1.1" defer></script>
     <script src="js/ai/manga-edit-planner.js?v=1.0" defer></script>
     <script src="js/ai/manga-edit-planner-ui.js?v=1.0" defer></script>
-    <script src="js/ai/manga-character-bible-core.js?v=1.0" defer></script>
-    <script src="js/ai/manga-character-bible-ui.js?v=1.0" defer></script>
+    <script src="js/ai/manga-character-bible-core.js?v=2.0" defer></script>
+    <script src="js/ai/manga-character-bible-ui.js?v=2.0" defer></script>
     <script src="js/core/service/service-request.js?v=1.1" defer></script>
     <script src="js/ui/service-settings.js?v=1.2.1" defer></script>
     <script src="js/ui/util/cjk-break.js?v=1.0" defer></script>
-    <script src="js/ui/task-launcher.js?v=2.0.1.1.3.1.1.1" defer></script>
+    <script src="js/ui/task-launcher.js?v=m1" defer></script>
     <script src="js/ui/file-pick.js?v=3" defer></script>
     <script src="js/ai/panel-auto.js?v=3" defer></script>
+    <script src="js/ai/character-library.js?v=3" defer></script>
+    <script src="js/ai/ai-fill-core.js?v=m1" defer></script>
+    <script src="js/ai/ai-fill.js?v=m1" defer></script>
+    <script src="js/ui/psd-io.js?v=4" defer></script>
+    <script src="js/core/history-labels.js?v=1" defer></script>
+    <script src="js/core/command-history.js?v=2" defer></script>
+    <script src="js/ai/balloon-layout-core.js?v=2" defer></script>
+    <script src="js/ai/balloon-layout.js?v=5" defer></script>
+    <script src="js/ai/script-page-core.js?v=1" defer></script>
 </body>
 
 </html>

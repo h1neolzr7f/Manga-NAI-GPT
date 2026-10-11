@@ -1,0 +1,37 @@
+'use strict';
+const assert = require('assert');
+require('../js/ai/ai-fill-core.js');
+const F = globalThis.AiFillCore;
+const W = 100, H = 80, m = new Uint8Array(W * H);
+assert.equal(F.maskBox(m, W, H), null);
+for (let y = 20; y < 30; y++) for (let x = 40; x < 55; x++) m[y * W + x] = 255;
+assert.deepEqual(F.maskBox(m, W, H), [40, 20, 55, 30]);
+const c = F.contextBox([40, 20, 55, 30], W, H, 0.6, 50);
+assert(c.x <= 40 && c.y <= 20 && c.x + c.w >= 55 && c.y + c.h >= 30 && c.x >= 0 && c.y >= 0 && c.x + c.w <= W && c.y + c.h <= H, 'context contains mask, inside page');
+const edge = F.contextBox([90, 70, 100, 80], W, H, 0.6, 50);
+assert.equal(edge.x + edge.w, W); assert.equal(edge.y + edge.h, H);
+const big = F.contextBox([0, 0, 100, 80], W, H, 0.6, 50);
+assert.deepEqual(big, { x: 0, y: 0, w: 100, h: 80 });
+// soft mask: 1 inside, falls off outside, 0 far away, monotone along a row
+const s = F.softMask(m, W, H, 3, 8);
+assert.equal(s[25 * W + 45], 1);
+assert(s[25 * W + 57] > 0 && s[25 * W + 57] < 1, 'feathered just outside');
+assert.equal(s[25 * W + 90], 0);
+for (let x = 55; x < 75; x++) assert(s[25 * W + x] >= s[25 * W + x + 1] - 1e-6, 'monotone falloff');
+assert.deepEqual(F.softMask(m, W, H, 0, 0).slice(0, 10), new Float32Array(10));
+const p = F.prompt('把雨伞改成红色', true);
+assert(p.includes('把雨伞改成红色') && p.includes('蒙版') && p.includes('不要改动区域外'));
+assert(F.prompt('', false).includes('去掉'));
+const png = 'data:image/png;base64,AAAA';
+assert.equal(F.normalizeMeta({ box: [1, 2, 3, 4], mask: png }), null, 'source required');
+const meta = F.normalizeMeta({ engine: 'x', prompt: 'p', box: [1.2, 2, 3, 4], mask: png, source: png, candidates: [png, 'javascript:1', png, png, png, png], chosen: 9 });
+assert.equal(meta.engine, 'gpt'); assert.deepEqual(meta.box, [1, 2, 3, 4]); assert.equal(meta.candidates.length, 4); assert.equal(meta.chosen, 3);
+// panel border protection
+const clip = F.panelClip([{ x: 0, y: 0, w: 50, h: 80 }, { x: 52, y: 0, w: 48, h: 80 }], { x: 30, y: 10, w: 40, h: 40 }, 1000);
+assert.equal(clip.length, 2); assert.deepEqual(clip[0], [-25, -5, 40, 70]);
+const al = new Float32Array(40 * 40).fill(1); F.applyClip(al, 40, 40, clip);
+assert.equal(al[20 * 40 + 5], 1, 'inside left panel'); assert.equal(al[20 * 40 + 20], 0, 'gutter/frame protected'); assert.equal(al[20 * 40 + 35], 1, 'inside right panel');
+assert(al[20 * 40 + 14] > 0 && al[20 * 40 + 14] < 1, 'soft 2px edge');
+assert.deepEqual(F.applyClip(new Float32Array(4).fill(1), 2, 2, []), new Float32Array(4).fill(1), 'no panels = no clip');
+assert.equal(F.normalizeMeta({ box: [0, 0, 1, 1], mask: png, source: png, clip: [[1, 2, 3, 4], 'x', [1]] }).clip.length, 1);
+console.log('PASS ai-fill core: mask box, context crop, soft mask, prompt, metadata');

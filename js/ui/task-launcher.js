@@ -33,12 +33,14 @@ manualSteps:['在画布上拖一个框，框住要换的人物','上传新角色
 placeholder:'补充要求（可不填），例如：表情改成微笑',preset:GPT_PRESETS.swap},
 {id:'caption',icon:'translate',title:'改字幕',desc:'识别气泡里的字，改成新台词',kind:'caption',
 steps:['自动识别本页文字（打开就开始；识别不到可点「手动框选字幕」）','在每条下面改成新台词','点「应用为可编辑图层」，旧字会自动盖掉']},
-{id:'fix',icon:'healing',title:'修瑕疵 / 去杂物',desc:'框住不想要的东西，AI 补好背景',kind:'gpt',
+{id:'fix',hidden:true,icon:'healing',title:'修瑕疵（框选 · GPT 预览）',desc:'框住不想要的东西，GPT 补好背景（旧版向导，「改一块」已包含）',kind:'gpt',
 steps:['在画布上拖一个框，框住要去掉的东西','点「生成预览」，可用「对比原图」看前后','满意就点「作为新图层应用」'],
 placeholder:'补充说明（可不填），例如：去掉右下角的水印',preset:GPT_PRESETS.fix},
+{id:'fill',icon:'format_paint',title:'改一块',desc:'涂出一块：去掉杂物、换成别的，或自由修改',kind:'aifill',
+steps:['用笔刷涂出要改的地方（也可框选或智能点选）','选「去掉杂物」（本机，免费）、「换成…」或「自由修改」，后两种写一句话','点生成，挑一张满意的点「用这张」：会变成可再改、可还原的图层']},
 {id:'layer',icon:'layers',title:'分层',desc:'把人物或物体抠成独立图层',kind:'layer',
 steps:['点「开始框选」，在画布上框住要分出来的人物或物体','自动抠图并放到新图层（原图不变，可撤销）']},
-{id:'custom',icon:'auto_fix_high',title:'自定义修改',desc:'框一块区域，用一句话描述怎么改',kind:'gpt',
+{id:'custom',hidden:true,icon:'auto_fix_high',title:'自定义修改（框选 · 可加参考图）',desc:'框一块区域，用一句话描述怎么改，可加参考图（旧版向导）',kind:'gpt',
 steps:['在画布上拖一个框，框住要改的地方','写一句想怎么改（可加参考图）','点「生成预览」，满意就应用'],
 placeholder:'想怎么改？例如：把天空改成黄昏',preset:''},
 {id:'nai',icon:'brush',title:'AI 生图',desc:'用 NovelAI 从文字生成新画面',kind:'nai',
@@ -72,6 +74,7 @@ if(!header||$('taskBar'))return;
 var bar=el('div',{id:'taskBar',class:'task-bar',role:'toolbar','aria-label':'新手任务'});
 var tasks=el('div',{class:'task-group task-group-tasks'});
 TASKS.forEach(function(t){
+if(t.hidden)return;   // folded into 改一块; still reachable via Ctrl+K and 专业模式
 var b=el('button',{type:'button',class:'ui-btn task-btn','data-task':t.id,id:'taskBtn-'+t.id,title:t.desc},'<i class="material-icons" aria-hidden="true">'+t.icon+'</i>'+t.title);
 b.addEventListener('click',function(){start(t.id);});
 tasks.appendChild(b);
@@ -91,16 +94,26 @@ var moreWrap=el('div',{class:'task-more-wrap'});
 var more=el('button',{type:'button',class:'ui-btn ui-btn-ghost task-quick task-icon-only',id:'taskMore',title:'更多：服务设置、浅色/深色、专业模式…','aria-label':'更多','aria-haspopup':'menu','aria-expanded':'false'},'<i class="material-icons" aria-hidden="true">more_horiz</i>');
 var menu=el('div',{id:'taskMoreMenu',class:'ui-card task-more-menu',role:'menu',hidden:''});
 function item(id,icon,text,fn){var b=el('button',{type:'button',class:'task-menu-item',role:'menuitem',id:id},'<i class="material-icons" aria-hidden="true">'+icon+'</i><span>'+text+'</span>');b.addEventListener('click',function(){closeMenu();fn();});menu.appendChild(b);return b;}
-item('taskServiceSettings','settings','服务设置（GPT / NovelAI / 本机）',function(){if(window.ServiceSettings)ServiceSettings.open('gpt');});
-item('themeToggle','contrast','浅色 / 深色界面',function(){var box=$('mode-toggle');if(!box)return;box.checked=!box.checked;box.dispatchEvent(new Event('change'));});
+// grouped: (找功能 / 历史 are inserted on top by the command layer) | file | services & characters | view
+function sep(){menu.appendChild(el('div',{class:'task-menu-sep',role:'separator'}));}
+sep();
 item('taskOpenProject','folder_open','打开项目 (Ctrl+O)',function(){var l=$('projectLoad');if(l)l.click();});
+sep();
+item('taskServiceSettings','settings','服务设置（GPT / NovelAI / 本机）',function(){if(window.ServiceSettings)ServiceSettings.open('gpt');});
+item('taskCharacters','face','角色库 · 认出本页人物',function(){if(window.CharacterLibrary)CharacterLibrary.open();});
+sep();
+item('themeToggle','contrast','浅色 / 深色界面',function(){var box=$('mode-toggle');if(!box)return;box.checked=!box.checked;box.dispatchEvent(new Event('change'));});
 item('taskShortcuts','keyboard','快捷键一览 (F1)',call('openShortcutModal'));
 item('uiModeToggle','tune','专业模式',function(){setMode(mode()==='beginner'?'pro':'beginner');});
 function closeMenu(){menu.hidden=true;more.setAttribute('aria-expanded','false');}
-more.addEventListener('click',function(e){e.stopPropagation();menu.hidden=!menu.hidden;more.setAttribute('aria-expanded',String(!menu.hidden));if(!menu.hidden){var f=menu.querySelector('button');if(f)f.focus();}});
-document.addEventListener('click',function(e){if(!menu.hidden&&!moreWrap.contains(e.target))closeMenu();});
+more.addEventListener('click',function(e){e.stopPropagation();menu.hidden=!menu.hidden;
+// fixed + placed from the ⋯ button
+if(!menu.hidden){var r=more.getBoundingClientRect();menu.style.position='fixed';menu.style.top=Math.round(r.bottom+6)+'px';menu.style.right=Math.max(4,Math.round(window.innerWidth-r.right))+'px';menu.style.maxHeight=Math.max(200,window.innerHeight-r.bottom-16)+'px';menu.style.overflowY='auto';}
+more.setAttribute('aria-expanded',String(!menu.hidden));if(!menu.hidden){var f=menu.querySelector('button');if(f)f.focus();}});
+document.addEventListener('click',function(e){if(!menu.hidden&&!moreWrap.contains(e.target)&&!menu.contains(e.target))closeMenu();});
 menu.addEventListener('keydown',function(e){if(e.key==='Escape'){closeMenu();more.focus();}});
-moreWrap.appendChild(more);moreWrap.appendChild(menu);bar.appendChild(moreWrap);
+// the menu lives on <body>: inside the header its z-index could never rise above the start card
+moreWrap.appendChild(more);document.body.appendChild(menu);bar.appendChild(moreWrap);
 header.insertBefore(bar,header.firstChild);
 setInterval(updatePageNav,700);
 }
@@ -144,6 +157,7 @@ imp.addEventListener('click',function(){var input=$('imageInput');if(input)input
 home.appendChild(imp);
 var grid=el('div',{class:'task-grid'});
 TASKS.forEach(function(t){
+if(t.hidden)return;
 var c=el('button',{type:'button',class:'task-tile','data-task':t.id},'<i class="material-icons" aria-hidden="true">'+t.icon+'</i><strong>'+t.title+'</strong><span>'+t.desc+'</span>');
 c.addEventListener('click',function(){start(t.id);});
 grid.appendChild(c);
@@ -254,6 +268,7 @@ else if(t.kind==='autoswap')startAutoSwap(t);
 else if(t.kind==='caption')startCaption(t);
 else if(t.kind==='layer')startLayer(t);
 else if(t.kind==='page')startPage(t);
+else if(t.kind==='aifill'){if(!window.AiFill){stop(false);return;}AiFill.open().then(function(ok){if(!ok)stop(false);});}
 else startNai(t);
 timer=setInterval(tick,400);
 }
@@ -266,6 +281,7 @@ var h=$('mangaGptTaskHead');if(h)h.remove();
 var c=$('taskWizardCard');if(c)c.remove();
 cancelPick();
 if(window.AutoSwap&&AutoSwap.stop)AutoSwap.stop();
+if(was&&was.kind==='aifill'&&window.AiFill)AiFill.close();
 if(was&&was.kind==='gpt'&&window.MangaGPTRegionEditor){
 MangaGPTRegionEditor.exitTask();
 var p=$('mangaGptPanel');if(p&&showHome!==undefined)p.hidden=true;
@@ -393,9 +409,19 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&pick){e.pre
 // 画一页漫画: layout + batch panel generation + automatic dialogue bubbles (one click instead of
 // ~10 per panel: new page, template, open GPT, switch mode, prompt, generate, apply, fit into panel, bubble, text)
 var LAYOUTS={
+1:[[0,0,1,1]],
+2:[[0,0,1,.5],[0,.5,1,.5]],
 3:[[0,0,1,.42],[0,.42,.5,.58],[.5,.42,.5,.58]],
-4:[[0,0,1,.3],[0,.3,.55,.35],[.55,.3,.45,.35],[0,.65,1,.35]]
+4:[[0,0,1,.3],[0,.3,.55,.35],[.55,.3,.45,.35],[0,.65,1,.35]],
+5:[[0,0,1,.3],[0,.3,.5,.36],[.5,.3,.5,.36],[0,.66,.6,.34],[.6,.66,.4,.34]],
+6:[[0,0,.5,.33],[.5,0,.5,.33],[0,.33,.5,.34],[.5,.33,.5,.34],[0,.67,.5,.33],[.5,.67,.5,.33]]
 };
+// scene i goes into the i-th frame in reading order (manga: right to left), not in table order
+function readingSorted(rects){
+if(!window.BalloonLayoutCore)return rects;
+var ord=BalloonLayoutCore.readingOrder(rects.map(function(r){return {x:r.left,y:r.top,w:r.width,h:r.height};}),window.BalloonLayout?BalloonLayout.dir():'rtl');
+return ord.map(function(i){return rects[i];});
+}
 function layoutRects(n,w,h){
 var m=.04*Math.min(w,h),g=.012*Math.min(w,h);
 var iw=w-2*m,ih=h-2*m;
@@ -416,6 +442,10 @@ body.innerHTML='<div class="svc-row" role="radiogroup" aria-label="格子数">'+
 '<button type="button" class="ui-btn" data-panels="3" id="taskPage3">3 格</button>'+
 '<button type="button" class="ui-btn" data-panels="4" id="taskPage4">4 格</button></div>'+
 '<label class="ui-field"><span>统一画风 / 角色（每格都会用）</span><input id="taskPageStyle" type="text" value="黑白日式漫画，清晰线稿，网点阴影，安全健康内容"></label>'+
+'<details class="task-script" id="taskScriptBox"><summary>粘贴剧本，自动分格</summary>'+
+'<textarea class="ui-textarea" id="taskScript" rows="6" placeholder="例如：&#10;第1格：清晨的车站，小雪在等车&#10;小雪：今天也要加油！&#10;第2格：列车进站&#10;旁白：列车准时到了。&#10;（不写「第N格」时，用空行分开每一格）"></textarea>'+
+'<div class="svc-row"><button type="button" class="ui-btn" id="taskScriptSplit">拆成格子</button><button type="button" class="ui-btn ui-btn-ghost" id="taskScriptNext" hidden>下一页剧本</button></div>'+
+'<p class="ui-muted" id="taskScriptInfo" role="status"></p></details>'+
 '<div id="taskPagePanels"></div>'+
 '<p class="ui-muted" id="taskPageCost"></p>'+
 '<div class="svc-row"><button type="button" class="ui-btn ui-btn-primary" id="taskPageGo" disabled>生成整页</button>'+
@@ -431,7 +461,27 @@ $('taskPage4').parentNode.appendChild(b);
 b.addEventListener('click',function(){pageLayout=r;choosePanels(n);});
 }).catch(function(){});
 $('taskPageGo').addEventListener('click',runPage);
+$('taskScriptSplit').addEventListener('click',function(){applyScript($('taskScript').value);});
+$('taskScriptNext').addEventListener('click',function(){fillScriptPage(scriptQueue.shift());});
 $('taskPageCancel').addEventListener('click',function(){if(pageJob)pageJob.cancel=true;if(pageJob&&pageJob.ctl)pageJob.ctl.abort();});
+}
+var scriptQueue=[];
+function applyScript(text){
+var info=$('taskScriptInfo');
+if(!window.ScriptPageCore){info.textContent='剧本拆分还没加载好，请稍等再试。';return;}
+var r=ScriptPageCore.parse(text);
+if(!r.stats.panels){info.textContent='没读到内容。每格写一行画面，对白写成「名字：台词」；格子之间用空行或「第N格」分开。';info.classList.add('is-error');return;}
+info.classList.remove('is-error');
+scriptQueue=r.pages.slice(1);
+fillScriptPage(r.pages[0]);
+info.textContent='拆好了：'+r.stats.pages+' 页、'+r.stats.panels+' 格、'+r.stats.lines+' 句对白。'+(r.pages.length>1?'这一页先做第 1 页，做完点「下一页剧本」。':'')+(r.warnings.length?' 注意：'+r.warnings.join(' '):'');
+window.__lastScript=r;
+}
+function fillScriptPage(pg){
+if(!pg)return;
+pageLayout=null;choosePanels(pg.panels.length);
+pg.panels.forEach(function(p,i){var w=ScriptPageCore.toWizard(p);var a=document.querySelector('#taskPagePanels [data-scene="'+i+'"]'),b=document.querySelector('#taskPagePanels [data-line="'+i+'"]');if(a)a.value=w.scene;if(b)b.value=w.line;});
+var nx=$('taskScriptNext');if(nx){nx.hidden=!scriptQueue.length;nx.textContent='下一页剧本（还剩 '+scriptQueue.length+' 页）';}
 }
 function choosePanels(n){
 document.querySelectorAll('#taskWizardBody [data-panels]').forEach(function(b){b.classList.toggle('is-active',Number(b.dataset.panels)===n);b.setAttribute('aria-pressed',String(Number(b.dataset.panels)===n));});
@@ -441,7 +491,7 @@ for(var i=0;i<n;i++){
 var f=el('fieldset',{class:'task-page-panel'});
 f.innerHTML='<legend>第 '+(i+1)+' 格</legend>'+
 '<textarea class="ui-textarea" rows="2" data-scene="'+i+'" placeholder="画面，例如：清晨，少女在车站等车"></textarea>'+
-'<input class="ui-textarea" type="text" data-line="'+i+'" placeholder="对白（可不填）">';
+'<input class="ui-textarea" type="text" data-line="'+i+'" placeholder="对白（可不填；多句用 / 分开）">';
 box.appendChild(f);
 }
 $('taskPageGo').disabled=false;
@@ -467,26 +517,6 @@ if(typeof setPanelValue==='function')setPanelValue(p);
 if(typeof getGUID==='function')getGUID(p);
 return p;
 }
-function addBubble(rect,text,index){
-var w=Math.max(150,Math.min(rect.width*.6,460));
-var fontSize=Math.max(20,Math.round(Math.min(rect.width,rect.height)*.06));
-// splitByGrapheme: Chinese has no spaces, so wrap per character; .66 keeps lines inside the ellipse
-// balance lines: about sqrt(1.6*chars) glyphs per line, so punctuation does not end up alone
-var n=Array.from(text).length;
-var perLine=n<=9?n:Math.ceil(Math.sqrt(n*1.6));
-// explicit kinsoku lines (…… ？ ！ never start a line); the box is as wide as the longest line so Fabric never re-wraps
-var lines=window.CjkBreak?CjkBreak.breakLines(text,perLine):[text];
-var longest=Math.max.apply(null,lines.map(function(l){return Array.from(l).length;}));
-w=Math.max(longest*fontSize*1.08/.66,fontSize*4);
-var tb=new fabric.Textbox(lines.join('\n'),{width:longest*fontSize*1.06,fontSize:fontSize,textAlign:'center',fill:'#111',splitByGrapheme:true,
-fontFamily:'"Noto Sans SC","Microsoft YaHei",sans-serif',name:'对白 '+index});
-var bh=Math.max(tb.height*1.75,fontSize*2.6);
-var left=rect.left+rect.width-w-rect.width*.04,top=rect.top+rect.height*.05;
-var bubble=new fabric.Ellipse({left:left,top:top,rx:w/2,ry:bh/2,fill:'#fff',stroke:'#111',strokeWidth:3,name:'对白气泡 '+index});
-tb.set({left:left+(w-tb.width)/2,top:top+(bh-tb.height)/2});
-canvas.add(bubble);canvas.add(tb);
-return [bubble,tb];
-}
 function loadFabricImage(url){return new Promise(function(res,rej){fabric.Image.fromURL(url,function(img){if(img&&img.width)res(img);else rej(new Error('图片读取失败。'));});});}
 async function runPage(){
 if(pageJob)return;
@@ -510,6 +540,7 @@ W=1200;H=1700;
 var rects=pageLayout&&pageLayout.panels.length===scenes.length?
 pageLayout.panels.map(function(q){var kx=W/pageLayout.W,ky=H/pageLayout.H;return {left:Math.round(q.x*kx),top:Math.round(q.y*ky),width:Math.round(q.w*kx),height:Math.round(q.h*ky)};}):
 layoutRects(scenes.length,W,H);
+rects=readingSorted(rects);
 // the whole generated page is ONE history step: one Ctrl+Z takes it all back
 if(typeof changeDoNotSaveHistory==='function'){changeDoNotSaveHistory();pageJob.historyPaused=true;}
 var panels=rects.map(function(r,i){var p=makePanel(r,i+1);canvas.add(p);return p;});
@@ -529,8 +560,12 @@ img.name='第'+(i+1)+'格画面';
 putImageInFrame(img,rects[i].left+rects[i].width/2,rects[i].top+rects[i].height/2,true,false,true,panels[i]);
 done++;
 }catch(error){failed.push(i+1);pageStatus('第 '+(i+1)+' 格没画成：'+(error.userMessage||error.message),true);if(error.status===401||error.network)break;}
-if(lines[i])addBubble(rects[i],lines[i],i+1);
 canvas.renderAll();
+}
+if(lines.some(Boolean)&&!pageJob.cancel&&window.BalloonLayout){
+pageStatus('正在排对白气泡（避开人脸，按阅读顺序）…');
+try{var bl=await BalloonLayout.layoutPage(rects,lines);window.__lastBalloonLayout=bl;}
+catch(error){pageStatus('对白气泡没排好：'+(error.message||error),true);}
 }
 if(typeof updateLayerPanel==='function')updateLayerPanel();
 if(pageJob.historyPaused&&typeof changeDoSaveHistory==='function'){changeDoSaveHistory();pageJob.historyPaused=false;}
@@ -538,7 +573,7 @@ if(typeof saveStateByManual==='function')saveStateByManual();
 // register/refresh this page in the page bar now (otherwise it only appears once another page is made)
 if(typeof btmSaveProjectFile==='function'){try{await btmSaveProjectFile(null,false);}catch(e){/* thumbnail is best-effort */}}
 if(pageJob.cancel)pageStatus('已停止：画好 '+done+' 格。');
-else if(failed.length)pageStatus('画好 '+done+' 格；第 '+failed.join('、')+' 格没成功，可以用「自定义修改」重画那一格。',true);
+else if(failed.length)pageStatus('画好 '+done+' 格；第 '+failed.join('、')+' 格没成功，可以用「改一块」→「自由修改」重画那一格。',true);
 else{collapseForm();pageStatus('整页完成：'+done+' 格画面和对白气泡都是独立图层，可直接拖动或修改（Ctrl+Z 可撤销）。');markStep(3,true);}
 }finally{
 if(pageJob&&pageJob.historyPaused&&typeof changeDoSaveHistory==='function'){changeDoSaveHistory();if(typeof saveStateByManual==='function')saveStateByManual();}
@@ -550,6 +585,7 @@ if($('taskPageGo')){$('taskPageGo').disabled=false;$('taskPageCancel').hidden=tr
 // ---------- progress ----------
 function tick(){
 if(!active)return;
+if(active.kind==='aifill'){if(!window.AiFill||!AiFill.isOpen())stop(false);return;}
 if(active.kind==='gpt'&&window.MangaGPTRegionEditor){
 var s=MangaGPTRegionEditor.wizardState();
 if(!s.open||s.task!==active.id){stop(false);return;}
@@ -609,7 +645,12 @@ return {pages:n,bytes:blob.size};
 finally{exporting=false;if(btn)btn.disabled=false;}
 }
 
+function registerHiddenTasks(){
+if(!window.Commands)return setTimeout(registerHiddenTasks,300);
+TASKS.forEach(function(t){if(t.hidden)Commands.register({id:'task.'+t.id,label:t.title,group:'任务',keywords:t.desc+' 向导 task',run:function(){start(t.id);}});});
+}
 function init(){
+registerHiddenTasks();
 buildBar();
 buildHome();
 applyMode(mode());

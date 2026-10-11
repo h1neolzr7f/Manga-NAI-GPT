@@ -123,6 +123,7 @@
     const s = cur, cand = s.cands[s.pick];
     end();
     if (s.target === 'layer') return cutToLayer(s, cand);
+    if (s.target === 'mask') { if (s.onDone) s.onDone(true, cand); return; }
     const api = gpt();
     const ok = api && api.selectPolygon && api.selectPolygon(cand.polygon);
     if (s.onDone) s.onDone(!!ok, cand);

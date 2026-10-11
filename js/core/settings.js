@@ -72,6 +72,8 @@ i2i_scale : 1.05,
 const commonProperties=[
 'excludeFromLayerPanel',
 'autoSwap',
+'aiFill',
+'balloon',
 'panelLayer',
 'isPanel',
 'isIcon',

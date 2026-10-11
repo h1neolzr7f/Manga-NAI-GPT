@@ -14,13 +14,16 @@ on:
       - "scripts/windows/**"
       - ".github/workflows/manga-full-acceptance.yml"
   push:
-    branches: ["main"]
+    branches: ["main", "dev/**"]
+    # same paths as pull_request: any app / test change runs the full acceptance on push
     paths:
-      - "99_server.py"
-      - "gpt_image_proxy.py"
-      - "js/ai/gpt-region-editor.js"
-      - "scripts/gpt-*"
-      - "scripts/windows/**"
+      - "*.py"
+      - "index.html"
+      - "service-worker.js"
+      - "package.json"
+      - "js/**"
+      - "css/**"
+      - "scripts/**"
       - ".github/workflows/manga-full-acceptance.yml"
 
 permissions:
@@ -131,6 +134,18 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Import 2 pages -> GPT swap -> captions -> undo/redo/page/save/reopen -> errors -> layouts
         run: node scripts/novice-task-e2e.cjs
+      - name: Character library e2e (mocked recognition)
+        run: node scripts/character-library-e2e.cjs
+      - name: AI fill e2e (mocked GPT + LaMa)
+        run: node scripts/ai-fill-e2e.cjs
+      - name: PSD import/export e2e (ag-psd)
+        run: node scripts/psd-e2e.cjs
+      - name: Command palette + history panel e2e
+        run: node scripts/command-history-e2e.cjs
+      - name: Automatic balloons + reading order e2e (mock faces)
+        run: node scripts/balloon-e2e.cjs
+      - name: Script -> page e2e (mock GPT)
+        run: node scripts/script-page-e2e.cjs
       - name: Upload novice report, screenshots and Playwright traces
         if: always()
         uses: actions/upload-artifact@v4

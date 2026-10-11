@@ -47,6 +47,16 @@ height=mmToPx(height);
 return clampEdge(width,height);
 }
 
+// Imported pictures are always pixels (a 400x300 image is not 400x300 mm): one uniform scale keeps the aspect,
+// enlarges so the short side reaches MIN_EDGE and shrinks so the long side fits MAX_EDGE.
+function resolveImagePageSize(width,height){
+width=parseFloat(width)||1;height=parseFloat(height)||1;
+var scale=1;
+if(Math.min(width,height)<MIN_EDGE)scale=MIN_EDGE/Math.min(width,height);
+if(Math.max(width,height)*scale>MAX_EDGE)scale=MAX_EDGE/Math.max(width,height);
+return {width:Math.round(width*scale),height:Math.round(height*scale),scale:scale};
+}
+
 function defaultMangaPageSize(landscape){
 return landscape?resolveMangaPageSize(297,210):resolveMangaPageSize(210,297);
 }
@@ -227,6 +237,7 @@ return Math.round((EXPORT_DPI_MIN+lo*0.01)*100)/100;
 }
 
 root.NaiMangaPageSize={
+resolveImagePageSize:resolveImagePageSize,
 DPI:DPI,
 MAX_EDGE:MAX_EDGE,
 MIN_EDGE:MIN_EDGE,
