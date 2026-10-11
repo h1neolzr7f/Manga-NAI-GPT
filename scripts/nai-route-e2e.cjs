@@ -1,17 +1,17 @@
 // 1.6 NovelAI routes (mock NAI): 改一块 via NAI inpaint, GPT refusal -> 改用 NovelAI, 画一页 via NAI with panel aspect sizes,
 // cost preview / free tier, engine choice remembered, privacy blur, safe mode opt-in, prompt passed through untouched.
-const assert = require('assert'); const path = require('path'); const fs = require('fs'); const { spawn } = require('child_process');
+const assert = require('assert'); const path = require('path'); const { spawn } = require('child_process');
 const { chromium } = require('playwright');
 const ROOT = path.join(__dirname, '..'); const PORT = 8000 + Math.floor(Math.random() * 900) + 50; const SHOTS = process.env.SHOTS_DIR || '';
 const PAGE = path.join(ROOT, 'docs/images/comic-page.jpg');
-const REAL = process.env.NAI_REAL === '1';
+const REAL = false; // real SFW calls are run by hand, never in CI
 (async () => {
   const srv = spawn('python3', ['99_server.py'], { cwd: ROOT, stdio: 'ignore', env: { ...process.env, MNAI_PORT: String(PORT), NAI_QUIET: '1' } });
   try {
     await new Promise(r => setTimeout(r, 2500));
     const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: 1440, height: 900 }, locale: 'zh-CN', serviceWorkers: 'block' }); const p = await ctx.newPage();
     const errors = []; p.on('pageerror', e => errors.push(e.message));
-    const naiBodies = []; let gptMode = 'refuse';
+    const naiBodies = [];
     await p.route(/https?:\/\/(?!127\.0\.0\.1)/, r => r.abort());
     await p.route('**/manga-smart/faces', r => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, available: false, faces: [] }) }));
     if (!REAL) {
@@ -33,7 +33,7 @@ const REAL = process.env.NAI_REAL === '1';
     // settings: GPT + NAI token; model + safe-mode controls live in 服务设置
     await p.locator('#taskMore').click(); await p.locator('#taskServiceSettings').click();
     await p.locator('#mangaGptUrl').fill('https://api.openai.com/v1'); await p.locator('#mangaGptModel').fill('gpt-image-1');
-    const tok = REAL ? fs.readFileSync('/home/box/.mnai_nai_test_env', 'utf8').match(/NOVELAI_API_KEY=(\S+)/)[1].replace(/^["']|["']$/g, '') : 'pst-mock-token';
+    const tok = REAL ? (process.env.NOVELAI_API_KEY || '') : 'pst-mock-token';
     await p.locator('#novelaiApiKey').fill(tok);
     assert(await p.locator('#svcNaiModel').isVisible(), 'NAI model in settings'); assert.strictEqual(await p.locator('#svcNaiSafeMode').isChecked(), false, 'safe mode off by default');
     if (SHOTS) await p.screenshot({ path: SHOTS + '/1-settings-nai.png' });
@@ -52,11 +52,7 @@ const REAL = process.env.NAI_REAL === '1';
       const st = await p.locator('#aiFillStatus').textContent(); assert(/自己的内容规则/.test(st) && /不是本编辑器的限制/.test(st), st);
       if (SHOTS) await p.screenshot({ path: SHOTS + '/2-gpt-refusal.png' });
       await p.locator('#aiFillUseNai').click();
-    } else { await p.locator('#aiFillEngines [data-ai="nai"]').click(); await p.evaluate(() => { const s = document.querySelector('#aiFillCard'); }); }
-    if (REAL) { await p.evaluate(() => { window.__realCount = 1; }); }
-    if (REAL) await p.evaluate(() => { /* free tier, 1 image */ });
-    if (REAL) { await p.evaluate(() => AiFill && 0); }
-    if (REAL) { /* real: one candidate only */ await p.evaluate(() => { const s = window.AiFill && window.AiFill._state && window.AiFill._state(); if (s) s.count = 1; }); await p.locator('#aiFillGenerate').click(); }
+    }
     await p.locator('.ai-fill-cand[data-k]').first().waitFor({ timeout: REAL ? 240000 : 60000 });
     const cost = await p.locator('#aiFillCost').textContent(); assert(/免费|Anlas/.test(cost), 'cost shown: ' + cost);
     if (SHOTS) await p.screenshot({ path: SHOTS + '/3-fill-nai.png' });
