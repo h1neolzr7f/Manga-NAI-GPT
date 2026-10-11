@@ -30,7 +30,8 @@ async function startServer() {
     await p.waitForFunction(() => typeof canvas !== 'undefined' && canvas.getWidth() > 0 && window.Commands && Commands.list().some(c => c.id.startsWith('task.')), null, { timeout: 60000 });
     await p.locator('#imageInput').setInputFiles(PAGE);
     await p.waitForFunction(() => canvas.getObjects().some(o => o.type === 'image'), null, { timeout: 30000 });
-    await p.waitForTimeout(800);
+    // wait until the import has finished saving history (slow CI runners): stack length stable for 1.5 s
+    await p.waitForFunction(() => { const n = stateStack.length; if (window.__hn !== n) { window.__hn = n; window.__ht = Date.now(); } return Date.now() - window.__ht > 1500; }, null, { timeout: 30000, polling: 200 });
     // three ordinary edits, no command announced -> labels come from the diff
     await p.evaluate(() => { const t = new fabric.Textbox('早上好', { left: 100, top: 100, width: 200, fontSize: 40, fill: '#111' }); t.guid = 'cmd-t'; canvas.add(t); saveStateByManual(); });
     await p.evaluate(() => { const t = canvas.getObjects().find(o => o.text === '早上好'); t.set({ left: 300 }); saveStateByManual(); });
@@ -52,8 +53,8 @@ async function startServer() {
     const rows = await p.locator('.nai-history-label').allTextContents();
     report.rows = rows;
     assert(/复制图层/.test(rows[0]) && /当前/.test(rows[0]), 'newest first, named by command: ' + rows[0]);
-    assert(rows.some(r => /^移动文字「早上好」/.test(r)), 'move inferred');
-    assert(rows.some(r => /^添加文字「早上好」/.test(r)), 'add inferred');
+    assert(rows.some(r => /^移动文字「早上好」/.test(r)), 'move inferred: ' + JSON.stringify(rows));
+    assert(rows.some(r => /^添加文字「早上好」/.test(r)), 'add inferred: ' + JSON.stringify(rows));
     assert(!rows.some(r => /^步骤 \d+/.test(r)), 'no anonymous 步骤 n');
     const box = await p.locator('#naiHistoryPanel').boundingBox(); const canvasBox = await p.locator('#canvas-container, .canvas-container').first().boundingBox().catch(() => null);
     report.panel = box; report.canvas = canvasBox;
