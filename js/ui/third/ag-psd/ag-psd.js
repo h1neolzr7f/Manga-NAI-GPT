@@ -11133,6 +11133,8 @@ function writePsd(writer, psd, options = {}) {
     verifyBitCount(psd);
     const imageResources = Object.assign({}, psd.imageResources);
     const opt = Object.assign(Object.assign({}, options), { layerIds: new Set(), layerToId: new Map() });
+    // Manga-NAI-GPT patch: write Grayscale documents (psd.colorMode === 1) with one colour channel per layer
+    const gray = opt.grayscale = psd.colorMode === 1 /* ColorMode.Grayscale */;
     if (opt.generateThumbnail) {
         imageResources.thumbnail = createThumbnail(psd);
     }
@@ -11149,11 +11151,11 @@ function writePsd(writer, psd, options = {}) {
     writeSignature(writer, '8BPS');
     writeUint16(writer, options.psb ? 2 : 1); // version
     writeZeros(writer, 6);
-    writeUint16(writer, globalAlpha ? 4 : 3); // channels
+    writeUint16(writer, gray ? (globalAlpha ? 2 : 1) : (globalAlpha ? 4 : 3)); // channels
     writeUint32(writer, psd.height);
     writeUint32(writer, psd.width);
     writeUint16(writer, bitsPerChannel); // bits per channel
-    writeUint16(writer, 3 /* ColorMode.RGB */); // we only support saving RGB right now
+    writeUint16(writer, gray ? 1 /* ColorMode.Grayscale */ : 3 /* ColorMode.RGB */); // RGB, or Grayscale (patch)
     // color mode data
     writeSection(writer, 1, () => {
         var _a, _b, _c;
@@ -11193,7 +11195,7 @@ function writePsd(writer, psd, options = {}) {
         writeAdditionalLayerInfo(writer, psd, psd, opt);
     }, undefined, !!opt.psb);
     // image data
-    const channels = globalAlpha ? [0, 1, 2, 3] : [0, 1, 2];
+    const channels = gray ? (globalAlpha ? [0, 3] : [0]) : (globalAlpha ? [0, 1, 2, 3] : [0, 1, 2]);
     const width = imageData ? imageData.width : psd.width;
     const height = imageData ? imageData.height : psd.height;
     const data = { data: new Uint8Array(width * height * 4), width, height };
@@ -11590,7 +11592,7 @@ function getLayerChannels(tempBuffer, layer, background, options) {
             imageData = cropImageData(imageData, trimmed.left, trimmed.top, width, height);
         }
     }
-    const channelIds = [
+    const channelIds = options.grayscale ? [0 /* ChannelID.Color0 */] : [
         0 /* ChannelID.Color0 */,
         1 /* ChannelID.Color1 */,
         2 /* ChannelID.Color2 */,

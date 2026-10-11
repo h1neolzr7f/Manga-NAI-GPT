@@ -85,6 +85,8 @@ function thirdPartyPsd() {
     assert.equal(psd.width, W);
     const txt = L.find(l => l.text); assert(txt && txt.text.text === '测试文字', 'editable text layer');
     assert(L.some(l => l.name === '隐藏的方块' && l.hidden), 'hidden flag kept');
+    const hid = L.find(l => l.name === '隐藏的方块'); const hc = ((hid.imageData.height >> 1) * hid.imageData.width + (hid.imageData.width >> 1)) * 4; assert(hid.imageData.data[hc] === 255 && hid.imageData.data[hc + 1] === 0 && hid.imageData.data[hc + 3] === 255, 'hidden layer keeps its real pixels (red)');
+    assert(report.export.bytes < 10 * 1048576, 'compact PSD: ' + report.export.bytes);
     const fill = L.find(l => /^AI 填充/.test(l.name)); assert(fill && fill.mask && fill.mask.imageData, 'AI layer exported with a layer mask');
     const md = fill.mask.imageData.data; let on = 0, off = 0; for (let i = 0; i < md.length; i += 4) { if (md[i] > 250) on++; else if (md[i] < 5) off++; }
     assert(on > 0 && off > 0, 'mask has inside and outside');

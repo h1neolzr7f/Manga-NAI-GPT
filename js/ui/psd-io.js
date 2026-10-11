@@ -4,7 +4,7 @@
  * Import: through 导入漫画页 (.psd accepted): bottom layer = page, others = separate layers, masks baked. */
 (function (root) {
   'use strict';
-  const LIB = 'js/ui/third/ag-psd/ag-psd.js?v=31.0.3';
+  const LIB = 'js/ui/third/ag-psd/ag-psd.js?v=31.0.3-mnai1';
   const MAX_BYTES = 300 * 1024 * 1024;
   let loading = null;
   function lib() {
@@ -23,12 +23,14 @@
   function rasterize(o) {
     const vt = o.canvas && o.canvas.viewportTransform; const saved = vt && vt.slice();
     if (vt) o.canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+    // hidden layers keep their real pixels (hidden flag set on the PSD layer), so they can be shown again
+    const wasHidden = o.visible === false; if (wasHidden) o.visible = true;
     try {
       o.setCoords();
       const b = o.getBoundingRect(true, true);
       const el = o.toCanvasElement({ withoutShadow: false });
       return { canvas: el, left: Math.round(b.left), top: Math.round(b.top) };
-    } finally { if (vt) { o.canvas.viewportTransform = saved; o.setCoords(); } }
+    } finally { if (wasHidden) o.visible = false; if (vt) { o.canvas.viewportTransform = saved; o.setCoords(); } }
   }
 
   /** AI 填充 layer -> opaque candidate + layer mask (= the soft alpha), so the edge stays editable. */
@@ -56,6 +58,13 @@
   }
   function hex(c) { const m = /^#?([0-9a-f]{6})$/i.exec(String(c || '')) || null; if (!m) return { r: 0, g: 0, b: 0 }; const n = parseInt(m[1], 16); return { r: n >> 16, g: (n >> 8) & 255, b: n & 255 }; }
 
+  /** Every pixel with any opacity has R = G = B exactly (so writing one channel loses nothing). */
+  function isGray(cv) {
+    const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+    for (let i = 0; i < d.length; i += 4) if (d[i + 3] && (d[i] !== d[i + 1] || d[i] !== d[i + 2])) return false;
+    return true;
+  }
+  function isGrayColor(c) { return !c || (c.r === c.g && c.g === c.b); }
   /** Current page -> PSD bytes. */
   async function exportPage() {
     const ag = await lib(); const c = root.canvas;
@@ -70,18 +79,29 @@
       else if (isText(o)) children.push(textLayer(o, base));
       else children.push(base);
     }
-    const ed = root.MangaGPTRegionEditor; const comp = canvasOf(W, H);
+    // Compact, still lossless (2.0 A/B: a 2476x3508 page was 40 MB):
+    //  - layers ZIP-compressed and cropped to their visible pixels;
+    //  - the merged composite is flat white (what Photoshop writes with "maximize compatibility" off; every
+    //    editor rebuilds the page from the layers) + a small real thumbnail for file browsers;
+    //  - a page whose layers are all exactly grey is written as a Grayscale document (1 channel instead of 3).
+    const ed = root.MangaGPTRegionEditor;
     const pg = ed && ed.pageImage ? ed.pageImage(true) : null;
-    if (pg) comp.getContext('2d').drawImage(await loadImg(pg.image), 0, 0, W, H);
-    return ag.writePsdUint8Array({ width: W, height: H, canvas: comp, children }, { invalidateTextLayers: true, generateThumbnail: true });
+    const thumb = canvasOf(Math.max(1, Math.round(W * Math.min(1, 256 / Math.max(W, H)))), Math.max(1, Math.round(H * Math.min(1, 256 / Math.max(W, H)))));
+    if (pg) thumb.getContext('2d').drawImage(await loadImg(pg.image), 0, 0, thumb.width, thumb.height);
+    const comp = canvasOf(W, H), cg = comp.getContext('2d'); cg.fillStyle = '#fff'; cg.fillRect(0, 0, W, H);
+    const gray = children.every(l => !l.canvas || isGray(l.canvas)) && children.every(l => !l.text || isGrayColor(l.text.style && l.text.style.fillColor));
+    return ag.writePsdUint8Array({ width: W, height: H, canvas: comp, children, colorMode: gray ? 1 : 3, imageResources: { thumbnail: thumb } },
+      { invalidateTextLayers: true, generateThumbnail: false, compress: true, trimImageData: true });
   }
   async function downloadPage() {
     try {
+      toast('导出 PSD', '正在压缩图层，大页面需要几秒…');
+      await new Promise(r => setTimeout(r, 60));   // let the toast paint before the (synchronous) compression
       const bytes = await exportPage();
       const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([bytes], { type: 'image/vnd.adobe.photoshop' }));
       a.download = 'manga-page-' + new Date().toISOString().slice(0, 10) + '.psd'; document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-      toast('导出 PSD', '已导出当前页（' + (root.canvas.getObjects().length) + ' 个图层）。文字是可编辑文字层；AI 填充层带图层蒙版。');
+      toast('导出 PSD', '已导出当前页（' + (root.canvas.getObjects().length) + ' 个图层，' + (bytes.length / 1048576).toFixed(1) + ' MB）。文字是可编辑文字层；AI 填充层带图层蒙版。');
       return bytes.length;
     } catch (e) { toast('导出 PSD 失败', e.message || String(e), true); throw e; }
   }
