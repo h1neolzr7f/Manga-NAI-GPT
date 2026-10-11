@@ -2,6 +2,33 @@
 
 Version numbers apply to **this fork only**, not to upstream Manga Editor Desu.
 
+## 1.6.0 — 2026-10-12
+
+NovelAI 版本。中文在前，English 在后。
+
+### 中文
+- **NovelAI 也能做「改一块」「画一页 / 剧本成页」**：每个任务可切换 GPT / NovelAI，只配了 NovelAI 时默认用它；GPT 服务拒绝时提示「改用 NovelAI」。
+- **支持 NovelAI V5**（`nai-diffusion-5-full`，已实际调用验证），以及 V4.5 / V4 / V3；服务设置里说明每个模型支持什么（角色栏、位置、局部重绘）。
+- **内容中立**：编辑器不改写、不过滤 NovelAI 提示词；「安全模式」可选，默认关。
+- **生成前显示 Anlas**，Opus 免费范围内标「免费」；默认按免费范围出图（≤1024×1024、≤28 步、1 张），按格子比例自动选尺寸。
+- **排队和重试**：NovelAI 一次只跑一张，间隔排队；只在明确的 429 / 5xx 时重试；**结果未知（超时、断线）不自动重试**；批量中途失败就停。
+- **画一页**：可锁定种子；角色库里写了标签的角色会自动放进 V4 角色栏，按从右到左排位置。
+- **隐私模式**：模糊历史、文件和候选缩略图。
+- **提示词助手（可选，默认关）**：Danbooru 标签补全、别名修正、标签检查；`Ctrl+↑/↓` 调权重；token 估算；读 PNG 生成参数并一键应用或存成风格片段；角色库「找标签」（可再下载 11 MB 扩展角色表）；可选用你自己的聊天模型润色 / 扩写，先看对比再应用。标签表和角色表都要你确认后才下载，并校验 SHA-256。
+- **修复**：「画一页」连续生成时，上一页的「整页完成」不会再被当成这一页的结果。
+
+**已知限制：** 选 V5 时局部重绘暂用 V4.5 重绘模型；换角色仍只支持 GPT；NovelAI enhance、本地图库、每格保存参数还没做。
+
+### English
+- NovelAI route for *Edit an area* and *Draw a page / script → page*, per-task engine switch, "use NovelAI instead" when GPT refuses.
+- NovelAI V5 (`nai-diffusion-5-full`, verified with a real call) plus V4.5 / V4 / V3, with per-model hints.
+- Content-neutral: no prompt filtering by the editor; optional safe mode, off by default.
+- Anlas estimate before each call with a "free" marker for the Opus range; free-range sizes by default.
+- One-at-a-time queue, retries only on explicit 429 / 5xx, no automatic retry on unknown results, batch stops on failure.
+- Seed lock and character-library tags → V4 character prompts in *Draw a page*; privacy mode; optional prompt assist (Danbooru tags, weights, PNG info, find-tag, LLM polish with diff).
+- Fix: a stale "page done" status no longer stands for a new *Draw a page* run.
+- Known limits: V5 inpainting falls back to V4.5; character swap is GPT-only; NovelAI enhance, local gallery and per-panel saved parameters not done yet.
+
 ## 1.5.0 — 2026-10-11
 
 Minor update (not a 2.0). Chinese notes below; English summary after.
