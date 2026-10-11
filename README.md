@@ -19,8 +19,7 @@ Manga-NAI-GPT 是基于 [Manga Editor Desu](https://github.com/new-sankaku/manga
 
 ## 功能
 
-**1.5 新增：** 改一块（去掉 / 换成 / 自由修改）、角色库、非破坏 AI 图层、自动对白气泡、粘贴剧本生成整页、Ctrl+K 命令面板与带缩略图的历史、PSD 导入导出、`MNAI_PORT` 换端口。详见 [CHANGELOG](CHANGELOG.md)。
-
+当前版本 **1.5**：首页 6 个任务，外加角色库、自动对白气泡、Ctrl+K 命令面板和带缩略图的历史、PSD 导入导出。详见 [CHANGELOG](CHANGELOG.md)。
 
 | 任务 | 做什么 | 需要 |
 |---|---|---|
@@ -28,15 +27,30 @@ Manga-NAI-GPT 是基于 [Manga Editor Desu](https://github.com/new-sankaku/manga
 | **改字幕** | 导入时自动识别本页文字 → 直接改台词 → 原字擦掉、新字按气泡排版（中文避头尾，可保留拟声词） | 本机（免费） |
 | **改一块** | 涂出一块 → 「去掉杂物」（本机，免费）/「换成…」/「自由修改」（3 张候选）→ 变成可再改、可还原的图层；接缝和色调自动对齐 | 本机 LaMa 或图像服务 |
 | **分层** | 智能点选人物（3 个候选）或按格子一键拆成图层 | 本机（免费） |
-| **画一页漫画** | 选格子数或照本页格子 → 每格写画面和对白 → 一键生成整页 | 图像服务 |
+| **画一页漫画** | 粘贴剧本自动拆成格子和对白（或逐格写）→ 一键生成整页；对白气泡自动避脸、按从右到左的阅读顺序摆放 | 图像服务 |
 | **AI 生图** | NovelAI 文生图 / 图生图 | NovelAI Token |
 | **专业模式** | 原版全部工具：分镜、气泡、网点、笔刷、多页、模拟器、导出 | — |
+
+| 随时可用 | 做什么 |
+|---|---|
+| **角色库**（⋯ 菜单） | 给角色存参考图，本页自动认出是谁；改图时自动带上该角色的参考 |
+| **Ctrl+K 找功能** | 输入几个字就能找到并执行任何功能 |
+| **历史面板** | 每一步都有中文名、时间和缩略图，点一下回到那一步 |
+| **PSD 导入 / 导出** | 文件菜单；文字是可编辑文字层，AI 图层带蒙版 |
 
 | 换角色（左原图 / 右结果） | 一页完成稿 |
 |---|---|
 | ![换角色前后](docs/images/swap-before-after.jpg) | ![完成稿](docs/images/comic-page.jpg) |
 | **改字幕**：每页识别结果自动缓存 | **分层**：按格子拆成图层 |
 | ![改字幕](docs/images/caption.jpg) | ![按格子拆成图层](docs/images/panel-split.jpg) |
+| **改一块**：涂一块 → 换成… → 3 张候选 | **剧本成页**：粘贴剧本 → 格子、对白气泡 |
+| ![改一块](docs/images/gaiyikuai.jpg) | ![剧本成页](docs/images/script-page.jpg) |
+| **角色库**：本页自动认人 | **历史面板**：每步有名字和缩略图 |
+| ![角色库](docs/images/character-library.jpg) | ![历史面板](docs/images/history.jpg) |
+
+**自动对白气泡**（左：旧的固定右上角；右：避脸、按阅读顺序）
+
+![自动对白气泡](docs/images/balloons.jpg)
 
 ## 安装（3 步）
 
@@ -80,7 +94,9 @@ Manga-NAI-GPT 是基于 [Manga Editor Desu](https://github.com/new-sankaku/manga
 - **换角色在复杂多人画格里不稳定**：偶尔会改到同格另一个人或比例不自然，请先看「对比原图」再应用。
 - **自动找格子需要白色格间留白**：无边框、满版出血、黑底分格要手动框选。
 - **本机 AI 只用 CPU**：首次人物识别 20–60 秒，内存 < 8 GB 的电脑会偏慢。
-- **Windows 尚未在真实电脑上完整验证**（只经过代码审查和 CI 的 `windows-latest` 离线测试），见 [docs/dev/WINDOWS_READINESS.md](docs/dev/WINDOWS_READINESS.md)。
+- **Windows 尚未在真实电脑上完整验证**：每次提交 CI 都会在 `windows-latest` 上真正运行「一键启动.bat」（从带空格和中文的路径启动，检查页面和本机接口），但还没在真人电脑上逐项试过。见 [docs/dev/WINDOWS_READINESS.md](docs/dev/WINDOWS_READINESS.md)。
+- 「改一块」的「换成… / 自由修改」和角色库自动带参考，用真实 GPT 的效果还没有在 1.5 上重新验证。
+- 彩色页导出 PSD 约 16–18 MB（无损）；黑白页约 6 MB。
 - 文字识别以日文漫画为主；手写体、艺术字识别率较低。
 
 ## 常见问题
