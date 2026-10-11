@@ -1,5 +1,7 @@
 # Windows 就绪情况（静态审查，**尚未在真实 Windows 上验证**）
 
+> 1.5 更新：CI 的 `windows-start` 任务现在会在 `windows-latest` 上真正运行 `一键启动.bat`（路径含空格和中文、`-Ci` 非交互模式），等 `MNAI_READY` 后检查 `index.html`、GPT 本机接口的同源防护和 `MNAI_PORT` 换端口；`安装AI功能.bat -DryRun` 也会跑。仍未在真人 Windows 电脑上逐项试过。
+
 2026-10-11，没有可用的 Windows 机器；以下结论来自代码审查 + GitHub Actions `windows-latest` 的离线检查（`.github/workflows/windows-checks.yml`）。
 
 | 项目 | 结论 | 处理 |

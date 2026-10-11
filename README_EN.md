@@ -19,8 +19,7 @@ Manga-NAI-GPT is built on [Manga Editor Desu](https://github.com/new-sankaku/man
 
 ## Features
 
-**New in 1.5:** Edit an area (remove / replace / free edit), character library, non-destructive AI layers, automatic balloons, paste-a-script → page, Ctrl+K command palette + thumbnail history, PSD I/O, `MNAI_PORT`. See [CHANGELOG](CHANGELOG.md).
-
+Current version **1.5**: six tasks on the home screen, plus a character library, automatic speech balloons, a Ctrl+K command palette, a history panel with thumbnails, and PSD import/export. See [CHANGELOG](CHANGELOG.md).
 
 | Task | What it does | Needs |
 |---|---|---|
@@ -28,15 +27,30 @@ Manga-NAI-GPT is built on [Manga Editor Desu](https://github.com/new-sankaku/man
 | **改字幕 Captions** | Text is detected on import → edit the lines → old text erased, new text typeset to the bubble (CJK line-breaking, keep SFX option) | Local (free) |
 | **改一块 Edit an area** | Paint an area → "remove" (local, free) / "replace with…" / "free edit" (3 candidates) → becomes an editable, revertible layer; seams and tone are matched | Local LaMa or image service |
 | **分层 Layers** | Smart click-select (3 candidates) or split by panels in one click | Local (free) |
-| **画一页 Draw a page** | Choose panel count or reuse this page's grid → one line of scene + dialogue per panel → generate | Image service |
+| **画一页 Draw a page** | Paste a script (split into panels and dialogue automatically) or fill each panel → generate; balloons avoid faces and follow right-to-left reading order | Image service |
 | **AI 生图 Generate** | NovelAI text-to-image / image-to-image | NovelAI token |
 | **专业模式 Pro mode** | All original tools: panels, bubbles, screentones, brushes, multi-page, simulator, export | — |
+
+| Always available | What it does |
+|---|---|
+| **Character library** (⋯ menu) | Store references per character; recognises who is on the page; edits attach that character's reference |
+| **Ctrl+K** | Type a few characters to find and run any command |
+| **History panel** | Every step has a name, time and thumbnail; click to jump back |
+| **PSD import / export** | File menu; text stays editable, AI layers keep their masks |
 
 | Character swap (before / after) | Finished page |
 |---|---|
 | ![swap](docs/images/swap-before-after.jpg) | ![page](docs/images/comic-page.jpg) |
 | **Captions**: OCR cached per page | **Layers**: split by panels |
 | ![captions](docs/images/caption.jpg) | ![layers](docs/images/panel-split.jpg) |
+| **Edit an area**: paint → replace with… → 3 candidates | **Script → page**: panels and balloons from a script |
+| ![edit an area](docs/images/gaiyikuai.jpg) | ![script to page](docs/images/script-page.jpg) |
+| **Character library**: recognises who is on the page | **History**: named steps with thumbnails |
+| ![character library](docs/images/character-library.jpg) | ![history](docs/images/history.jpg) |
+
+**Automatic balloons** (left: old fixed top-right; right: avoid faces, reading order)
+
+![balloons](docs/images/balloons.jpg)
 
 ## Install (3 steps)
 
@@ -78,7 +92,9 @@ The browser opens `http://127.0.0.1:8000/index.html`. The launcher window is the
 - **Character swap is unstable in complex multi-person panels** — it may touch the other person or distort proportions; always check the before/after compare.
 - **Panel detection needs white gutters** — borderless, full-bleed or black-gutter pages need manual boxes.
 - **Local AI is CPU-only** — first character detection takes 20–60 s; slow on machines with < 8 GB RAM.
-- **Windows is not yet verified on a real machine** (static review + `windows-latest` CI only); see [docs/dev/WINDOWS_READINESS.md](docs/dev/WINDOWS_READINESS.md).
+- **Windows is not yet verified on a real machine.** Every commit runs `一键启动.bat` for real on `windows-latest` CI (from a path with spaces and Chinese characters, checking the page and the local API), but nobody has walked through it on a physical PC yet. See [docs/dev/WINDOWS_READINESS.md](docs/dev/WINDOWS_READINESS.md).
+- Real-GPT quality of "replace with… / free edit" and the character library's automatic reference has not been re-verified on 1.5.
+- Colour pages export to PSD at about 16–18 MB (lossless); black-and-white pages about 6 MB.
 - OCR targets Japanese manga; handwriting and stylised lettering are weaker.
 
 ## FAQ
