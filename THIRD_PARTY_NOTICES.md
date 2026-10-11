@@ -33,6 +33,7 @@ Python 运行依赖（pip 安装，不打包）：PyTorch CPU（BSD-3）、onnxr
 | Bootstrap | 5.2.3 | MIT | https://github.com/twbs/bootstrap |
 | i18next | — | MIT | https://github.com/i18next/i18next |
 | ag-psd（PSD 读写，首次使用时才加载；`js/ui/third/ag-psd/`，附 LICENSE） | 31.0.3（本项目小改：可写灰度 Grayscale 文档，见文件内 “Manga-NAI-GPT patch”） | MIT | https://github.com/Agamnentzar/ag-psd |
+| 提示词规则与 PROMPT / CHARACTER / UC 输出格式、A–E × 1–5 角色坐标约定（`js/ai/prompt-assist-core.js`，移植并整理；去掉了机器人人设和默认附加内容） | 本作者自己的项目 astrbot-plugin-nai5-mutsumi（skill/SKILL.md、references/通用写法.md、references/坐标约定.md） | MIT | https://github.com/h1neolzr7f/astrbot-plugin-nai5-mutsumi |
 | Tippy.js + Popper | 6.x / 2.11.8 | MIT | https://github.com/atomiks/tippyjs |
 | JSZip | 3.7.1 | MIT 或 GPL-3.0（双许可，选 MIT） | https://github.com/Stuk/jszip |
 | localForage | 1.10.0 | Apache-2.0 | https://github.com/localForage/localForage |
@@ -109,3 +110,9 @@ Python 运行依赖（pip 安装，不打包）：PyTorch CPU（BSD-3）、onnxr
 ## 待决（需要你决定）
 
 1. **CCIP（OpenRAIL）**：按需下载，不随仓库分发；README 已说明。若希望全部组件都是 OSI 许可，可改用纯人脸特征（会降低跨格匹配准确度）。
+
+## 按需下载的数据（不进 Git）
+
+| 数据 | 用途 | 来源（固定提交） | 许可证 | 说明 |
+|---|---|---|---|---|
+| Danbooru 标签表 `danbooru.csv`（约 3.4 MB，140 782 个标签 + 别名） | 提示词助手：离线标签补全、别名纠正、角色 / 作品标签 | [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-webui-tagcomplete) @ `4170882` `tags/danbooru.csv` | 项目 MIT；标签名与使用次数是 Danbooru 公开站点的事实数据 | 只在启用「提示词助手」后、第一次使用时下载；SHA-256 `f936684f…a7214732` 校验通过才使用，存在浏览器 IndexedDB。仓库只带 24 行测试样例（`scripts/fixtures/danbooru-sample.csv`）。不含标签蕴含（implications）数据。 |

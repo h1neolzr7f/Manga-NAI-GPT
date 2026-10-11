@@ -230,7 +230,7 @@ var lr=row(local);
 lr.appendChild(el('button',{type:'button',class:'ui-btn ui-btn-primary',id:'svcLocalTest'},'检查状态'));
 lr.appendChild(el('span',{class:'ui-badge',id:'svcLocalStatus'},'未检查'));
 
-var dir=section('svcDirector','AI 导演（可选：AI 生图前自动优化提示词）','任意 OpenAI 兼容的聊天模型服务。不填就不使用，AI 生图照常可用。');
+var dir=section('svcDirector','提示词助手 / AI 导演（可选）','任意 OpenAI 兼容的聊天模型（例如 DeepSeek）。用于「润色 / 扩写」和 AI 生图前优化提示词。不填就不使用；Key 只存在本机。');
 card.appendChild(dir);
 var dirUse=$('naiDirectorUseApi');if(dirUse&&dirUse.closest('label'))dir.appendChild(dirUse.closest('label'));
 var dirRow=$('naiDirectorApiUrl')&&$('naiDirectorApiUrl').closest('.nai-director-api-row');
@@ -242,6 +242,13 @@ var dk=$('naiDirectorApiKeyToggle');if(dk){dk.classList.add('ui-btn');dr.appendC
 var oldDirTest=$('naiDirectorTestApi');if(oldDirTest)oldDirTest.remove();
 dr.appendChild(el('button',{type:'button',class:'ui-btn ui-btn-primary',id:'svcDirectorTest'},'测试连接'));
 dr.appendChild(el('span',{class:'ui-badge',id:'svcDirectorStatus'},'未测试'));
+var pa=row(dir);
+var pal=el('label',{class:'nai-inline-check',title:'默认关闭。打开后 NovelAI 提示词框会有标签补全和「润色 / 扩写 / 查标签」按钮。'},'<input type="checkbox" id="svcPaEnable"> 启用提示词助手（标签补全 + 润色 / 扩写）');pa.appendChild(pal);
+var pai=pal.querySelector('input');pai.checked=!!(window.PromptAssist&&PromptAssist.enabled());
+pai.addEventListener('change',function(){if(window.PromptAssist)PromptAssist.setEnabled(pai.checked);});
+var pdl=el('button',{type:'button',class:'ui-btn',id:'svcPaTags',title:'Danbooru 标签库（tagcomplete 项目，MIT），约 3.4 MB，下载后校验 SHA-256，只存在这个浏览器里'},'下载 / 检查标签库');pa.appendChild(pdl);
+pa.appendChild(el('span',{class:'ui-badge',id:'svcPaTagStatus'},(window.PromptAssist&&PromptAssist.index)?'标签库就绪':'标签库未下载'));
+pdl.addEventListener('click',function(){if(window.PromptAssist)PromptAssist.loadTags().catch(function(){});});
 
 var tag=section('svcTagger','导入漫画自动打标签（可选）','本机运行的 Danbooru Tagger（例如 WebUI 的 tagger 扩展）。没有也能导入，会使用保守的默认标签。');
 card.appendChild(tag);

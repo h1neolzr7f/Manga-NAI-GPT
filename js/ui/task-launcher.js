@@ -443,7 +443,7 @@ markStep(0);
 body.innerHTML='<div class="svc-row" role="radiogroup" aria-label="格子数">'+
 '<button type="button" class="ui-btn" data-panels="3" id="taskPage3">3 格</button>'+
 '<button type="button" class="ui-btn" data-panels="4" id="taskPage4">4 格</button></div>'+
-'<label class="ui-field"><span>统一画风 / 角色（每格都会用）</span><input id="taskPageStyle" type="text" value="黑白日式漫画，清晰线稿，网点阴影，安全健康内容"></label>'+
+'<label class="ui-field"><span>统一画风 / 角色（每格都会用）</span><input id="taskPageStyle" type="text" data-nai-prompt="style tags shared by every panel" value="黑白日式漫画，清晰线稿，网点阴影，安全健康内容"></label>'+
 '<details class="task-script" id="taskScriptBox"><summary>粘贴剧本，自动分格</summary>'+
 '<textarea class="ui-textarea" id="taskScript" rows="6" placeholder="例如：&#10;第1格：清晨的车站，小雪在等车&#10;小雪：今天也要加油！&#10;第2格：列车进站&#10;旁白：列车准时到了。&#10;（不写「第N格」时，用空行分开每一格）"></textarea>'+
 '<div class="svc-row"><button type="button" class="ui-btn" id="taskScriptSplit">拆成格子</button><button type="button" class="ui-btn ui-btn-ghost" id="taskScriptNext" hidden>下一页剧本</button></div>'+
@@ -472,6 +472,12 @@ setPageEngine(window.NaiEngine?NaiEngine.preferred('page',!!($('mangaGptUrl')&&$
 $('taskScriptSplit').addEventListener('click',function(){applyScript($('taskScript').value);});
 $('taskScriptNext').addEventListener('click',function(){fillScriptPage(scriptQueue.shift());});
 $('taskPageCancel').addEventListener('click',function(){if(pageJob)pageJob.cancel=true;if(pageJob&&pageJob.ctl)pageJob.ctl.abort();});
+}
+// 角色库 characters named in a scene that have NovelAI tags -> V4 character prompts, placed right-to-left (manga order)
+function libraryCharacters(scene){
+var lib=window.CharacterLibrary&&CharacterLibrary._state&&CharacterLibrary._state.cards||[];
+var hit=lib.filter(function(c){return c.identity&&c.identity.tags&&c.name&&scene.indexOf(c.name)>=0;}).slice(0,4);
+return hit.map(function(c,k){var x=hit.length===1?0.5:0.9-k*(0.8/(hit.length-1));return {prompt:c.identity.tags,center:NaiEngineCore.gridCenter(x,0.5)};});
 }
 var pageEngine='gpt';
 var GPT_STYLE='黑白日式漫画，清晰线稿，网点阴影，安全健康内容',NAI_STYLE='monochrome, greyscale, manga, screentone, clean lineart';
@@ -515,7 +521,7 @@ box.hidden=false;if($('taskPageEdit'))$('taskPageEdit').hidden=true;
 for(var i=0;i<n;i++){
 var f=el('fieldset',{class:'task-page-panel'});
 f.innerHTML='<legend>第 '+(i+1)+' 格</legend>'+
-'<textarea class="ui-textarea" rows="2" data-scene="'+i+'" placeholder="画面，例如：清晨，少女在车站等车"></textarea>'+
+'<textarea class="ui-textarea" rows="2" data-nai-prompt="one manga panel" data-scene="'+i+'" placeholder="画面，例如：清晨，少女在车站等车"></textarea>'+
 '<input class="ui-textarea" type="text" data-line="'+i+'" placeholder="对白（可不填；多句用 / 分开）">';
 box.appendChild(f);
 }
@@ -580,7 +586,7 @@ if(pageJob.cancel)break;
 pageStatus('正在画第 '+(i+1)+' / '+rects.length+' 格…');
 pageJob.ctl=new AbortController();
 try{
-var data=pageEngine==='nai'?await NaiEngine.run({prompt:NaiEngineCore.joinTags(style,scenes[i]),width:rects[i].width,height:rects[i].height,seed:lockSeed==null?undefined:lockSeed},pageJob.ctl.signal,pageStatus):
+var data=pageEngine==='nai'?await NaiEngine.run({prompt:NaiEngineCore.joinTags(style,scenes[i]),characters:libraryCharacters(scenes[i]),width:rects[i].width,height:rects[i].height,seed:lockSeed==null?undefined:lockSeed},pageJob.ctl.signal,pageStatus):
 await ServiceRequest.request('gpt','/gpt-image-proxy',{signal:pageJob.ctl.signal,timeoutMs:300000,headers:key?{Authorization:'Bearer '+key}:{},
 body:{operation:'generate',baseUrl:$('mangaGptUrl').value.trim(),model:$('mangaGptModel').value.trim(),size:sizeFor(rects[i]),
 prompt:pagePrompt(style,scenes[i])}});
@@ -588,7 +594,7 @@ var img=await loadFabricImage(data.image);
 img.name='第'+(i+1)+'格画面';if(data.seed!=null){img.naiSeed=data.seed;img.tempSeed=data.seed;img.tempPrompt=NaiEngineCore.joinTags(style,scenes[i]);}
 putImageInFrame(img,rects[i].left+rects[i].width/2,rects[i].top+rects[i].height/2,true,false,true,panels[i]);
 done++;
-}catch(error){failed.push(i+1);var em=error.userMessage||error.message||'';pageStatus('第 '+(i+1)+' 格没画成：'+(pageEngine==='gpt'&&window.NaiEngine&&NaiEngine.isRefusal(em)?'这个 GPT 服务按它自己的内容规则拒绝了这一格（不是本编辑器的限制）。可以点上面的「NovelAI」改用 NovelAI 再生成。':em),true);if(pageEngine==='gpt'&&window.NaiEngine&&NaiEngine.isRefusal(em))pageJob.refused=true;if(error.status===401||error.network)break;}
+}catch(error){failed.push(i+1);var em=error.userMessage||error.message||'';pageStatus('第 '+(i+1)+' 格没画成：'+(pageEngine==='gpt'&&window.NaiEngine&&NaiEngine.isRefusal(em)?'这个 GPT 服务按它自己的内容规则拒绝了这一格（不是本编辑器的限制）。可以点上面的「NovelAI」改用 NovelAI 再生成。':em),true);if(pageEngine==='gpt'&&window.NaiEngine&&NaiEngine.isRefusal(em))pageJob.refused=true;if(error.status===401||error.network||(pageEngine==='nai'&&error.name!=='AbortError'))break;}
 canvas.renderAll();
 }
 if(lines.some(Boolean)&&!pageJob.cancel&&window.BalloonLayout){

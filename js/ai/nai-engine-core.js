@@ -94,5 +94,36 @@
     if (status === 400) return { retry: false, msg: 'NovelAI 拒绝了参数（400）：' + t.slice(0, 160) };
     return { retry: false, msg: 'NovelAI 返回错误（' + status + '）：' + t.slice(0, 160) };
   }
-  root.NaiEngineCore = Object.freeze({ FREE, MODELS, UC_PRESETS, QUALITY_TAGS, MANGA_STYLE, model, sizeFor, cost, gridCenter, payload, isRefusal, httpError, joinTags });
+  /** Read NovelAI generation info from PNG bytes (tEXt/iTXt "Comment" JSON + "Description"). null when absent. */
+  function readPngMeta(bytes) {
+    const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    if (b.length < 16 || b[0] !== 0x89 || b[1] !== 0x50) return null;
+    const dec = new TextDecoder('utf-8'), latin = new TextDecoder('latin1'), text = {};
+    let o = 8;
+    while (o + 12 <= b.length) {
+      const len = (b[o] << 24 | b[o + 1] << 16 | b[o + 2] << 8 | b[o + 3]) >>> 0, type = latin.decode(b.subarray(o + 4, o + 8)), d = b.subarray(o + 8, o + 8 + len);
+      if (type === 'tEXt' || type === 'iTXt') {
+        const z = d.indexOf(0); const key = latin.decode(d.subarray(0, z));
+        let val = d.subarray(z + 1); if (type === 'iTXt') { let k = 2, n = 0; for (let i = 2; i < val.length && n < 2; i++) if (val[i] === 0) { n++; k = i + 1; } if (val[0] === 0) val = val.subarray(k); else val = null; }
+        if (val) text[key] = dec.decode(val);
+      }
+      if (type === 'IEND') break; o += 12 + len;
+    }
+    if (!text.Comment && !text.Description) return null;
+    let c = {}; try { c = JSON.parse(text.Comment || '{}'); } catch (_) { c = {}; }
+    const v4 = c.v4_prompt && c.v4_prompt.caption, v4n = c.v4_negative_prompt && c.v4_negative_prompt.caption;
+    return { prompt: (v4 && v4.base_caption) || c.prompt || text.Description || '', negative: (v4n && v4n.base_caption) || c.uc || c.negative_prompt || '',
+      characters: v4 && v4.char_captions ? v4.char_captions.map(x => ({ prompt: x.char_caption, center: x.centers && x.centers[0] })) : [],
+      seed: c.seed, steps: c.steps, scale: c.scale, sampler: c.sampler, width: c.width, height: c.height, source: text.Source || '', software: text.Software || '' };
+  }
+  /** Rough prompt length check (NovelAI V4/V4.5 read up to 512 T5 tokens). Approximation: no tokenizer is bundled. */
+  function tokenEstimate(p) { const s = String(p || ''); const words = (s.match(/[A-Za-z0-9]+/g) || []).length, cjk = (s.match(/[\u3040-\u9fff]/g) || []).length, punct = (s.match(/[,.:{}[\]()"]/g) || []).length; return Math.round(words * 1.3 + cjk * 1.1 + punct * 0.5); }
+  /** Ctrl+Up/Down weight edit for one tag: tag <-> 1.1::tag:: (V4 syntax), steps of 0.1, back to plain at 1.0. */
+  function bumpWeight(tag, dir) {
+    const m = /^\s*(-?\d+(?:\.\d+)?)::([\s\S]*?)::\s*$/.exec(tag); let w = m ? +m[1] : 1; const core = m ? m[2] : String(tag).trim();
+    w = Math.round((w + (dir > 0 ? 0.1 : -0.1)) * 10) / 10; return Math.abs(w - 1) < 1e-9 ? core : w + '::' + core + '::';
+  }
+  /** Space consecutive queued generations (NovelAI dislikes back-to-back bursts). */
+  const SPACING_MS = 1500;
+  root.NaiEngineCore = Object.freeze({ FREE, MODELS, UC_PRESETS, QUALITY_TAGS, MANGA_STYLE, model, sizeFor, cost, gridCenter, payload, isRefusal, httpError, joinTags, readPngMeta, tokenEstimate, bumpWeight, SPACING_MS });
 })(typeof window !== 'undefined' ? window : globalThis);

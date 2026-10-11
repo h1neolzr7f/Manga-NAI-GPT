@@ -112,7 +112,7 @@
       '<button type="button" class="ui-btn" role="radio" data-ai="gpt" title="OpenAI 兼容图像服务，一句中文就行">GPT</button>' +
       '<button type="button" class="ui-btn" role="radio" data-ai="nai" title="NovelAI 局部重绘（inpaint），英文标签效果最好">NovelAI</button>' +
       '<span class="ui-muted ai-fill-cost" id="aiFillCost"></span></div>' +
-      '<textarea id="aiFillPrompt" rows="2" class="ui-input"></textarea>' +
+      '<textarea id="aiFillPrompt" rows="2" class="ui-input" data-nai-prompt="inpaint: what to draw in the painted area"></textarea>' +
       '<p class="ui-muted ai-fill-hint" id="aiFillHint"></p>' +
       '<div class="charlib-actions"><button type="button" class="ui-btn ui-btn-primary" id="aiFillGenerate">生成</button></div>' +
       '<div id="aiFillResults" class="ai-fill-results"></div><p id="aiFillStatus" class="ui-muted" role="status"></p>' +

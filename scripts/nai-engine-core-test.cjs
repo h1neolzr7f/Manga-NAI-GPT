@@ -25,3 +25,18 @@ assert.strictEqual(N.payload({ prompt: 'x', model: 'nai-diffusion-3' }).paramete
 assert(N.isRefusal('Your request was rejected as a result of our safety system')); assert(N.isRefusal('content_policy_violation')); assert(!N.isRefusal('timeout after 300s'));
 assert(N.httpError(429).retry && !N.httpError(401).retry);
 console.log('PASS nai-engine-core');
+// PNG metadata (NovelAI writes tEXt Comment JSON); weight hotkeys; token estimate
+{
+  const zlib = require('zlib'); const crc = b => { let c, t = []; for (let n = 0; n < 256; n++) { c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } c = 0xffffffff; for (const x of b) c = t[(c ^ x) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+  const chunk = (type, data) => { const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type, 'latin1'), data]); const cr = Buffer.alloc(4); cr.writeUInt32BE(crc(td)); return Buffer.concat([len, td, cr]); };
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(1, 0); ihdr.writeUInt32BE(1, 4); ihdr[8] = 8; ihdr[9] = 0;
+  const comment = JSON.stringify({ prompt: 'old', uc: 'lowres', seed: 7, steps: 28, scale: 5, sampler: 'k_euler_ancestral', width: 832, height: 1216,
+    v4_prompt: { caption: { base_caption: '1girl, rain, umbrella', char_captions: [{ char_caption: 'girl, smile', centers: [{ x: 0.5, y: 0.5 }] }] } }, v4_negative_prompt: { caption: { base_caption: 'lowres, bad hands' } } });
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('tEXt', Buffer.from('Software\0NovelAI', 'latin1')), chunk('tEXt', Buffer.from('Comment\0' + comment, 'utf8')), chunk('IDAT', zlib.deflateSync(Buffer.from([0, 0]))), chunk('IEND', Buffer.alloc(0))]);
+  const m = N.readPngMeta(new Uint8Array(png));
+  assert.strictEqual(m.prompt, '1girl, rain, umbrella'); assert.strictEqual(m.negative, 'lowres, bad hands'); assert.strictEqual(m.seed, 7); assert.strictEqual(m.characters[0].prompt, 'girl, smile'); assert.strictEqual(m.software, 'NovelAI');
+  assert.strictEqual(N.readPngMeta(new Uint8Array([1, 2, 3])), null);
+  assert.strictEqual(N.bumpWeight('rain', 1), '1.1::rain::'); assert.strictEqual(N.bumpWeight('1.1::rain::', -1), 'rain'); assert.strictEqual(N.bumpWeight('rain', -1), '0.9::rain::');
+  assert(N.tokenEstimate('1girl, red umbrella, rain') > 4 && N.tokenEstimate('') === 0);
+  console.log('PASS nai-engine-core: png metadata, weights, tokens');
+}

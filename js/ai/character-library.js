@@ -94,7 +94,18 @@
       html += '<ul class="charlib-faces">' + r.faces.map((f, i) => '<li data-i="' + i + '"><span class="ui-badge ' + (f.status === 'match' ? 'is-ok' : f.status === 'possible' ? 'is-warn' : '') + '">' + esc(statusText(f)) + '</span>' +
         (f.status === 'match' ? '' : ' <button type="button" class="ui-btn charlib-add" data-i="' + i + '">' + (f.status === 'possible' ? '是 ' + esc(f.name) + '，记住这张' : '加入角色库') + '</button>') + '</li>').join('') + '</ul>';
     } else if (!lib.length) html += '<p>先把主要角色加入角色库：在页面上点「认出本页人物」，再给认不出的人点「加入角色库」起个名字。</p>';
+    if (root.PromptAssist && root.PromptAssist.enabled() && S.cards.length) {
+      html += '<details class="charlib-tags" open><summary>角色标签（NovelAI 角色栏，提示词助手）</summary>' + S.cards.map(c => '<label class="ui-field"><span>' + esc(c.name) + '</span><input class="ui-input" data-nai-prompt="character prompt for ' + esc(c.name) + '" data-char-id="' + esc(c.id) + '" value="' + esc((c.identity && c.identity.tags) || '') + '" placeholder="例如：togawa sakiko, girl"></label>').join('') + '</details>';
+    }
+    const sn = root.PromptAssist ? root.PromptAssist.snippets() : [];
+    if (sn.length) html += '<details class="charlib-tags"><summary>风格片段（' + sn.length + '）</summary>' + sn.map((x, i) => '<button type="button" class="ui-btn charlib-snip" data-snip="' + i + '" title="' + esc(x.text) + '">' + esc(x.name) + '</button>').join(' ') + '<p class="ui-muted">点一下复制到剪贴板；画一页的「统一画风」框里也能直接选。</p></details>';
     body.innerHTML = html;
+    body.querySelectorAll('[data-snip]').forEach(b => b.addEventListener('click', () => { const x = sn[+b.dataset.snip]; if (x && navigator.clipboard) navigator.clipboard.writeText(x.text).then(() => status('已复制「' + x.name + '」。'), () => status(x.text)); }));
+    body.querySelectorAll('[data-char-id]').forEach(inp => inp.addEventListener('change', async () => {
+      const c = S.cards.find(x => x.id === inp.dataset.charId); if (!c) return;
+      await bible().put(Object.assign({}, c, { identity: Object.assign({}, c.identity, { tags: inp.value.trim() }) })); await loadCards(); status('已保存「' + c.name + '」的标签。');
+    }));
+    if (root.PromptAssist) root.PromptAssist.scan();
     body.querySelectorAll('.charlib-add').forEach(b => b.addEventListener('click', () => addFace(+b.dataset.i)));
   }
 
