@@ -130,8 +130,13 @@ async function startServer() {
     await p.locator('#aiFillCard').waitFor({ state: 'visible' });
     await p.locator('[data-tool="box"]').click();
     const vb2 = await p.locator('#aiFillView').boundingBox();
-    await p.mouse.move(vb2.x + vb2.width * 0.55, vb2.y + vb2.height * 0.6); await p.mouse.down();
-    await p.mouse.move(vb2.x + vb2.width * 0.62, vb2.y + vb2.height * 0.66, { steps: 4 }); await p.mouse.up();
+    // box straddling the gutter between the first two panels (frames must survive)
+    const gut = await p.evaluate(async () => { const pa = await PanelAuto.get(); const [a, b] = pa.panels.slice().sort((u, v) => u.y - v.y);
+      return { W: pa.W, H: pa.H, y: (a.y + a.h + b.y) / 2, x: a.x + a.w * 0.4, aBottom: a.y + a.h, bTop: b.y, n: pa.panels.length }; });
+    assert(gut.n >= 2, 'fixture has 2+ panels');
+    const toView = (x, y) => [vb2.x + x * vb2.width / gut.W, vb2.y + y * vb2.height / gut.H];
+    let [bx, by] = toView(gut.x, gut.y - 60); await p.mouse.move(bx, by); await p.mouse.down();
+    [bx, by] = toView(gut.x + 160, gut.y + 60); await p.mouse.move(bx, by, { steps: 4 }); await p.mouse.up();
     await p.locator('input[name=aiFillEngine][value=lama]').check();
     await p.locator('#aiFillGenerate').click();
     await p.locator('.ai-fill-cand[data-k="0"]').waitFor({ timeout: 30000 });
@@ -140,6 +145,16 @@ async function startServer() {
     await p.locator('#aiFillUse').click();
     await p.waitForFunction(() => canvas.getObjects().filter(o => o.aiFill).length === 2, null, { timeout: 10000 });
     assert.equal((await layers())[1].engine, 'lama');
+    const frame = await p.evaluate(g => {
+      const o = canvas.getObjects().filter(x => x.aiFill)[1]; const c = document.createElement('canvas'); c.width = o.width; c.height = o.height;
+      const ctx = c.getContext('2d'); ctx.drawImage(o._element, 0, 0); const d = ctx.getImageData(0, 0, c.width, c.height).data;
+      let maxA = 0, inside = 0;
+      for (let y = Math.floor(g.aBottom - 5 - o.top); y <= Math.ceil(g.bTop + 5 - o.top); y++) { if (y < 0 || y >= c.height) continue; for (let x = 0; x < c.width; x++) maxA = Math.max(maxA, d[(y * c.width + x) * 4 + 3]); }
+      for (let i = 3; i < d.length; i += 4) if (d[i] === 255) inside++;
+      return { maxA, inside, clip: o.aiFill.clip.length };
+    }, gut);
+    assert(frame.clip >= 1 && frame.maxA === 0 && frame.inside > 0, 'panel frame + gutter untouched: ' + JSON.stringify(frame));
+    report.frame = frame;
 
     // 7) undo removes the last AI layer (one step); empty mask is refused with a hint
     await p.evaluate(() => { canvas.discardActiveObject(); undo(); });

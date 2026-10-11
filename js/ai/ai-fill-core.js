@@ -51,6 +51,26 @@
   /** Default grow/feather for a mask box size: thin brush strokes still get a soft edge. */
   function edgeFor(box) { const s = Math.min(box[2] - box[0], box[3] - box[1]); return { grow: Math.max(3, Math.round(s * 0.04)), feather: Math.max(6, Math.round(s * 0.08)) }; }
 
+  /** Panel interiors (frame lines excluded) relative to the crop; [] = no clipping (no panels found). */
+  function panelClip(panels, crop, W) {
+    const inset = Math.max(4, Math.round(W * 0.005));
+    return (panels || []).map(p => [p.x + inset - crop.x, p.y + inset - crop.y, p.w - 2 * inset, p.h - 2 * inset])
+      .filter(r => r[2] > 0 && r[3] > 0 && r[0] < crop.w && r[1] < crop.h && r[0] + r[2] > 0 && r[1] + r[3] > 0).slice(0, 24);
+  }
+  /** alpha *= inside any clip rect (with a 2 px soft edge). Mutates and returns alpha. */
+  function applyClip(alpha, w, h, clip) {
+    if (!clip || !clip.length) return alpha;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let best = 0;
+      for (const [cx, cy, cw, ch] of clip) {
+        const d = Math.min(x - cx, y - cy, cx + cw - 1 - x, cy + ch - 1 - y);
+        if (d >= 0) { best = Math.max(best, Math.min(1, (d + 1) / 2)); if (best === 1) break; }
+      }
+      alpha[y * w + x] *= best;
+    }
+    return alpha;
+  }
+
   function prompt(sentence, hasMaskRef) {
     const want = String(sentence || '').trim().slice(0, 800);
     return [
@@ -70,8 +90,9 @@
     return { v: META_VERSION, engine: m.engine === 'lama' ? 'lama' : 'gpt', prompt: String(m.prompt || '').slice(0, 800),
       model: String(m.model || '').slice(0, 80), box, mask: m.mask, source: m.source, candidates: cands,
       chosen: Math.max(0, Math.min(cands.length - 1, m.chosen | 0)), edge: m.edge && Number.isFinite(m.edge.grow) && Number.isFinite(m.edge.feather) ? { grow: m.edge.grow, feather: m.edge.feather } : null,
+      clip: (Array.isArray(m.clip) ? m.clip : []).filter(r => Array.isArray(r) && r.length === 4 && r.every(Number.isFinite)).slice(0, 24),
       created: String(m.created || '').slice(0, 40) };
   }
 
-  root.AiFillCore = Object.freeze({ maskBox, contextBox, blur, softMask, edgeFor, prompt, normalizeMeta, MAX_CANDIDATES });
+  root.AiFillCore = Object.freeze({ maskBox, contextBox, blur, softMask, edgeFor, prompt, normalizeMeta, panelClip, applyClip, MAX_CANDIDATES });
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -168,6 +168,7 @@
     const hard = new Uint8Array(w * h); for (let i = 0; i < hard.length; i++) hard[i] = md[i * 4] >= 128 ? 255 : 0;
     const edge = meta.edge || F.edgeFor(maskBoxOf(hard, w, h));
     const alpha = F.softMask(hard, w, h, edge.grow, edge.feather);
+    F.applyClip(alpha, w, h, meta.clip);   // panel frame lines and gutters always keep the original
     const ring = F.softMask(hard, w, h, edge.grow + edge.feather * 2, 0);
     const sum = [0, 0, 0]; let n = 0;
     for (let i = 0; i < hard.length; i++) if (ring[i] > 0 && alpha[i] === 0) { for (let ch = 0; ch < 3; ch++) sum[ch] += sd[i * 4 + ch] - out.data[i * 4 + ch]; n++; }
@@ -200,7 +201,8 @@
     if (S.engine === 'lama' && cover / (r.w * r.h) > 0.6) return status('要去掉的区域太大了（超过裁切范围的 60%），请分几次涂。', true);
     S.busy = true; updateButtons(); S.ctrl = new AbortController();
     const model = (($('mangaGptModel') || {}).value || '').trim();
-    const meta = { engine: S.engine, prompt: sentence, model: S.engine === 'gpt' ? model : 'lama', box: [r.x, r.y, r.w, r.h], mask, source, candidates: [], chosen: 0, edge: F.edgeFor(F.maskBox(hard, S.W, S.H).map((v, i) => v - (i % 2 ? r.y : r.x))), created: new Date().toISOString() };
+    const pa = root.PanelAuto ? await root.PanelAuto.get().catch(() => null) : null;
+    const meta = { engine: S.engine, prompt: sentence, model: S.engine === 'gpt' ? model : 'lama', box: [r.x, r.y, r.w, r.h], mask, source, candidates: [], chosen: 0, edge: F.edgeFor(F.maskBox(hard, S.W, S.H).map((v, i) => v - (i % 2 ? r.y : r.x))), created: new Date().toISOString(), clip: F.panelClip(pa && pa.panels && pa.panels.length > 1 ? pa.panels : [], r, S.W) };
     $('aiFillResults').innerHTML = '';
     const t0 = performance.now();
     try {

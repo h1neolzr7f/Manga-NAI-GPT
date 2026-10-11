@@ -26,4 +26,12 @@ const png = 'data:image/png;base64,AAAA';
 assert.equal(F.normalizeMeta({ box: [1, 2, 3, 4], mask: png }), null, 'source required');
 const meta = F.normalizeMeta({ engine: 'x', prompt: 'p', box: [1.2, 2, 3, 4], mask: png, source: png, candidates: [png, 'javascript:1', png, png, png, png], chosen: 9 });
 assert.equal(meta.engine, 'gpt'); assert.deepEqual(meta.box, [1, 2, 3, 4]); assert.equal(meta.candidates.length, 4); assert.equal(meta.chosen, 3);
+// panel border protection
+const clip = F.panelClip([{ x: 0, y: 0, w: 50, h: 80 }, { x: 52, y: 0, w: 48, h: 80 }], { x: 30, y: 10, w: 40, h: 40 }, 1000);
+assert.equal(clip.length, 2); assert.deepEqual(clip[0], [-25, -5, 40, 70]);
+const al = new Float32Array(40 * 40).fill(1); F.applyClip(al, 40, 40, clip);
+assert.equal(al[20 * 40 + 5], 1, 'inside left panel'); assert.equal(al[20 * 40 + 20], 0, 'gutter/frame protected'); assert.equal(al[20 * 40 + 35], 1, 'inside right panel');
+assert(al[20 * 40 + 14] > 0 && al[20 * 40 + 14] < 1, 'soft 2px edge');
+assert.deepEqual(F.applyClip(new Float32Array(4).fill(1), 2, 2, []), new Float32Array(4).fill(1), 'no panels = no clip');
+assert.equal(F.normalizeMeta({ box: [0, 0, 1, 1], mask: png, source: png, clip: [[1, 2, 3, 4], 'x', [1]] }).clip.length, 1);
 console.log('PASS ai-fill core: mask box, context crop, soft mask, prompt, metadata');
