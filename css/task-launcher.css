@@ -145,3 +145,6 @@ body.ui-beginner #mangaPageOpen, body.ui-beginner #mangaCharacterOpen { display:
 .panel-auto-cell span { position: absolute; left: 6px; top: 6px; min-width: 24px; height: 24px; border-radius: 12px; background: var(--ui-accent); color: var(--ui-accent-text); font: bold 13px/24px sans-serif; text-align: center; }
 .panel-auto-cell:not(.is-on) span { background: var(--ui-text-muted); }
 .panel-auto-bar { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); pointer-events: auto; display: flex; gap: 8px; align-items: center; padding: 8px 12px; white-space: nowrap; }
+.task-script { margin: var(--ui-space-2) 0; border: 1px dashed var(--ui-border); border-radius: var(--ui-radius); padding: 6px 10px; }
+.task-script summary { cursor: pointer; font-weight: 600; }
+.task-script textarea { width: 100%; margin: 6px 0; font-size: 13px; }

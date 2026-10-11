@@ -402,9 +402,19 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&pick){e.pre
 // 画一页漫画: layout + batch panel generation + automatic dialogue bubbles (one click instead of
 // ~10 per panel: new page, template, open GPT, switch mode, prompt, generate, apply, fit into panel, bubble, text)
 var LAYOUTS={
+1:[[0,0,1,1]],
+2:[[0,0,1,.5],[0,.5,1,.5]],
 3:[[0,0,1,.42],[0,.42,.5,.58],[.5,.42,.5,.58]],
-4:[[0,0,1,.3],[0,.3,.55,.35],[.55,.3,.45,.35],[0,.65,1,.35]]
+4:[[0,0,1,.3],[0,.3,.55,.35],[.55,.3,.45,.35],[0,.65,1,.35]],
+5:[[0,0,1,.3],[0,.3,.5,.36],[.5,.3,.5,.36],[0,.66,.6,.34],[.6,.66,.4,.34]],
+6:[[0,0,.5,.33],[.5,0,.5,.33],[0,.33,.5,.34],[.5,.33,.5,.34],[0,.67,.5,.33],[.5,.67,.5,.33]]
 };
+// scene i goes into the i-th frame in reading order (manga: right to left), not in table order
+function readingSorted(rects){
+if(!window.BalloonLayoutCore)return rects;
+var ord=BalloonLayoutCore.readingOrder(rects.map(function(r){return {x:r.left,y:r.top,w:r.width,h:r.height};}),window.BalloonLayout?BalloonLayout.dir():'rtl');
+return ord.map(function(i){return rects[i];});
+}
 function layoutRects(n,w,h){
 var m=.04*Math.min(w,h),g=.012*Math.min(w,h);
 var iw=w-2*m,ih=h-2*m;
@@ -425,6 +435,10 @@ body.innerHTML='<div class="svc-row" role="radiogroup" aria-label="格子数">'+
 '<button type="button" class="ui-btn" data-panels="3" id="taskPage3">3 格</button>'+
 '<button type="button" class="ui-btn" data-panels="4" id="taskPage4">4 格</button></div>'+
 '<label class="ui-field"><span>统一画风 / 角色（每格都会用）</span><input id="taskPageStyle" type="text" value="黑白日式漫画，清晰线稿，网点阴影，安全健康内容"></label>'+
+'<details class="task-script" id="taskScriptBox"><summary>粘贴剧本，自动分格</summary>'+
+'<textarea class="ui-textarea" id="taskScript" rows="6" placeholder="例如：&#10;第1格：清晨的车站，小雪在等车&#10;小雪：今天也要加油！&#10;第2格：列车进站&#10;旁白：列车准时到了。&#10;（不写「第N格」时，用空行分开每一格）"></textarea>'+
+'<div class="svc-row"><button type="button" class="ui-btn" id="taskScriptSplit">拆成格子</button><button type="button" class="ui-btn ui-btn-ghost" id="taskScriptNext" hidden>下一页剧本</button></div>'+
+'<p class="ui-muted" id="taskScriptInfo" role="status"></p></details>'+
 '<div id="taskPagePanels"></div>'+
 '<p class="ui-muted" id="taskPageCost"></p>'+
 '<div class="svc-row"><button type="button" class="ui-btn ui-btn-primary" id="taskPageGo" disabled>生成整页</button>'+
@@ -440,7 +454,27 @@ $('taskPage4').parentNode.appendChild(b);
 b.addEventListener('click',function(){pageLayout=r;choosePanels(n);});
 }).catch(function(){});
 $('taskPageGo').addEventListener('click',runPage);
+$('taskScriptSplit').addEventListener('click',function(){applyScript($('taskScript').value);});
+$('taskScriptNext').addEventListener('click',function(){fillScriptPage(scriptQueue.shift());});
 $('taskPageCancel').addEventListener('click',function(){if(pageJob)pageJob.cancel=true;if(pageJob&&pageJob.ctl)pageJob.ctl.abort();});
+}
+var scriptQueue=[];
+function applyScript(text){
+var info=$('taskScriptInfo');
+if(!window.ScriptPageCore){info.textContent='剧本拆分还没加载好，请稍等再试。';return;}
+var r=ScriptPageCore.parse(text);
+if(!r.stats.panels){info.textContent='没读到内容。每格写一行画面，对白写成「名字：台词」；格子之间用空行或「第N格」分开。';info.classList.add('is-error');return;}
+info.classList.remove('is-error');
+scriptQueue=r.pages.slice(1);
+fillScriptPage(r.pages[0]);
+info.textContent='拆好了：'+r.stats.pages+' 页、'+r.stats.panels+' 格、'+r.stats.lines+' 句对白。'+(r.pages.length>1?'这一页先做第 1 页，做完点「下一页剧本」。':'')+(r.warnings.length?' 注意：'+r.warnings.join(' '):'');
+window.__lastScript=r;
+}
+function fillScriptPage(pg){
+if(!pg)return;
+pageLayout=null;choosePanels(pg.panels.length);
+pg.panels.forEach(function(p,i){var w=ScriptPageCore.toWizard(p);var a=document.querySelector('#taskPagePanels [data-scene="'+i+'"]'),b=document.querySelector('#taskPagePanels [data-line="'+i+'"]');if(a)a.value=w.scene;if(b)b.value=w.line;});
+var nx=$('taskScriptNext');if(nx){nx.hidden=!scriptQueue.length;nx.textContent='下一页剧本（还剩 '+scriptQueue.length+' 页）';}
 }
 function choosePanels(n){
 document.querySelectorAll('#taskWizardBody [data-panels]').forEach(function(b){b.classList.toggle('is-active',Number(b.dataset.panels)===n);b.setAttribute('aria-pressed',String(Number(b.dataset.panels)===n));});
@@ -499,6 +533,7 @@ W=1200;H=1700;
 var rects=pageLayout&&pageLayout.panels.length===scenes.length?
 pageLayout.panels.map(function(q){var kx=W/pageLayout.W,ky=H/pageLayout.H;return {left:Math.round(q.x*kx),top:Math.round(q.y*ky),width:Math.round(q.w*kx),height:Math.round(q.h*ky)};}):
 layoutRects(scenes.length,W,H);
+rects=readingSorted(rects);
 // the whole generated page is ONE history step: one Ctrl+Z takes it all back
 if(typeof changeDoNotSaveHistory==='function'){changeDoNotSaveHistory();pageJob.historyPaused=true;}
 var panels=rects.map(function(r,i){var p=makePanel(r,i+1);canvas.add(p);return p;});
