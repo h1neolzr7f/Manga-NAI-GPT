@@ -14,7 +14,7 @@ on:
       - "scripts/windows/**"
       - ".github/workflows/manga-full-acceptance.yml"
   push:
-    branches: ["main"]
+    branches: ["main", "dev/**"]
     paths:
       - "99_server.py"
       - "gpt_image_proxy.py"
