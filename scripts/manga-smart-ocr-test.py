@@ -115,6 +115,21 @@ class SmartOcrTests(unittest.TestCase):
         for key in ("lama", "mangaOcr"):
             self.assertIsInstance(status[key]["ready"], bool)
 
+    def test_full_size_detailed_scan_fits_the_request_limit(self):
+        # regression: a 2476x3508 page (normal 300 dpi A4 scan) answered 413 to 改字幕 / balloon placement
+        import os
+        import zlib
+        w, h = 2476, 3508
+        rows = b"".join(b"\x00" + os.urandom(w // 2) + bytes(w - w // 2) for _ in range(h))   # half noise: worst-case-ish
+        def chunk(t, d):
+            return __import__("struct").pack(">I", len(d)) + t + d + __import__("struct").pack(">I", zlib.crc32(t + d) & 0xffffffff)
+        png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", __import__("struct").pack(">IIBBBBB", w, h, 8, 0, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(rows, 6)) + chunk(b"IEND", b"")
+        self.assertGreater(len(png), 4 * 1024 * 1024)
+        body = len('{"image": "data:image/png;base64,"}') + len(base64.b64encode(png))
+        self.assertLess(body, ocr.MAX_HTTP_BYTES)
+        _raw, rw, rh = ocr.read_image("data:image/png;base64," + base64.b64encode(png).decode())
+        self.assertEqual((rw, rh), (w, h))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

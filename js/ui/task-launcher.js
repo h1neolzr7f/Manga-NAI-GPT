@@ -446,7 +446,7 @@ for(var i=0;i<n;i++){
 var f=el('fieldset',{class:'task-page-panel'});
 f.innerHTML='<legend>第 '+(i+1)+' 格</legend>'+
 '<textarea class="ui-textarea" rows="2" data-scene="'+i+'" placeholder="画面，例如：清晨，少女在车站等车"></textarea>'+
-'<input class="ui-textarea" type="text" data-line="'+i+'" placeholder="对白（可不填）">';
+'<input class="ui-textarea" type="text" data-line="'+i+'" placeholder="对白（可不填；多句用 / 分开）">';
 box.appendChild(f);
 }
 $('taskPageGo').disabled=false;
@@ -471,26 +471,6 @@ if(typeof setText2ImageInitPrompt==='function')setText2ImageInitPrompt(p);
 if(typeof setPanelValue==='function')setPanelValue(p);
 if(typeof getGUID==='function')getGUID(p);
 return p;
-}
-function addBubble(rect,text,index){
-var w=Math.max(150,Math.min(rect.width*.6,460));
-var fontSize=Math.max(20,Math.round(Math.min(rect.width,rect.height)*.06));
-// splitByGrapheme: Chinese has no spaces, so wrap per character; .66 keeps lines inside the ellipse
-// balance lines: about sqrt(1.6*chars) glyphs per line, so punctuation does not end up alone
-var n=Array.from(text).length;
-var perLine=n<=9?n:Math.ceil(Math.sqrt(n*1.6));
-// explicit kinsoku lines (…… ？ ！ never start a line); the box is as wide as the longest line so Fabric never re-wraps
-var lines=window.CjkBreak?CjkBreak.breakLines(text,perLine):[text];
-var longest=Math.max.apply(null,lines.map(function(l){return Array.from(l).length;}));
-w=Math.max(longest*fontSize*1.08/.66,fontSize*4);
-var tb=new fabric.Textbox(lines.join('\n'),{width:longest*fontSize*1.06,fontSize:fontSize,textAlign:'center',fill:'#111',splitByGrapheme:true,
-fontFamily:'"Noto Sans SC","Microsoft YaHei",sans-serif',name:'对白 '+index});
-var bh=Math.max(tb.height*1.75,fontSize*2.6);
-var left=rect.left+rect.width-w-rect.width*.04,top=rect.top+rect.height*.05;
-var bubble=new fabric.Ellipse({left:left,top:top,rx:w/2,ry:bh/2,fill:'#fff',stroke:'#111',strokeWidth:3,name:'对白气泡 '+index});
-tb.set({left:left+(w-tb.width)/2,top:top+(bh-tb.height)/2});
-canvas.add(bubble);canvas.add(tb);
-return [bubble,tb];
 }
 function loadFabricImage(url){return new Promise(function(res,rej){fabric.Image.fromURL(url,function(img){if(img&&img.width)res(img);else rej(new Error('图片读取失败。'));});});}
 async function runPage(){
@@ -534,8 +514,12 @@ img.name='第'+(i+1)+'格画面';
 putImageInFrame(img,rects[i].left+rects[i].width/2,rects[i].top+rects[i].height/2,true,false,true,panels[i]);
 done++;
 }catch(error){failed.push(i+1);pageStatus('第 '+(i+1)+' 格没画成：'+(error.userMessage||error.message),true);if(error.status===401||error.network)break;}
-if(lines[i])addBubble(rects[i],lines[i],i+1);
 canvas.renderAll();
+}
+if(lines.some(Boolean)&&!pageJob.cancel&&window.BalloonLayout){
+pageStatus('正在排对白气泡（避开人脸，按阅读顺序）…');
+try{var bl=await BalloonLayout.layoutPage(rects,lines);window.__lastBalloonLayout=bl;}
+catch(error){pageStatus('对白气泡没排好：'+(error.message||error),true);}
 }
 if(typeof updateLayerPanel==='function')updateLayerPanel();
 if(pageJob.historyPaused&&typeof changeDoSaveHistory==='function'){changeDoSaveHistory();pageJob.historyPaused=false;}

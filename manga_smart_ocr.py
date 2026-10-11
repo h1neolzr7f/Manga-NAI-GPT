@@ -16,8 +16,8 @@ import threading
 
 from gpt_image_proxy import _authorized_local_request
 
-MAX_IMAGE_BYTES = 12 * 1024 * 1024
-MAX_HTTP_BYTES = 17 * 1024 * 1024
+MAX_IMAGE_BYTES = 40 * 1024 * 1024   # a detailed 2480x3508 scan as PNG is 15-25 MB; MAX_PIXELS still caps decoding
+MAX_HTTP_BYTES = 56 * 1024 * 1024    # base64 of MAX_IMAGE_BYTES + JSON
 MAX_PIXELS = 25 * 1024 * 1024
 LANGUAGES = frozenset(("auto", "jpn+eng", "jpn_vert+eng", "eng", "chi_sim+eng", "chi_tra+eng", "kor+eng"))
 MAX_REGIONS = 120
@@ -310,7 +310,7 @@ def local_model_status():
 
 def handle_smart_ocr_post(handler):
     route = handler.path.split("?", 1)[0]
-    if route not in ("/manga-smart/ocr", "/manga-smart/manga-ocr", "/manga-smart/lama-inpaint", "/manga-smart/status", "/manga-smart/text-mask", "/manga-smart/sam-click", "/manga-smart/characters", "/manga-smart/character-embed", "/manga-smart/character-identify", "/manga-smart/download-progress", "/manga-smart/prompt-helper-status", "/manga-smart/prompt-helper-download"):
+    if route not in ("/manga-smart/ocr", "/manga-smart/manga-ocr", "/manga-smart/lama-inpaint", "/manga-smart/status", "/manga-smart/text-mask", "/manga-smart/sam-click", "/manga-smart/characters", "/manga-smart/faces", "/manga-smart/character-embed", "/manga-smart/character-identify", "/manga-smart/download-progress", "/manga-smart/prompt-helper-status", "/manga-smart/prompt-helper-download"):
         return False
     if not _authorized_local_request(handler):
         handler.close_connection = True
@@ -348,6 +348,9 @@ def handle_smart_ocr_post(handler):
         elif route in ("/manga-smart/character-embed", "/manga-smart/character-identify"):
             import manga_character_library as mcl
             result = mcl.embed(data) if route.endswith("embed") else mcl.identify(data)
+        elif route == "/manga-smart/faces":
+            from manga_character_detect import face_boxes
+            result = face_boxes(data)
         elif route == "/manga-smart/characters":
             from manga_character_detect import detect as detect_characters
             result = detect_characters(data)

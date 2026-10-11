@@ -139,6 +139,8 @@ jobs:
         run: node scripts/psd-e2e.cjs
       - name: Command palette + history panel e2e
         run: node scripts/command-history-e2e.cjs
+      - name: Automatic balloons + reading order e2e (mock faces)
+        run: node scripts/balloon-e2e.cjs
       - name: Upload novice report, screenshots and Playwright traces
         if: always()
         uses: actions/upload-artifact@v4

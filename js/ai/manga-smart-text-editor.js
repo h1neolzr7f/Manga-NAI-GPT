@@ -577,6 +577,11 @@
     progress: () => ({ page: state.pageId, drafts: state.drafts.length, busy: !!state.busy, applied: state.appliedCount || 0,
       open: !!($('mangaSmartTextPanel') && !$('mangaSmartTextPanel').hidden) }),
     getDrafts: () => state.drafts.map(d => ({ ...d })),
+    /** Text/bubble boxes already read for this page (never starts OCR): used to keep new balloons off old ones. */
+    cachedRegions: () => {
+      const id = pageId(), list = state.pageId === id && state.drafts.length ? state.drafts : ((pageCache.get(id) || {}).drafts || []);
+      return list.map(d => { const a = d.textArea || d; return { x: a.x, y: a.y, w: a.width, h: a.height }; });
+    },
     setPanelAssignments: assignments => {
       const map = new Map((assignments || []).map(x => [x.sourceIndex, x.panelId]));
       state.drafts.forEach((d, index) => { d.panelId = map.get(index) || null; });

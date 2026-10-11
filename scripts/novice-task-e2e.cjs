@@ -1382,12 +1382,12 @@ async function main() {
         const o = canvas.getObjects();
         return { panels: o.filter(x => x.isPanel && x.type === 'polygon').length, images: o.filter(x => x.type === 'image').length,
           clipped: o.filter(x => x.type === 'image' && x.clipPath).length, texts: o.filter(x => x.type === 'textbox').map(x => x.text),
-          bubbles: o.filter(x => x.type === 'ellipse').length, thumbs: document.querySelectorAll('#btm-image-container .btm-image').length };
+          bubbles: o.filter(x => x.balloon && x.balloon.role === 'shape').length, thumbs: document.querySelectorAll('#btm-image-container .btm-image').length };
       });
       const calls = wizCalls.slice(before);
       await snap('wizard-page');
       // the text sits inside its bubble
-      const inside = await p.evaluate(() => canvas.getObjects().filter(x => x.type === 'textbox').every(t => { const e = canvas.getObjects().find(x => x.type === 'ellipse' && x.name === '对白气泡 ' + t.name.split(' ')[1]); const a = t.getBoundingRect(true), b = e.getBoundingRect(true); return a.left >= b.left && a.top >= b.top && a.left + a.width <= b.left + b.width && a.top + a.height <= b.top + b.height; }));
+      const inside = await p.evaluate(() => canvas.getObjects().filter(x => x.type === 'textbox').every(t => { const e = canvas.getObjects().find(x => x.balloon && x.balloon.role === 'shape' && t.balloon && x.balloon.id === t.balloon.id); const a = t.getBoundingRect(true), b = e.getBoundingRect(true); return a.left >= b.left && a.top >= b.top && a.left + a.width <= b.left + b.width && a.top + a.height <= b.top + b.height; }));
       await p.locator('#taskWizardClose').click();
       await p.evaluate(() => document.activeElement && document.activeElement.blur());
       await op.key('Control+z', '撤销');

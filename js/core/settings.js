@@ -73,6 +73,7 @@ const commonProperties=[
 'excludeFromLayerPanel',
 'autoSwap',
 'aiFill',
+'balloon',
 'panelLayer',
 'isPanel',
 'isIcon',
