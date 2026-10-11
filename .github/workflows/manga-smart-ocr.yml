@@ -1,6 +1,9 @@
 name: Manga Smart OCR native test
 
 on:
+  push:
+    branches: ["dev/**"]
+  workflow_dispatch:
   pull_request:
     paths:
       - "manga_smart_ocr.py"
