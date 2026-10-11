@@ -1,7 +1,9 @@
 ﻿<#
   安装本机 AI 功能（Windows，仅 CPU）到项目目录下的 .venv。可重复运行。
   不需要本机 AI 时不用装：编辑器、GPT 改图、NovelAI 都能直接用。
+  -DryRun  只检查 Python / 打印将要执行的步骤，不下载、不建 venv（给 CI 用）
 #>
+param([switch]$DryRun)
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $Root
@@ -26,6 +28,11 @@ if (-not $Py) {
 & $Py -c "import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)"
 if ($LASTEXITCODE -ne 0) { Write-Host "Python 版本太旧，需要 3.10 以上。" -ForegroundColor Red; exit 1 }
 
+if ($DryRun) {
+    Write-Host ("DryRun OK: Python={0}" -f $Py) -ForegroundColor Green
+    Write-Host "Would create .venv (if missing), install CPU torch + requirements-ai.txt, build SAM2 without CUDA."
+    exit 0
+}
 $VenvPy = Join-Path $Root ".venv\Scripts\python.exe"
 if (-not (Test-Path -LiteralPath $VenvPy)) { & $Py -m venv (Join-Path $Root ".venv") }
 # 不 activate：直接用 .venv 里的 python.exe，避开 PowerShell 执行策略问题

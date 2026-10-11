@@ -11,17 +11,35 @@
   参数（都是可选的，不影响默认双击启动）：
   -NoBrowser  只启动服务，不自动打开浏览器
   -NoPrompt   失败时不弹提示框，只写控制台和 user_data\start.log，方便其他脚本调用
+  -Ci         CI / 脚本：等同 -NoBrowser -NoPrompt；就绪后打印 MNAI_READY 并继续挂着
+              （调用方负责结束进程树）。也可用环境变量 MNAI_CI=1。
+  端口：读环境变量 MNAI_PORT（1024-65535，默认 8000），并传给 99_server.py。
 #>
 param(
     [switch]$NoBrowser,
-    [switch]$NoPrompt
+    [switch]$NoPrompt,
+    [switch]$Ci
 )
 
 $ErrorActionPreference = "Stop"
 
-# this script lives in scripts\windows\; the application root is two levels up
-$Root = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path))
+# this script lives in scripts\windows\; the application root is two levels up.
+# Prefer $PSScriptRoot (always absolute under -File); fall back for rare hosts.
+$ScriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+$Root = [System.IO.Path]::GetFullPath((Join-Path $ScriptDir "..\.."))
+if (-not (Test-Path -LiteralPath (Join-Path $Root "99_server.py"))) {
+    throw ("Application root not found above {0} (expected 99_server.py)." -f $ScriptDir)
+}
+# MNAI_PORT: same env as Linux start.sh / 99_server.py (default 8000)
 $Port = 8000
+if ($env:MNAI_PORT -and $env:MNAI_PORT.Trim() -ne "") {
+    $parsed = 0
+    if (-not [int]::TryParse($env:MNAI_PORT.Trim(), [ref]$parsed) -or $parsed -lt 1024 -or $parsed -gt 65535) {
+        throw ("MNAI_PORT must be an integer 1024-65535 (got '{0}')." -f $env:MNAI_PORT)
+    }
+    $Port = $parsed
+}
+$env:MNAI_PORT = [string]$Port
 $ProbeUrl = "http://127.0.0.1:$Port/index.html"
 $BrowserUrl = "http://127.0.0.1:$Port/index.html#"
 $ToolsPort = 8765
@@ -30,12 +48,15 @@ $ToolsOutLog = Join-Path $Root "user_data\local_tools.log"
 $ToolsErrLog = Join-Path $Root "user_data\local_tools.err.log"
 $nl = [Environment]::NewLine
 
+if ($env:MNAI_CI -eq "1") { $Ci = $true }
+if ($Ci) { $NoBrowser = $true; $NoPrompt = $true; $env:MNAI_NO_PAUSE = "1" }
+
 $script:ExitCode = 0
 $script:OwnedProcesses = @()
 $script:JobReady = $false
 $script:OwnedServer = $false
 
-Set-Location $Root
+Set-Location -LiteralPath $Root
 
 function Write-StartLog($Message) {
     try {
@@ -449,7 +470,7 @@ try {
         $script:ExitCode = 1
     }
     elseif (Test-AppReady) {
-        Write-StartLine "8000 端口上已经有本机服务在运行（可能是之前打开的窗口启动、还没关掉）。" "Yellow"
+        Write-StartLine ("{0} 端口上已经有本机服务在运行（可能是之前打开的窗口启动、还没关掉）。" -f $Port) "Yellow"
         Write-StartLine "本窗口不会去结束别人的进程，所以关掉本窗口不会停止那个服务。" "Yellow"
         Write-StartLine "要停止服务，请关掉正在运行服务的那个命令行窗口；找不到就执行下面这条命令。" "Yellow"
         $owner = Get-PortOwner $Port
@@ -458,22 +479,27 @@ try {
         }
         Write-StartLog "already running, open browser only"
         Open-Browser
+        Write-Output ("MNAI_READY port={0} url={1} reused=1" -f $Port, $ProbeUrl)
+        [Console]::Out.Flush()
+        if ($Ci) {
+            Write-StartLine "（-Ci：复用已有服务，本进程即将退出）" "Yellow"
+        }
     }
     elseif (Test-LocalPortOpen $Port) {
         Start-Sleep -Milliseconds 400
         if (Test-AppReady) {
-            Write-StartLine "8000 端口上的本机服务刚好就绪，直接打开浏览器。" "Yellow"
+            Write-StartLine ("{0} 端口上的本机服务刚好就绪，直接打开浏览器。" -f $Port) "Yellow"
             Write-StartLog "port open, app became ready"
             Open-Browser
         } else {
             $owner = Get-PortOwner $Port
-            Write-StartLine ("8000 端口已被占用：" + (Describe-Process $owner)) "Red"
+            Write-StartLine (("{0} 端口已被占用：" -f $Port) + (Describe-Process $owner)) "Red"
             Write-StartLine "但浏览器访问不到本编辑器页面，占用它的是别的程序。" "Red"
             if ($owner) {
                 Write-StartLine ("结束它：taskkill /PID " + $owner + " /T /F") "Red"
             }
-            Write-StartLine "关掉占用 8000 的程序后，再双击「一键启动.bat」。" "Red"
-            Show-Notice ("8000 端口已被其他程序占用。请关掉占用该端口的程序后，再双击启动。" + $nl + $nl + (Describe-Process $owner)) "Warning"
+            Write-StartLine (("关掉占用 {0} 的程序后，再双击「一键启动.bat」。" -f $Port)) "Red"
+            Show-Notice (("端口 {0} 已被其他程序占用。请关掉占用该端口的程序后，再双击启动。" -f $Port) + $nl + $nl + (Describe-Process $owner)) "Warning"
             $script:ExitCode = 1
         }
     }
@@ -481,6 +507,7 @@ try {
         Write-StartLine "正在启动本机服务，请稍等…" "Cyan"
         # 控制台只留启动信息，不刷每个请求的访问日志；99_server.py 未设该变量时日志照旧。
         $env:NAI_QUIET = "1"
+        $env:MNAI_PORT = [string]$Port
         $server = Start-Process -FilePath $Python -ArgumentList "99_server.py" -WorkingDirectory $Root -NoNewWindow -PassThru
         $script:OwnedServer = $true
         Register-OwnedProcess $server
@@ -536,6 +563,9 @@ try {
             }
             Open-Browser
             Write-StartLine ("服务运行中。关闭本窗口即可停止本机服务（端口 " + $Port + "）。") "Yellow"
+            # CI / scripts wait for this exact token on stdout, then probe and kill the process tree.
+            Write-Output ("MNAI_READY port={0} url={1}" -f $Port, $ProbeUrl)
+            [Console]::Out.Flush()
             while (-not $server.HasExited) {
                 Start-Sleep -Milliseconds 250
             }
