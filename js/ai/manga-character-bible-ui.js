@@ -93,7 +93,7 @@
       const image=elem('img');image.src=card.references[0];image.alt=card.name+' 参考图';image.loading='lazy';
       const info=elem('div');info.className='manga-character-info';
       const name=elem('strong',card.name);
-      const traits=elem('small',card.traits||'尚未填写外观锚点');
+      const traits=elem('small',(card.identity&&card.identity.features.length?'✓ 能自动认出 · ':'')+(card.traits||'尚未填写外观锚点'));
       const action=elem('div');action.className='manga-character-actions';
       const use=elem('button','用于 GPT 改图');use.type='button';
       use.addEventListener('click',()=>{
@@ -138,6 +138,8 @@
       $('mangaCharacterPhotos').value='';
       await refresh();
       message('角色「'+card.name+'」已保存在本机浏览器。可跨分镜复用。');
+      // 2.0: build the identity (CCIP features + colours) so the character is recognised on pages
+      if(window.CharacterLibrary)window.CharacterLibrary.buildIdentity(card).then(ok=>{if(ok){refresh();message('角色「'+card.name+'」已建立识别特征，之后能在页面上自动认出。');}}).catch(()=>{});
     }catch(e){message(e.message||String(e),true);}
     finally{button.disabled=false;}
   }
@@ -219,6 +221,10 @@
   else render();
   window.MangaCharacterBibleUI={
     open:()=>{if($('mangaCharacterPanel')){$('mangaCharacterPanel').hidden=false;return refresh();}},
-    list:()=>cards.map(c=>({id:c.id,name:c.name,traits:c.traits,referenceCount:c.references.length}))
+    list:()=>cards.map(c=>({id:c.id,name:c.name,traits:c.traits,referenceCount:c.references.length,identity:!!(c.identity&&c.identity.features.length)})),
+    // 2.0 character library store (same IndexedDB)
+    all:async()=>(await readAll()).map(core.normalize),
+    put:async card=>{const n=core.normalize(card);const all=await readAll();if(!all.some(c=>c.id===n.id)&&all.length>=core.MAX_CARDS)throw Error('角色卡最多 24 个。');await writeCard(n);await refresh();return n;},
+    newId:identifier
   };
 })();

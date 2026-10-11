@@ -141,3 +141,11 @@
 #mangaPageStatus[data-error=true], #mangaPlannerStatus[data-error=true], #mangaCharacterStatus[data-error=true] { color: var(--ui-danger) !important; }
 .iph-images-banner { display: grid; gap: 6px; margin: 0 0 10px; padding: 10px 12px; }
 .iph-images-row { display: flex; align-items: center; gap: 10px; justify-content: space-between; font-size: 13px; }
+
+/* 2.0 character library card */
+.charlib-card{position:fixed;right:16px;top:72px;width:340px;max-height:70vh;overflow:auto;z-index:60;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.charlib-head{display:flex;justify-content:space-between;align-items:center}
+.charlib-faces{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.charlib-faces li{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.charlib-actions{display:flex;gap:8px;flex-wrap:wrap}
+#charLibStatus[data-error="true"]{color:var(--ui-danger,#dc2626)}

@@ -1238,6 +1238,12 @@
     const apiKey = $g('mangaGptKey').value.trim().replace(/^Bearer\s+/i, '');
     // An empty input lets the localhost relay use optional GPT_IMAGE_API_KEY from .env.
     // A wizard task adds its hidden preset instruction; the user's own words come after it.
+    // 2.0 character library: an edit without its own reference automatically carries the recognised character's
+    let autoCharacter = '';
+    if (operation === 'edit' && !state.references.length && window.CharacterLibrary && window.CharacterLibrary.cardForRegion) {
+      const card = window.CharacterLibrary.cardForRegion(state.region);
+      if (card && useCharacterCard(card)) autoCharacter = card.name;
+    }
     const prompt = [state.task && state.task.preset, $g('mangaGptPrompt').value.trim()].filter(Boolean).join('\n').slice(0, 4000);
     if (!prompt) return feedback(tr('mgpt_prompt_required', '请先描述想要的画面修改。'), true);
     state.pending = true;
@@ -1245,7 +1251,8 @@
     $g('mangaGptGenerate').disabled = true;
     $g('mangaGptMode').disabled = true;
     $g('mangaGptApply').disabled = true;
-    feedback(tr('mgpt_requesting', '正在请求图像模型（可点“取消请求”）。生成可能产生 API 费用。'));
+    feedback(tr('mgpt_requesting', '正在请求图像模型（可点“取消请求”）。生成可能产生 API 费用。') +
+      (autoCharacter ? ' ' + tr('mgpt_auto_character', '已自动带上角色「{name}」的参考图（可在「角色库」里关闭）。').replace('{name}', autoCharacter) : ''));
     const controller = typeof AbortController === 'function' ? new AbortController() : null;
     state.controller = controller;
     let timedOut = false;

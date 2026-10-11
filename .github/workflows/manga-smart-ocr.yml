@@ -18,6 +18,8 @@ on:
       - "scripts/manga-sam-select-test.py"
       - "scripts/manga-character-detect-test.py"
       - "manga_character_detect.py"
+      - "manga_character_library.py"
+      - "scripts/character-library-test.py"
       - "scripts/manga-text-detector-test.py"
       - "scripts/fixtures/ctd/**"
       - "scripts/manga-lama-inpaint-test.py"
@@ -44,7 +46,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng tesseract-ocr-jpn tesseract-ocr-jpn-vert fonts-dejavu-core fonts-noto-cjk
-          python -m pip install --disable-pip-version-check "Pillow>=11,<13"
+          python -m pip install --disable-pip-version-check "Pillow>=11,<13" numpy opencv-python-headless
           tesseract --list-langs
       - name: Run mocked parser/endpoint and native OCR recognition
         run: |
@@ -59,4 +61,5 @@ jobs:
           python scripts/manga-text-detector-test.py
           python scripts/manga-sam-select-test.py
           python scripts/manga-character-detect-test.py
+          python scripts/character-library-test.py
           python scripts/prompt-helper-images-test.py
