@@ -1429,7 +1429,7 @@ async function main() {
       const pageCount = await p.evaluate(() => btmProjectsMap.size);
       const dl = p.waitForEvent('download', { timeout: 60000 }).catch(e => e);   // never an unhandled rejection
       await op.click(p.locator('#taskExportAll'), '导出全部');
-      const d = await dl; if (d instanceof Error) throw d; const file = path.join(OUT, 'export-all.zip'); await d.saveAs(file);
+      const d = await dl; if (d instanceof Error) { const diag = await p.evaluate(() => ({ pages: btmProjectsMap.size, status: (document.getElementById('taskPageStatus') || {}).textContent, toasts: Array.from(document.querySelectorAll('.ui-toast, .toast, [role=status]')).map(t => t.textContent.slice(0, 120)).slice(-4), btn: !!document.getElementById('taskExportAll'), disabled: (document.getElementById('taskExportAll') || {}).disabled })).catch(e => String(e)); throw new Error(d.message.slice(0, 80) + ' ' + JSON.stringify(diag)); } const file = path.join(OUT, 'export-all.zip'); await d.saveAs(file);
       const list = require('child_process').execFileSync('unzip', ['-Z1', file], { encoding: 'utf8' }).trim().split('\n');
       const png = require('child_process').execFileSync('unzip', ['-p', file, 'page-01.png']).subarray(0, 8).toString('hex');
       const back = await p.evaluate(() => getCanvasGUID());
