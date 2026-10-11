@@ -166,3 +166,25 @@
 #aiFillStatus[data-error="true"]{color:var(--ui-danger,#dc2626)}
 .ai-fill-chip{position:fixed;z-index:55;display:flex;align-items:center;gap:6px;padding:6px 10px}
 #aiFillPrompt{width:100%;min-height:56px;resize:vertical;box-sizing:border-box;padding:6px 8px;background:var(--ui-bg);color:var(--ui-text);border:1px solid var(--ui-border);border-radius:var(--ui-radius,8px)}
+
+/* 2.0 history panel with thumbnails + command palette */
+.nai-history-panel{top:150px!important;width:280px;max-height:min(70vh,640px);background:var(--ui-panel);color:var(--ui-text);border:1px solid var(--ui-border);border-radius:var(--ui-radius);box-shadow:var(--ui-shadow);z-index:1050;}
+.nai-history-list{overflow-y:auto;max-height:calc(min(70vh,640px) - 44px);padding:6px;}
+.nai-history-item{display:flex!important;align-items:center;gap:8px;text-align:left;background:var(--ui-bg);color:var(--ui-text);border:1px solid var(--ui-border);border-radius:8px;padding:4px 6px;}
+.nai-history-item:hover{border-color:var(--ui-accent);}
+.nai-history-item.is-current{border-color:var(--ui-accent);box-shadow:0 0 0 1px var(--ui-accent) inset;}
+.nai-history-item.is-future{opacity:.55;}
+.nai-history-item img,.nai-history-nothumb{width:44px;height:44px;object-fit:contain;flex:none;background:#fff;border-radius:4px;}
+.nai-history-nothumb{background:var(--ui-border);}
+.nai-history-label{flex:1;font-size:13px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;}
+.nai-history-time{font-size:11px;color:var(--ui-text-muted);flex:none;}
+.nai-history-empty{color:var(--ui-text-muted);font-size:13px;margin:8px;}
+.cmd-palette{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.35);display:flex;justify-content:center;align-items:flex-start;padding-top:12vh;}
+.cmd-box{width:min(560px,92vw);padding:10px;background:var(--ui-panel);color:var(--ui-text);}
+.cmd-box input{width:100%;font-size:16px;padding:10px 12px;border-radius:8px;border:1px solid var(--ui-border);background:var(--ui-bg);color:var(--ui-text);}
+.cmd-list{margin-top:8px;max-height:50vh;overflow-y:auto;}
+.cmd-item{display:flex;justify-content:space-between;gap:12px;padding:8px 10px;border-radius:8px;cursor:pointer;}
+.cmd-item small{color:var(--ui-text-muted);}
+.cmd-item.is-sel,.cmd-item:hover{background:var(--ui-accent);color:#fff;}
+.cmd-item.is-sel small,.cmd-item:hover small{color:rgba(255,255,255,.85);}
+.cmd-empty,.cmd-hint{color:var(--ui-text-muted);font-size:12px;padding:8px 4px 0;}
