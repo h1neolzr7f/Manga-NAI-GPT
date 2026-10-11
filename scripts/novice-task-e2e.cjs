@@ -1223,7 +1223,7 @@ async function main() {
       await p.keyboard.press('Escape');
       const proAfterReload = await p.evaluate(() => document.body.classList.contains('ui-pro'));
       await openMore(p); await op.click(p.locator('#uiModeToggle'), '新手模式');
-      const backToBeginner = (await p.locator('#taskBar .task-btn:visible').count()) === 7;
+      const backToBeginner = (await p.locator('#taskBar .task-btn:visible').count()) === 8;   // 8 tasks incl. AI 填充
       const surface = () => p.evaluate(() => getComputedStyle(document.body).getPropertyValue('--ui-surface').trim());
       const darkSurface = await surface();
       await openMore(p); await op.click(p.locator('#themeToggle'), '浅色/深色');
@@ -1232,7 +1232,7 @@ async function main() {
       light.kept = await p.evaluate(() => document.body.classList.contains('light-mode'));
       await p.keyboard.press('Escape'); await openMore(p); await op.click(p.locator('#themeToggle'), '切回深色');
       light.back = await p.evaluate(() => document.body.classList.contains('dark-mode') && !document.documentElement.classList.contains('light-mode'));
-      return { pass: homeShown && afterImportHidden && tasks === 7 && proEntriesHidden && pro.gptOpen && pro.smartOpen && pro.tasksHidden && pro.toolsBack && layoutOk(lay1440) && layoutOk(lay1280) && menuOpen && menuEsc && proAfterReload && backToBeginner && light.cls && light.changed && light.kept && light.back && !errors.length,
+      return { pass: homeShown && afterImportHidden && tasks === 8 && proEntriesHidden && pro.gptOpen && pro.smartOpen && pro.tasksHidden && pro.toolsBack && layoutOk(lay1440) && layoutOk(lay1280) && menuOpen && menuEsc && proAfterReload && backToBeginner && light.cls && light.changed && light.kept && light.back && !errors.length,
         detail: { lay1440, lay1280, menuOpen, menuEsc, homeShown, afterImportHidden, tasks, proEntriesHidden, pro, proAfterReload, backToBeginner, light, errors } };
     } finally { await ctx.close(); }
   });

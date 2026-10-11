@@ -36,6 +36,8 @@ steps:['自动识别本页文字（打开就开始；识别不到可点「手动
 {id:'fix',icon:'healing',title:'修瑕疵 / 去杂物',desc:'框住不想要的东西，AI 补好背景',kind:'gpt',
 steps:['在画布上拖一个框，框住要去掉的东西','点「生成预览」，可用「对比原图」看前后','满意就点「作为新图层应用」'],
 placeholder:'补充说明（可不填），例如：去掉右下角的水印',preset:GPT_PRESETS.fix},
+{id:'fill',icon:'format_paint',title:'AI 填充',desc:'涂出要改的地方，写一句话，从 3 张里挑一张',kind:'aifill',
+steps:['用笔刷涂出要改的地方（也可框选或智能点选）','写一句想怎么改；只想去掉东西可以不写','点「生成」，挑一张满意的点「用这张」：会变成可再改的 AI 图层']},
 {id:'layer',icon:'layers',title:'分层',desc:'把人物或物体抠成独立图层',kind:'layer',
 steps:['点「开始框选」，在画布上框住要分出来的人物或物体','自动抠图并放到新图层（原图不变，可撤销）']},
 {id:'custom',icon:'auto_fix_high',title:'自定义修改',desc:'框一块区域，用一句话描述怎么改',kind:'gpt',
@@ -255,6 +257,7 @@ else if(t.kind==='autoswap')startAutoSwap(t);
 else if(t.kind==='caption')startCaption(t);
 else if(t.kind==='layer')startLayer(t);
 else if(t.kind==='page')startPage(t);
+else if(t.kind==='aifill'){if(!window.AiFill){stop(false);return;}AiFill.open().then(function(ok){if(!ok)stop(false);});}
 else startNai(t);
 timer=setInterval(tick,400);
 }
@@ -267,6 +270,7 @@ var h=$('mangaGptTaskHead');if(h)h.remove();
 var c=$('taskWizardCard');if(c)c.remove();
 cancelPick();
 if(window.AutoSwap&&AutoSwap.stop)AutoSwap.stop();
+if(was&&was.kind==='aifill'&&window.AiFill)AiFill.close();
 if(was&&was.kind==='gpt'&&window.MangaGPTRegionEditor){
 MangaGPTRegionEditor.exitTask();
 var p=$('mangaGptPanel');if(p&&showHome!==undefined)p.hidden=true;
@@ -551,6 +555,7 @@ if($('taskPageGo')){$('taskPageGo').disabled=false;$('taskPageCancel').hidden=tr
 // ---------- progress ----------
 function tick(){
 if(!active)return;
+if(active.kind==='aifill'){if(!window.AiFill||!AiFill.isOpen())stop(false);return;}
 if(active.kind==='gpt'&&window.MangaGPTRegionEditor){
 var s=MangaGPTRegionEditor.wizardState();
 if(!s.open||s.task!==active.id){stop(false);return;}

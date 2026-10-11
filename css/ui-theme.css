@@ -143,9 +143,26 @@
 .iph-images-row { display: flex; align-items: center; gap: 10px; justify-content: space-between; font-size: 13px; }
 
 /* 2.0 character library card */
-.charlib-card{position:fixed;right:16px;top:72px;width:340px;max-height:70vh;overflow:auto;z-index:60;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
 .charlib-head{display:flex;justify-content:space-between;align-items:center}
 .charlib-faces{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .charlib-faces li{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .charlib-actions{display:flex;gap:8px;flex-wrap:wrap}
 #charLibStatus[data-error="true"]{color:var(--ui-danger,#dc2626)}
+
+/* 2.0 AI 填充 + library card: left of the page, never over the layers panel */
+.charlib-card,.ai-fill-card{position:fixed;left:64px;top:120px;right:auto;width:340px;max-height:calc(100vh - 140px);overflow:auto;z-index:60;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.ai-fill-pick{position:fixed;z-index:45;cursor:crosshair;touch-action:none}
+.ai-fill-pick canvas{width:100%;height:100%;display:block}
+.ai-fill-tools,.ai-fill-engine{display:flex;flex-wrap:wrap;gap:6px}
+.ai-fill-engine{flex-direction:column;gap:2px}
+.ai-fill-tools .ui-btn.is-active{border-color:var(--ui-accent);color:var(--ui-accent)}
+.ai-fill-size{display:flex;align-items:center;gap:8px;font-size:12px}
+.ai-fill-results{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.ai-fill-cand{padding:0;border:2px solid transparent;border-radius:var(--ui-radius,8px);background:none;cursor:pointer;overflow:hidden}
+.ai-fill-cand img{width:100%;display:block}
+.ai-fill-cand.is-active{border-color:var(--ui-accent)}
+.ai-fill-cand.is-source{opacity:.8}
+#aiFillUse{grid-column:1/-1}
+#aiFillStatus[data-error="true"]{color:var(--ui-danger,#dc2626)}
+.ai-fill-chip{position:fixed;z-index:55;display:flex;align-items:center;gap:6px;padding:6px 10px}
+#aiFillPrompt{width:100%;min-height:56px;resize:vertical;box-sizing:border-box;padding:6px 8px;background:var(--ui-bg);color:var(--ui-text);border:1px solid var(--ui-border);border-radius:var(--ui-radius,8px)}
