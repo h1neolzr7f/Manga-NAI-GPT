@@ -5,11 +5,13 @@
   'use strict';
   const FREE = Object.freeze({ maxPixels: 1024 * 1024, maxSteps: 28, maxSamples: 1 });
   const MODELS = Object.freeze([
+    // V5: id verified with one free Opus call on 2026-10-11; its inpainting id is not verified, so inpaint falls back to V4.5
+    { id: 'nai-diffusion-5-full', label: 'V5 Full', inpaint: 'nai-diffusion-4-5-full-inpainting', v4: true, chars: true },
     { id: 'nai-diffusion-4-5-full', label: 'V4.5 Full', inpaint: 'nai-diffusion-4-5-full-inpainting', v4: true },
     { id: 'nai-diffusion-4-5-curated', label: 'V4.5 Curated', inpaint: 'nai-diffusion-4-5-curated-inpainting', v4: true },
     { id: 'nai-diffusion-4-full', label: 'V4 Full', inpaint: 'nai-diffusion-4-full-inpainting', v4: true },
     { id: 'nai-diffusion-4-curated-preview', label: 'V4 Curated', inpaint: 'nai-diffusion-4-curated-inpainting', v4: true },
-    { id: 'nai-diffusion-3', label: 'V3 (anime)', inpaint: 'nai-diffusion-3-inpainting', v4: false },
+    { id: 'nai-diffusion-3', label: 'V3 (anime)', inpaint: 'nai-diffusion-3-inpainting', v4: false, chars: false },
   ]);
   // Negative-prompt presets (index = NovelAI ucPreset). Text is what we send, so the user sees exactly what is used.
   const UC_PRESETS = Object.freeze([
@@ -21,6 +23,8 @@
   const QUALITY_TAGS = 'very aesthetic, masterpiece, no text';
   const MANGA_STYLE = 'monochrome, greyscale, manga, screentone';
 
+  /** Which controls make sense for a model (per-model parameter visibility). */
+  function features(id) { const m = model(id); return { characters: m.v4, positions: m.v4, inpaint: !!m.inpaint, inpaintNative: !/^nai-diffusion-5/.test(m.id), noiseSchedule: m.v4 ? 'karras' : 'native', smea: !m.v4 }; }
   function model(id) { return MODELS.find(m => m.id === id) || MODELS[0]; }
   function r64(v) { return Math.max(64, Math.round(v / 64) * 64); }
   /** Largest 64-multiple size with the target aspect that stays within the free pixel budget. */
@@ -125,5 +129,5 @@
   }
   /** Space consecutive queued generations (NovelAI dislikes back-to-back bursts). */
   const SPACING_MS = 1500;
-  root.NaiEngineCore = Object.freeze({ FREE, MODELS, UC_PRESETS, QUALITY_TAGS, MANGA_STYLE, model, sizeFor, cost, gridCenter, payload, isRefusal, httpError, joinTags, readPngMeta, tokenEstimate, bumpWeight, SPACING_MS });
+  root.NaiEngineCore = Object.freeze({ FREE, MODELS, UC_PRESETS, QUALITY_TAGS, MANGA_STYLE, model, sizeFor, cost, gridCenter, payload, isRefusal, httpError, joinTags, features, readPngMeta, tokenEstimate, bumpWeight, SPACING_MS });
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -116,3 +116,4 @@ Python 运行依赖（pip 安装，不打包）：PyTorch CPU（BSD-3）、onnxr
 | 数据 | 用途 | 来源（固定提交） | 许可证 | 说明 |
 |---|---|---|---|---|
 | Danbooru 标签表 `danbooru.csv`（约 3.4 MB，140 782 个标签 + 别名） | 提示词助手：离线标签补全、别名纠正、角色 / 作品标签 | [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-webui-tagcomplete) @ `4170882` `tags/danbooru.csv` | 项目 MIT；标签名与使用次数是 Danbooru 公开站点的事实数据 | 只在启用「提示词助手」后、第一次使用时下载；SHA-256 `f936684f…a7214732` 校验通过才使用，存在浏览器 IndexedDB。仓库只带 24 行测试样例（`scripts/fixtures/danbooru-sample.csv`）。不含标签蕴含（implications）数据。 |
+| 扩展角色表 `char_tag_index.json`（约 11 MB，349 743 个角色名、60 914 个作品名） | 角色库「找标签」在常用标签里找不到时 | 本作者自己的项目 [NaiXueZhang-Studio-Upgrade](https://github.com/h1neolzr7f/NaiXueZhang-Studio-Upgrade) @ `2f04aeb` `data/char_tag_index.json` | 项目 MIT；名字列表整理自 Danbooru 公开标签 | 只在用户确认后下载；SHA-256 `f61014c2…efbf57a0` 校验通过才使用，存在浏览器 IndexedDB；不含图片。同项目的 `tag_dict.json` 没有采用（抽查发现不少错位翻译）。 |

@@ -75,6 +75,12 @@
   // A–E = left->right, 1–5 = top->bottom (ported from 坐标约定.md)
   function posToCenter(pos) { const m = /^([A-Ea-e])([1-5])$/.exec(String(pos || '').trim()); if (!m) return null; return { x: +((m[1].toUpperCase().charCodeAt(0) - 65) * 0.2 + 0.1).toFixed(1), y: +((+m[2] - 1) * 0.2 + 0.1).toFixed(1) }; }
 
+  /** Prefix/word search in a plain sorted name list (extended character index). */
+  function searchNames(list, q, limit) {
+    const s = human(q); if (!s || !list) return []; const out = [];
+    for (const n of list) { const h = human(n); if (h.startsWith(s) || h.includes(' ' + s) || (s.length >= 4 && h.includes(s))) { out.push(h); if (out.length >= (limit || 8)) break; } }
+    return out;
+  }
   const RULES = [
     'You write prompts for NovelAI V4/V4.5 (anime image model). Rewrite or expand the user\'s draft into a better prompt.',
     'Rules (NAI5 prompt skill):',
@@ -116,5 +122,8 @@
     return A.filter(t => !kb.has(core(t))).map(tag => ({ tag, op: 'del' })).concat(B.map(tag => ({ tag, op: ka.has(core(tag)) ? 'same' : 'add' })));
   }
   root.PromptAssistCore = Object.freeze({ buildIndex, complete, splitTags, validate, fixAliases, order, characterTags, posToCenter, messages, parse, diff, RULES,
+    // optional extended character/copyright name list (349 743 characters, 60 914 works) from the author's own MIT project
+    CHAR_SOURCE: Object.freeze({ url: 'https://raw.githubusercontent.com/h1neolzr7f/NaiXueZhang-Studio-Upgrade/2f04aebbd54ceee6d0e28ed1b2dc9563ce45c145/data/char_tag_index.json', sha256: 'f61014c2835807d4ecab87831b9c299f3705a1a26d922215d494d337efbf57a0', bytes: 11039317 }),
+    searchNames,
     SOURCE: Object.freeze({ url: 'https://raw.githubusercontent.com/DominikDoom/a1111-sd-webui-tagcomplete/4170882f90b47be130a0ff9314f663c230b9153d/tags/danbooru.csv', sha256: 'f936684fa0b041e9a55d35f2052588e28d95eef8672be6829241f8b1a7214732', bytes: 3518020 }) });
 })(typeof window !== 'undefined' ? window : globalThis);

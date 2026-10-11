@@ -23,10 +23,25 @@ for the Opus free tier), the composition director and the auto-prompt utilities 
 | Read NovelAI PNG info → apply positive / negative / all; save as style snippet (shown in 角色库 and the 画一页 style box) | Ctrl+K「从 NovelAI 图片读取参数」 | nai-engine-core-test, prompt-assist-e2e |
 | Export metadata: page PNG/PSD exports are re-rendered from the canvas, so NovelAI text chunks are never carried over. Project files (`.lz4`) keep the original images and stay local. | — | — |
 
+## Ported from the author's own NaiXueZhang-Studio-Upgrade (MIT)
+
+- `char_tag_index.json` as an optional, user-confirmed 11 MB download for 角色库「找标签」(pinned commit, SHA-256, IndexedDB).
+- "Unknown result → no automatic retry": a timeout or a dropped connection after the request was sent is reported as
+  unknown and never retried automatically (only explicit 429 / 5xx answers are retried).
+- Not ported: `tag_dict.json` (spot checks found misaligned translations, e.g. `Mon3tr` → an unrelated tag), the 闲云 /
+  xianyun third-party channel (nothing similar exists here), pixiv crawlers / uploaders, `estimate.py` (it estimates
+  crawler ETA, not Anlas — the Anlas estimate here is our own `NaiEngineCore.cost`).
+
+## V5
+
+`nai-diffusion-5-full` verified with one free Opus call (2026-10-11; `nai-diffusion-5` returns 400 "doesn't exist").
+Its inpainting model id is not verified, so 改一块 with V5 selected uses the V4.5 inpainting model (shown in 服务设置).
+
 ## Not done yet (honest list)
 
+- NovelAI "enhance" (upscale + light img2img; above 1 MP it costs Anlas).
+
 - 换角色 via NovelAI (inpaint + vibe transfer / precise reference with cost shown).
-- V5 model: not in the list because the API id was not verified (no paid probing).
 - Per-panel saved generation params and "result returns to its panel after a page switch" for the wizard path (the pro-mode provider already does the latter).
 - Local gallery of generations with full metadata, groups and search.
 - A metadata **keep** toggle (to embed NovelAI info into exported PNGs) — exports currently always strip.

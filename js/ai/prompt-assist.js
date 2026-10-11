@@ -38,6 +38,24 @@
     return loading;
   }
 
+  let chars = null, charLoading = null;
+  /** Extended character list (11 MB, downloaded once on request, SHA-256 checked, cached in IndexedDB). */
+  function loadCharIndex() {
+    if (chars) return Promise.resolve(chars); if (charLoading) return charLoading;
+    const src = root.__PA_CHAR_SOURCE || P.CHAR_SOURCE;
+    charLoading = (async () => {
+      let txt = await cacheGet(src.sha256).catch(() => null);
+      if (!txt) { const r = await fetch(src.url, { cache: 'no-store' }); if (!r.ok) throw new Error('扩展角色表下载失败（HTTP ' + r.status + '）。'); txt = await r.text(); if ((await sha256(txt)) !== src.sha256) throw new Error('扩展角色表校验失败，没有使用。'); await cachePut(src.sha256, txt); }
+      const j = JSON.parse(txt); chars = { characters: j.characters || [], copyrights: j.copyrights || [] }; return chars;
+    })().catch(e => { charLoading = null; throw e; });
+    return charLoading;
+  }
+  /** 角色库: name -> candidate character tags (main tag list first, then the extended list if already downloaded or asked). */
+  async function findCharacterTags(name, extended) {
+    const out = []; try { const x = await loadTags(); P.characterTags(x, name, 6).forEach(r => out.push(r.name)); } catch (_) { /* offline */ }
+    if (out.length < 3 && extended) { const c = await loadCharIndex(); P.searchNames(c.characters, name, 8).forEach(n => { if (!out.includes(n)) out.push(n); }); }
+    return out;
+  }
   // ---------- autocomplete ----------
   let menu = null, target = null, items = [], sel = 0;
   function closeMenu() { if (menu) menu.hidden = true; target = null; }
@@ -191,5 +209,5 @@
   setInterval(scan, 800);
   document.addEventListener('DOMContentLoaded', scan);
   (function reg() { if (!root.Commands) return setTimeout(reg, 400); root.Commands.register({ id: 'nai.readImageParams', label: '从 NovelAI 图片读取参数', group: 'NovelAI', keywords: 'png metadata prompt seed 参数 读取', run: pickImageParams }); })();
-  root.PromptAssist = Object.freeze({ readImageParams, pickImageParams, snippets, saveSnippet, enabled, setEnabled, loadTags, polish, showDiff, scan, chatConfig, get index() { return ix; } });
+  root.PromptAssist = Object.freeze({ findCharacterTags, loadCharIndex, readImageParams, pickImageParams, snippets, saveSnippet, enabled, setEnabled, loadTags, polish, showDiff, scan, chatConfig, get index() { return ix; } });
 })(window);

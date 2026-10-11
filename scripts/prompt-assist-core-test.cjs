@@ -31,3 +31,6 @@ assert.strictEqual(P.parse('CHARACTER1: hatsune miku, girl\nPROMPT:\n1girl').cha
 assert.deepStrictEqual(P.diff('1girl, rain, smile', '1girl, smile, umbrella'), [{ tag: 'rain', op: 'del' }, { tag: '1girl', op: 'same' }, { tag: 'smile', op: 'same' }, { tag: 'umbrella', op: 'add' }]);
 assert(/^https:\/\/raw\.githubusercontent\.com\/DominikDoom\/.+\/[0-9a-f]{40}\/tags\/danbooru\.csv$/.test(P.SOURCE.url) && /^[0-9a-f]{64}$/.test(P.SOURCE.sha256));
 console.log('PASS prompt-assist core: tag index/autocomplete/aliases/validation/order/characters/positions/LLM template/parse/diff');
+assert.deepStrictEqual(P.searchNames(['togawa_sakiko', 'togawa_sakiko_(young)', 'wakaba_mutsumi'], 'togawa', 5), ['togawa sakiko', 'togawa sakiko (young)']);
+assert(/NaiXueZhang-Studio-Upgrade\/[0-9a-f]{40}\/data\/char_tag_index\.json$/.test(P.CHAR_SOURCE.url));
+console.log('PASS prompt-assist core: extended character names');

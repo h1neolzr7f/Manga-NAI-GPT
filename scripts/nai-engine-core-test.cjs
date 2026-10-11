@@ -40,3 +40,6 @@ console.log('PASS nai-engine-core');
   assert(N.tokenEstimate('1girl, red umbrella, rain') > 4 && N.tokenEstimate('') === 0);
   console.log('PASS nai-engine-core: png metadata, weights, tokens');
 }
+assert.strictEqual(N.model('nai-diffusion-5-full').label, 'V5 Full'); assert.strictEqual(N.payload({ prompt: 'x', model: 'nai-diffusion-5-full', action: 'infill', image: 'a', mask: 'b' }).model, 'nai-diffusion-4-5-full-inpainting');
+assert(!N.features('nai-diffusion-3').characters && N.features('nai-diffusion-5-full').characters && !N.features('nai-diffusion-5-full').inpaintNative);
+console.log('PASS nai-engine-core: V5 + per-model features');

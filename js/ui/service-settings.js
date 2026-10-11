@@ -218,6 +218,9 @@ var src=$('novelaiModel'),ms=el('select',{id:'svcNaiModel',class:'ui-input'});
 if(src){Array.prototype.forEach.call(src.options,function(o){ms.appendChild(el('option',{value:o.value},o.textContent.replace('NAI Diffusion Anime ','')));});ms.value=src.value;
 ms.addEventListener('change',function(){src.value=ms.value;src.dispatchEvent(new Event('change',{bubbles:true}));});src.addEventListener('change',function(){if(ms.value!==src.value)ms.value=src.value;});}
 nm.firstChild.appendChild(ms);
+var mh=el('p',{class:'ui-muted',id:'svcNaiModelHint'});nai.appendChild(mh);
+function modelHint(){if(!window.NaiEngineCore)return;var f=NaiEngineCore.features(ms.value);mh.textContent=(f.characters?'支持多角色栏和位置（角色库标签会自动放进角色栏）。':'V3：不支持角色栏和位置，角色写进主提示词。')+(f.inpaintNative?'':' 改一块的局部重绘暂用 V4.5 重绘模型。')+' Opus 免费：≤1024×1024 像素、≤28 步、每次 1 张。';}
+ms.addEventListener('change',modelHint);modelHint();
 var sm=el('label',{class:'nai-inline-check',title:'默认关闭：编辑器不过滤也不改写你的提示词。打开后会在负面词里加 nsfw。'},'<input type="checkbox" id="svcNaiSafeMode"> 安全模式（负面词自动加 nsfw）');
 nai.appendChild(sm);var smi=sm.querySelector('input');smi.checked=!!(window.NaiEngine&&NaiEngine.safeMode());
 smi.addEventListener('change',function(){if(window.NaiEngine)NaiEngine.setSafeMode(smi.checked);});

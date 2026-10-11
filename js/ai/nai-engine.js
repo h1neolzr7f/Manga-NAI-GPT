@@ -52,7 +52,7 @@
       const timer = setTimeout(() => ctl.abort('timeout'), 180000);
       let r;
       try { r = await fetch('/nai-proxy/generate-image', { method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', Accept: 'application/zip, application/json', Authorization: token() }, body: JSON.stringify(body) }); }
-      catch (e) { if (signal && signal.aborted) throw new DOMException('aborted', 'AbortError'); if (ctl.signal.aborted) throw new Error('NovelAI 3 分钟没有响应，已停止。可以再试一次。'); throw new Error('连不上本机服务（' + (e.message || e) + '）。'); }
+      catch (e) { if (signal && signal.aborted) throw new DOMException('aborted', 'AbortError'); if (ctl.signal.aborted) throw Object.assign(new Error('NovelAI 3 分钟没有响应，结果未知：没有自动重试（避免重复生成或扣费）。确认后可以再点一次。'), { unknown: true }); throw Object.assign(new Error('请求发出后连接断了，结果未知：没有自动重试（避免重复生成或扣费）。（' + (e.message || e) + '）'), { unknown: true }); }
       finally { clearTimeout(timer); if (signal) signal.removeEventListener('abort', stop); }
       if (r.ok) { subAt = 0; return unpack(r); }
       const text = await r.text().catch(() => ''); const e = C.httpError(r.status, text);
