@@ -48,6 +48,8 @@
       if (!r || !r.ok) { status(r && r.error ? r.error : '认人失败。', true); return null; }
       r.ms = Math.round(performance.now() - t0); r.key = pa.key; r.panelNumbers = (pa.panels || []).map(p => p.n);
       S.result = r; S.pageKey = pa.key;
+      const n = r.faces.filter(f => f.status === 'match').length;
+      status(!r.faces.length ? '这一页没有找到人脸。' : !lib.length ? '找到 ' + r.faces.length + ' 张脸。给主要角色点「加入角色库」起个名字，之后每页都能自动认出。' : '认出 ' + n + ' / ' + r.faces.length + ' 张脸。');
       render(); draw();
       return r;
     } finally { S.busy = false; }
@@ -129,7 +131,7 @@
   function open() {
     if (!S.card) {
       S.card = el('div', { id: 'charLibCard', class: 'ui-card charlib-card', role: 'dialog', 'aria-label': '角色库' });
-      S.card.innerHTML = '<header class="charlib-head"><b>角色库 · 认人</b><button type="button" class="ui-btn ui-btn-ghost" id="charLibClose" aria-label="关闭">×</button></header>' +
+      S.card.innerHTML = '<div class="charlib-head"><b>角色库 · 认人</b><button type="button" class="ui-btn ui-btn-ghost" id="charLibClose" aria-label="关闭">×</button></div>' +
         '<div id="charLibBody"></div><p id="charLibStatus" class="ui-muted" role="status"></p>' +
         '<label class="nai-inline-check"><input type="checkbox" id="charLibAutoRef"' + (S.autoRef ? ' checked' : '') + '> 修图时自动带上认出的角色参考</label>' +
         '<div class="charlib-actions"><button type="button" class="ui-btn ui-btn-primary" id="charLibRun">认出本页人物</button>' +
@@ -175,5 +177,5 @@
     if (library().length) { try { await identify(true); } catch (_) { /* optional */ } }
   }, 3000);
 
-  root.CharacterLibrary = { open, close, identify, buildIdentity, addFace, cardForRegion, loadCards, get result() { return S.result; } };
+  root.CharacterLibrary = { open, close, identify, buildIdentity, addFace, cardForRegion, loadCards, get result() { return S.result; }, _state: S };
 })(typeof window !== 'undefined' ? window : globalThis);
