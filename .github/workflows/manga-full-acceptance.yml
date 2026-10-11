@@ -15,12 +15,15 @@ on:
       - ".github/workflows/manga-full-acceptance.yml"
   push:
     branches: ["main", "dev/**"]
+    # same paths as pull_request: any app / test change runs the full acceptance on push
     paths:
-      - "99_server.py"
-      - "gpt_image_proxy.py"
-      - "js/ai/gpt-region-editor.js"
-      - "scripts/gpt-*"
-      - "scripts/windows/**"
+      - "*.py"
+      - "index.html"
+      - "service-worker.js"
+      - "package.json"
+      - "js/**"
+      - "css/**"
+      - "scripts/**"
       - ".github/workflows/manga-full-acceptance.yml"
 
 permissions:
