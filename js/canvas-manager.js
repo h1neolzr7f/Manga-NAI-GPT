@@ -170,7 +170,14 @@ return !(typeof isPlaceholderCanvasObject==="function"&&isPlaceholderCanvasObjec
 }
 
 function addInitialImageToCanvas(img) {
-resizeCanvasByNum(img.width,img.height);
+var fit=(typeof NaiMangaPageSize!=="undefined"&&NaiMangaPageSize.resolveImagePageSize)?NaiMangaPageSize.resolveImagePageSize(img.width,img.height):null;
+if(fit){
+// pixels, never millimetres; the picture is scaled by the same factor so it fills the page exactly
+canvas.setWidth(fit.width);canvas.setHeight(fit.height);
+initialCanvasWidth=canvas.getWidth();initialCanvasHeight=canvas.getHeight();aspectRatio=initialCanvasWidth/initialCanvasHeight;
+syncExportPagePlan();scheduleExportSizeEstimate();
+if(Math.abs(fit.scale-1)>1e-6)img.scale(fit.scale);
+}else resizeCanvasByNum(img.width,img.height);
 notifyImportDownscaled(img.width,img.height);
 initialPutImage(img);
 fitCanvasViewToContainer(true);

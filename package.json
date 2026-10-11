@@ -62,6 +62,7 @@
     "test:novice": "node scripts/novice-task-e2e.cjs",
     "test:charlib-e2e": "node scripts/character-library-e2e.cjs",
     "test:ai-fill-e2e": "node scripts/ai-fill-e2e.cjs",
+    "test:psd-e2e": "node scripts/psd-e2e.cjs",
     "test:bubble-ocr": "python3 scripts/manga-bubble-ocr-test.py"
   },
   "devDependencies": {

@@ -135,6 +135,8 @@ jobs:
         run: node scripts/character-library-e2e.cjs
       - name: AI fill e2e (mocked GPT + LaMa)
         run: node scripts/ai-fill-e2e.cjs
+      - name: PSD import/export e2e (ag-psd)
+        run: node scripts/psd-e2e.cjs
       - name: Upload novice report, screenshots and Playwright traces
         if: always()
         uses: actions/upload-artifact@v4
