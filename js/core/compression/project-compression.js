@@ -1,0 +1,345 @@
+/* exported btmSaveProjectFile, loadLz4BlobProjectFile, multiLoadLz4, multiLoadZip, openFirstLoadedPageIfCanvasEmpty, processZip */
+
+async function generateProjectFileBufferListCore(stateStackParam,imageMapParam,canvasInfoParam,basePromptParam,previewDataUrl){
+var fileBufferList=[];
+var promises=[
+(async ()=>{
+var buffer=await ArrayBufferUtils.toArrayBuffer(JSON.stringify(basePromptParam||{}));
+lz4Compressor.putDataListByArrayBuffer(fileBufferList,"text2img_basePrompt.json",buffer);
+})(),
+...stateStackParam.map(async (json,index)=>{
+var buffer=await ArrayBufferUtils.toArrayBuffer(JSON.stringify(json));
+var paddedIndex=String(index).padStart(6,'0');
+lz4Compressor.putDataListByArrayBuffer(fileBufferList,'state_'+paddedIndex+'.json',buffer);
+}),
+...Array.from(imageMapParam).map(async ([key,value])=>{
+var buffer=await ArrayBufferUtils.toArrayBuffer(value);
+lz4Compressor.putDataListByArrayBuffer(fileBufferList,key+'.img',buffer);
+}),
+(async ()=>{
+var buffer=await ArrayBufferUtils.toArrayBuffer(JSON.stringify(canvasInfoParam));
+lz4Compressor.putDataListByArrayBuffer(fileBufferList,"canvas_info.json",buffer);
+})(),
+(async ()=>{
+var buffer=await ArrayBufferUtils.toArrayBuffer(previewDataUrl);
+lz4Compressor.putDataListByArrayBuffer(fileBufferList,"preview-image.jpeg",buffer);
+})()
+];
+await Promise.all(promises);
+return fileBufferList;
+}
+
+async function generateProjectFileBufferList() {
+if(window.NaiHistoryLoading||notSave())throw new Error('画布正在载入，请等待完成后再保存。');
+saveState();
+await convertImageMapBlobUrls();
+removeGrid();
+var previewLink=await getCropAndDownloadLinkByMultiplier(1,'jpeg',0.8);
+var previewDataUrl=previewLink.href;
+if(isGridVisible){
+drawGrid();
+isGridVisible=true;
+}
+var canvasInfo={width:canvas.width,height:canvas.height,historyIndex:currentStateIndex};
+var fileBufferList=await generateProjectFileBufferListCore(stateStack,imageMap,canvasInfo,basePrompt,previewDataUrl);
+return {fileBufferList,previewDataUrl};
+}
+
+
+
+async function loadLz4BlobProjectFile(lz4Blob,guid=null,pageLockHeld=false){
+if(window.NaiHistoryLoading||(window.NaiPageLoading&&!pageLockHeld))return false;
+window.NaiPageLoading=true;
+const wasSaving=isSaveHistory;
+changeDoNotSaveHistory();
+try{
+const loadedImages=new Map();
+
+let files=await lz4Compressor.unLz4Files(lz4Blob);
+
+let t2iBasePromptBuffer=getDataByName(files,"text2img_basePrompt.json");
+let canvasInfoBuffer=getDataByName(files,"canvas_info.json");
+
+let t2iBasePromptStr=ArrayBufferUtils.fromArrayBufferToString(t2iBasePromptBuffer);
+let canvasInfoStr=ArrayBufferUtils.fromArrayBufferToString(canvasInfoBuffer);
+
+if (t2iBasePromptStr) {
+var loadedBasePrompt=JSON.parse(t2iBasePromptStr);
+}
+
+var canvasInfo=canvasInfoStr ? JSON.parse(canvasInfoStr) : {width: 750,height: 850};
+
+var sortedFiles=files.sort((a,b)=>{
+const numA=a.name.match(/(\d+)/) ? parseInt(a.name.match(/(\d+)/)[0]) :-1;
+const numB=b.name.match(/(\d+)/) ? parseInt(b.name.match(/(\d+)/)[0]) :-1;
+if (numA===numB) {
+return a.name.localeCompare(b.name);
+}
+return numA-numB;
+});
+
+await Promise.all(sortedFiles.map(async (file)=>{
+try {
+if (file.name.endsWith(".img")) {
+let imgDataUrlStr=ArrayBufferUtils.fromArrayBufferToString(file.data);
+
+let hash=file.name.split('.')[0];
+loadedImages.set(hash,imgDataUrlStr);
+}
+} catch (error) {
+compressionLogger.error("Failed to load file:",file.name,error);
+}
+}));
+
+const jsonLoadPromises=sortedFiles.map(async (file)=>{
+try {
+if (file.name.endsWith(".json")&&
+file.name!=="text2img_basePrompt.json"&&
+file.name!=="canvas_info.json") {
+let jsonStr=ArrayBufferUtils.fromArrayBufferToString(file.data);
+return JSON.parse(jsonStr);
+}
+} catch (error) {
+compressionLogger.error("Failed to load file:",file.name,error);
+}
+});
+
+const jsonResults=await Promise.all(jsonLoadPromises);
+const loadedStates=jsonResults.filter(data=>data!==undefined);
+if(!loadedStates.length)throw new Error('Project contains no canvas history');
+// Parse before replacing the current page so malformed history cannot clear it.
+loadedStates.forEach(state=>JSON.parse(state));
+stateStack=loadedStates;
+imageMap.clear();
+loadedImages.forEach((value,key)=>imageMap.set(key,value));
+if(loadedBasePrompt){
+Object.assign(basePrompt,loadedBasePrompt);
+if(!Array.isArray(loadedBasePrompt.naiCharacterCards))basePrompt.naiCharacterCards=[];
+}
+basePrompt.gptVisualProfiles=loadedBasePrompt&&Array.isArray(loadedBasePrompt.gptVisualProfiles)?loadedBasePrompt.gptVisualProfiles:[];
+
+currentStateIndex=Number.isInteger(canvasInfo.historyIndex)&&canvasInfo.historyIndex>=0&&canvasInfo.historyIndex<stateStack.length?canvasInfo.historyIndex:stateStack.length-1;
+resizeCanvasByNum(canvasInfo.width,canvasInfo.height);
+await restoreHistoryState(currentStateIndex,guid,true);
+
+if(guid){
+setCanvasGUID(guid);
+}
+if(window.NaiCharacterCards&&typeof window.NaiCharacterCards.load==='function'){
+window.NaiCharacterCards.load({preferProject:true});
+}
+return true;
+}finally{
+isSaveHistory=wasSaving;
+if(!pageLockHeld)window.NaiPageLoading=false;
+}
+}
+
+async function btmSaveProjectFile(guid=null,openDrawer=true) {
+try {
+guid=guid||getCanvasGUID();
+compressionLogger.info("[btmSaveProjectFile] START guid="+guid+" openDrawer="+openDrawer+" stateStack.length="+stateStack.length+" objectCount="+getObjectCount());
+var result=await generateBlobProjectFile();
+compressionLogger.info("[btmSaveProjectFile] generated blob, calling btmAddImage guid="+guid);
+btmAddImage({href:result.previewDataUrl},result.lz4Blob,guid,openDrawer);
+compressionLogger.info("[btmSaveProjectFile] DONE btmProjectsMap.size="+btmProjectsMap.size);
+} catch (error) {
+compressionLogger.error("[btmSaveProjectFile] ERROR",error);
+throw error;
+}
+}
+
+async function generateBlobProjectFile(guid=null) {
+try {
+guid=guid||getCanvasGUID();
+var result=await generateProjectFileBufferList();
+var lz4Blob=await lz4Compressor.buffersToLz4Blob(result.fileBufferList);
+return {lz4Blob,previewDataUrl:result.previewDataUrl};
+} catch (error) {
+throw error;
+}
+}
+
+
+
+
+async function multiLoadLz4(bufferFileLz4List) {
+const loadedGuids=[];
+for (const file of bufferFileLz4List) {
+let projectFileList=await lz4Compressor.unLz4FilesByBuffer(file.data.buffer);
+const previewBlobBuffer=projectFileList.find(file=>file.name==="preview-image.jpeg");
+
+const isBase64=new TextDecoder().decode(previewBlobBuffer.data.slice(0,30)).startsWith('data:image/jpeg;base64,');
+
+let previewBlob;
+if (isBase64) {
+const base64Data=new TextDecoder().decode(previewBlobBuffer.data);
+const actualData=atob(base64Data.split(',')[1]);
+const uint8Array=new Uint8Array(actualData.length);
+for (let i=0;i<actualData.length;i++) {
+uint8Array[i]=actualData.charCodeAt(i);
+}
+previewBlob=new Blob([uint8Array],{type: 'image/jpeg'});
+} else {
+previewBlob=new Blob([previewBlobBuffer.data],{type: 'image/jpeg'});
+}
+
+const previewImageUrl=URL.createObjectURL(previewBlob);
+
+const reader=new FileReader();
+reader.onload=function() {
+};
+reader.readAsText(previewBlob);
+
+const binaryReader=new FileReader();
+binaryReader.readAsArrayBuffer(previewBlob);
+
+const jsonBufferFiles=projectFileList.filter(f=>
+f.name.startsWith('state_')&&f.name.endsWith('.json')
+);
+let canvasGuid=null;
+
+for (const jsonBuffer of jsonBufferFiles) {
+let jsonStr=ArrayBufferUtils.fromArrayBufferToString(jsonBuffer.data);
+
+try {
+const state=JSON.parse(jsonStr);
+canvasGuid=findCanvasGuid(state);
+
+if (canvasGuid) {
+const lz4Blob=new Blob([file.data]);
+btmAddImage({href: previewImageUrl},lz4Blob,canvasGuid);
+loadedGuids.push(canvasGuid);
+break;
+}
+} catch (error) {
+compressionLogger.error("Error parsing JSON:",error);
+}
+}
+
+if (!canvasGuid) {
+let guid=generateGUID();
+const blob=new Blob([file.data]);
+btmAddImage({href: previewImageUrl},blob,guid);
+loadedGuids.push(guid);
+}
+}
+return loadedGuids;
+}
+
+
+async function multiLoadZip(zip) {
+const loadedGuids=[];
+const zipFiles=Object.keys(zip.files).filter(filename=>filename.endsWith('.zip'));
+
+for (let i=0;i<zipFiles.length;i++) {
+const zipContent=await zip.file(zipFiles[i]).async('blob');
+const innerZip=await JSZip.loadAsync(zipContent);
+const previewImage=innerZip.file('preview-image.jpeg');
+if (!previewImage) {
+continue;
+}
+
+const previewImageBlob=await previewImage.async('blob');
+const previewImageUrl=URL.createObjectURL(previewImageBlob);
+
+const stateFiles=Object.keys(innerZip.files).filter(filename=>filename.startsWith('state_')&&filename.endsWith('.json'));
+
+var canvasGuid=null;
+
+for (const stateFile of stateFiles) {
+const stateContent=await innerZip.file(stateFile).async('text');
+try {
+const state=JSON.parse(stateContent);
+canvasGuid=findCanvasGuid(state);
+
+if (canvasGuid) {
+btmAddImage({href: previewImageUrl},zipContent,canvasGuid);
+loadedGuids.push(canvasGuid);
+break;
+}
+} catch (error) {
+compressionLogger.error("Error parsing JSON:",error);
+}
+}
+
+if(canvasGuid){
+//skip
+}else{
+let guid=generateGUID();
+btmAddImage({href: previewImageUrl},zipContent,guid);
+loadedGuids.push(guid);
+}
+}
+return loadedGuids;
+}
+
+// After "Load project" the pages only appear as thumbnails. When the canvas the
+// user is looking at has nothing of their own on it (fresh start, or just
+// cleared), open the first loaded page so the load is visibly effective.
+// A page with user content is never replaced.
+function countUserObjectsForLoad(){
+if(typeof userObjectCount==='function')return userObjectCount();
+return (typeof getObjectCount==='function')?getObjectCount():0;
+}
+// 打开项目 must show what was opened. It used to switch only when the canvas was empty, so opening a
+// project over a non-empty page (or re-opening the page you just saved: same guid, its page-bar data
+// silently replaced) looked like nothing happened, and the next save of the visible page overwrote
+// the loaded data. The caller saves the current page before loading, so switching is safe.
+async function openFirstLoadedPageIfCanvasEmpty(loadedGuids,alwaysOpen){
+if(!Array.isArray(loadedGuids)||loadedGuids.length===0)return false;
+if(!alwaysOpen&&countUserObjectsForLoad()>0)return false;
+const guid=loadedGuids[0];
+if(typeof btmProjectsMap==='undefined'||!btmProjectsMap.get(guid))return false;
+await chengeCanvasByGuid(guid);
+if(typeof btmUpdateHandleText==='function')btmUpdateHandleText();
+return true;
+}
+
+
+
+
+//This is not recommended as it has been changed from Zip management to Lz4 management.
+async function processZip(zip) {
+const zipFiles=Object.keys(zip.files).filter(filename=>filename.endsWith('.zip'));
+
+for (let i=0;i<zipFiles.length;i++) {
+const zipContent=await zip.file(zipFiles[i]).async('blob');
+const innerZip=await JSZip.loadAsync(zipContent);
+const previewImage=innerZip.file('preview-image.jpeg');
+if (!previewImage) {
+continue;
+}
+
+const previewImageBlob=await previewImage.async('blob');
+const previewImageUrl=URL.createObjectURL(previewImageBlob);
+
+const stateFiles=Object.keys(innerZip.files).filter(filename=>filename.startsWith('state_')&&filename.endsWith('.json'));
+
+var canvasGuid=null;
+
+for (const stateFile of stateFiles) {
+const stateContent=await innerZip.file(stateFile).async('text');
+try {
+const state=JSON.parse(stateContent);
+canvasGuid=findCanvasGuid(state);
+
+if (canvasGuid) {
+let lz4Blob=await lz4Compressor.zipFileListToLz4Blob(innerZip.files);
+btmAddImage({href: previewImageUrl},lz4Blob,canvasGuid);
+break;
+}
+} catch (error) {
+compressionLogger.error("Error parsing JSON:",error);
+}
+}
+
+if(canvasGuid){
+//skip
+}else{
+let guid=generateGUID();
+btmAddImage({href: previewImageUrl},zipContent,guid);
+}
+}
+}
+

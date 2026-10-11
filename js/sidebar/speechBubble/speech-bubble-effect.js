@@ -1,0 +1,305 @@
+/* exported getSpeechBubbleTextFill, lazyLoadSvgData */
+function changeSpeechBubble() {
+// console.log("-------------");
+var bubbleStrokewidht=parseFloat($("bubbleStrokewidht").value);
+var fillColor=$("bubbleFillColor").value;
+var strokeColor=$("bubbleStrokeColor").value;
+var opacity=$("speechBubbleOpacity").value;
+changeSpeechBubbleSVG(bubbleStrokewidht,fillColor,strokeColor,opacity);
+
+}
+function changeSpeechBubbleSVG(bubbleStrokewidht,fillColor,strokeColor,opacity){
+opacity=opacity/100;
+var fillColorRgba=hexToRgba(fillColor,opacity);
+var strokeColorRgba=hexToRgba(strokeColor,1.0);
+
+textLogger.debug("changeSpeechBubbleSVG:",bubbleStrokewidht,fillColorRgba,strokeColorRgba,opacity);
+
+var activeObject=canvas.getActiveObject();
+if (activeObject) {
+
+let isExistsFillArea=false;
+if(isPath(activeObject)){
+activeObject.set({
+stroke: strokeColorRgba,
+strokeWidth: bubbleStrokewidht,
+fill: fillColorRgba
+});
+}else{
+activeObject.forEachObject((obj)=>{
+
+if(obj.data?.originalId==="fillArea"||obj.id==="fillArea"){
+isExistsFillArea=true;
+return;
+}
+});
+
+textLogger.debug("isExistsFillArea:",isExistsFillArea)
+
+activeObject.forEachObject((obj)=>{
+if(isExistsFillArea){
+if(obj.data?.originalId==="fillArea"||obj.id==="fillArea"){
+obj.set({
+stroke: strokeColorRgba,
+fill:fillColorRgba,
+strokeWidth:bubbleStrokewidht
+});
+}else{
+obj.set({
+stroke: strokeColorRgba ,
+fill:strokeColorRgba,
+strokeWidth:bubbleStrokewidht
+});
+textLogger.debug("obj.fill:",obj.fill);
+
+}
+}else{
+obj.set({stroke: strokeColorRgba ,
+fill:fillColorRgba,
+strokeWidth:bubbleStrokewidht});
+}
+});
+}
+canvas.requestRenderAll();
+}
+}
+
+function getSpeechBubbleTextFill(activeObject,type){
+if(isPath(activeObject)){
+if(type=='fill')return activeObject.fill;
+if(type=='stroke')return activeObject.stroke;
+if(type=='strokeWidth')return activeObject.strokeWidth;
+}
+var fillArea=null;
+var firstChild=null;
+if(activeObject&&typeof activeObject.forEachObject==='function'){
+activeObject.forEachObject(function(obj){
+if(!firstChild)firstChild=obj;
+if(obj.data&&obj.data.originalId==='fillArea')fillArea=obj;
+});
+}
+var target=fillArea||firstChild;
+if(target){
+if(type=='fill')return target.fill;
+if(type=='stroke')return target.stroke;
+if(type=='strokeWidth')return target.strokeWidth;
+}
+if(type=='fill')return "rgba(255, 255, 255, 1.0)";
+if(type=='stroke')return "rgba(0, 0, 0, 1.0)";
+if(type=='strokeWidth')return 10;
+return null;
+}
+
+function loadSpeechBubbleSVGReadOnly(svgString,name) {
+fabric.loadSVGFromString(svgString,function (objects,options) {
+
+const svgObject=fabric.util.groupSVGElements(objects,options);
+
+let svgData=null;
+if (name.startsWith("90_focus_")) {
+//skip
+}else{
+svgData=parseSvg(svgString);
+}
+
+
+let initialWidth=canvas.width*0.35
+
+svgObject.scaleToWidth(initialWidth);
+svgObject.baseScaleX=svgObject.scaleX;
+svgObject.baseScaleY=svgObject.scaleY;
+
+svgObject.set({
+left: 50,
+selectable: true,
+hasControls: true,
+hasBorders: true
+});
+
+const selectedValue=getSelectedValueByGroup("sbTextGroup");
+if (name.startsWith("90_focus_")||selectedValue==="Nothing") {
+canvas.add(svgObject);
+}else{
+changeDoNotSaveHistory();
+canvas.add(svgObject);
+changeDoSaveHistory();
+createSpeechBubbleMetrics(svgObject,svgData);
+}
+canvas.setActiveObject(svgObject);
+changeSpeechBubble();
+canvas.discardActiveObject();
+canvas.renderAll();
+updateLayerPanel();
+});
+}
+
+const previewAreaVertical=$("svg-preview-area-vertical");
+const previewAreaLandscape=$("svg-preview-area-landscape");
+const speechBubbleArea=$("speech-bubble-preview");
+var svgDataLoaded={vertical:false,landscape:false,speechBubble:false};
+
+function loadSvgScript(src){
+return new Promise(function(resolve,reject){
+var script=document.createElement("script");
+script.src=src;
+script.onload=resolve;
+script.onerror=reject;
+document.head.appendChild(script);
+});
+}
+
+function templatePlaceMode(){
+var el=typeof document!=='undefined'?document.getElementById('naiTemplatePlaceMode'):null;
+return el&&el.value?el.value:'replace';
+}
+
+// The fresh-page hint text ("拖放或生成图片") is not user content: placing the first
+// template on a new page must not ask "会清掉当前页上的格子…确定吗？".
+function userObjectCount(){
+if(typeof canvas==='undefined'||!canvas||typeof canvas.getObjects!=='function')return 0;
+return canvas.getObjects().filter(function(item){
+return !(typeof isPlaceholderCanvasObject==='function'&&isPlaceholderCanvasObject(item));
+}).length;
+}
+
+async function applyMangaTemplate(item,isLand){
+var mode=templatePlaceMode();
+var overlay=mode==='overlay';
+var newpage=mode==='newpage';
+if(overlay){
+setCanvasGUID();
+loadSVGPlusReset(item.svg,!!isLand,true);
+return;
+}
+if(newpage&&userObjectCount()>0&&typeof btmSaveProjectFile==='function'){
+await btmSaveProjectFile();
+}
+if(mode==='replace'&&userObjectCount()>0){
+if(!window.confirm('会清掉当前页上的格子，换成这个分镜。确定吗？要保留当前页请选「加为新页」。'))return;
+}
+setCanvasGUID();
+loadSVGPlusReset(item.svg,!!isLand,false);
+}
+
+function afterTemplateApplied(){
+if(typeof createToast==='function')createToast('分镜模板','已放到画布。这是可出图的格子。底部一排可以切换多页。',3200);
+if(window.NaiBeginnerGuide){
+if(window.NaiBeginnerGuide.exitDrawing)window.NaiBeginnerGuide.exitDrawing();
+if(window.NaiBeginnerGuide.updateEmptyHint)window.NaiBeginnerGuide.updateEmptyHint();
+}
+if(window.NaiVisualStudio&&typeof window.NaiVisualStudio.refresh==='function')window.NaiVisualStudio.refresh();
+}
+
+function populateVerticalPanels(){
+previewAreaVertical.innerHTML="";
+MangaPanelsImage_Vertical.forEach((item)=>{
+const img=document.createElement("img");
+img.src="data:image/svg+xml;utf8,"+encodeURIComponent(item.svg);
+img.classList.add("svg-preview","visual-thumb");
+img.alt=item.name;
+img.title=(item.name||'分镜')+' · 点一下放到画布';
+img.addEventListener("click",async function(){
+panelLogger.info("[verticalTemplate] stateStack.length="+stateStack.length+" btmProjectsMap.size="+btmProjectsMap.size+" canvasGUID="+getCanvasGUID()+" objectCount="+getObjectCount());
+const loading=OP_showLoading({
+icon:'process',step:'正在套用分镜',substep:'写入画布',progress:0
+});
+try{
+await applyMangaTemplate(item,false);
+}finally{
+OP_hideLoading(loading);
+afterTemplateApplied();
+}
+});
+previewAreaVertical.appendChild(img);
+});
+}
+
+function populateLandscapePanels(){
+previewAreaLandscape.innerHTML="";
+MangaPanelsImage_Landscape.forEach((item)=>{
+const img=document.createElement("img");
+img.src="data:image/svg+xml;utf8,"+encodeURIComponent(item.svg);
+img.classList.add("svg-preview","visual-thumb");
+img.alt=item.name;
+img.title=(item.name||'分镜')+' · 点一下放到画布';
+img.addEventListener("click",async function(){
+panelLogger.info("[landscapeTemplate] stateStack.length="+stateStack.length+" btmProjectsMap.size="+btmProjectsMap.size+" canvasGUID="+getCanvasGUID()+" objectCount="+getObjectCount());
+const loading=OP_showLoading({
+icon:'process',step:'正在套用分镜',substep:'写入画布',progress:0
+});
+try{
+await applyMangaTemplate(item,true);
+}finally{
+OP_hideLoading(loading);
+afterTemplateApplied();
+}
+});
+previewAreaLandscape.appendChild(img);
+});
+}
+
+function populateSpeechBubbles(){
+speechBubbleArea.innerHTML="";
+SpeechBubble.forEach((item)=>{
+const img=document.createElement("img");
+img.src="data:image/svg+xml;utf8,"+encodeURIComponent(item.svg);
+img.classList.add("svg-preview","visual-thumb");
+img.alt=item.name;
+img.title=(item.name||'气泡')+' · 点一下放到画布，再双击改字';
+img.addEventListener("click",function(){
+loadSpeechBubbleSVGReadOnly(item.svg,item.name);
+if(window.NaiVisualStudio&&typeof window.NaiVisualStudio.refresh==='function')window.NaiVisualStudio.refresh();
+});
+speechBubbleArea.appendChild(img);
+});
+}
+
+function lazyLoadVerticalPanels(){
+if(svgDataLoaded.vertical) return;
+svgDataLoaded.vertical=true;
+previewAreaVertical.textContent="正在加载竖版分镜…";
+loadSvgScript("js/svg/manga-panels-image-vertical.js?v=7.2").then(function(){
+populateVerticalPanels();
+}).catch(function(){
+svgDataLoaded.vertical=false;
+previewAreaVertical.textContent="";
+});
+}
+
+function lazyLoadLandscapePanels(){
+if(svgDataLoaded.landscape) return;
+svgDataLoaded.landscape=true;
+previewAreaLandscape.textContent="正在加载横版分镜…";
+loadSvgScript("js/svg/manga-panels-image-landscape.js?v=7.2").then(function(){
+populateLandscapePanels();
+}).catch(function(){
+svgDataLoaded.landscape=false;
+previewAreaLandscape.textContent="";
+});
+}
+
+function lazyLoadSpeechBubbles(){
+if(svgDataLoaded.speechBubble) return;
+svgDataLoaded.speechBubble=true;
+speechBubbleArea.textContent="Loading...";
+loadSvgScript("js/svg/speechbubble.js?v=7.2").then(function(){
+populateSpeechBubbles();
+}).catch(function(){
+svgDataLoaded.speechBubble=false;
+speechBubbleArea.textContent="";
+});
+}
+
+function lazyLoadSvgData(id){
+if(id==="svg-container-template"){
+var toggle=document.getElementById("template-orientation-toggle");
+if(toggle&&toggle.checked){
+lazyLoadLandscapePanels();
+}else{
+lazyLoadVerticalPanels();
+}
+}
+if(id==="svg-container-vertical") lazyLoadVerticalPanels();
+if(id==="svg-container-landscape") lazyLoadLandscapePanels();
+if(id==="speech-bubble-area"||id==="speech-bubble-area1") lazyLoadSpeechBubbles();
+}

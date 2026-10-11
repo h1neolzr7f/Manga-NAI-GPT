@@ -1,0 +1,72 @@
+/* Optional GPT tools: isolated styles so legacy canvas layout stays intact. */
+#mangaGptOpen {
+  margin-left: 6px; padding: 5px 10px; cursor: pointer;
+  border: 1px solid #3984aa; border-radius: 6px;
+  background: #15364e; color: #ecf8ff; font-weight: 700;
+}
+.manga-gpt-panel {
+  position: fixed; z-index: 5500; right: 16px; top: 72px;
+  width: min(400px, calc(100vw - 32px)); max-height: calc(100vh - 96px);
+  overflow: auto; box-sizing: border-box; padding: 14px;
+  border: 1px solid #456074; border-radius: 12px;
+  background: #16212e; color: #edf6fc;
+  box-shadow: 0 16px 45px #0009; font: 13px/1.5 sans-serif;
+}
+.manga-gpt-panel[hidden] { display: none !important; }
+.manga-gpt-panel * { box-sizing: border-box; }
+.manga-gpt-panel label { display: block; margin: 8px 0; flex: 1; min-width: 0; }
+.manga-gpt-panel input:not([type=file]):not([type=checkbox]), .manga-gpt-panel select, .manga-gpt-panel textarea {
+  display: block; width: 100%; padding: 7px; margin-top: 3px;
+  border: 1px solid #4a6074; border-radius: 6px; background: #0f1b26; color: #fff;
+}
+.manga-gpt-panel input[type=checkbox] { display: inline-block; width: auto; vertical-align: middle; }
+.manga-gpt-panel input[type=file] { display: block; width: 100%; margin-top: 4px; }
+.manga-gpt-panel button {
+  cursor: pointer; color: #fff; background: #285c79;
+  border: 1px solid #5188ab; border-radius: 6px; padding: 7px 10px;
+}
+.manga-gpt-panel button:disabled { opacity: .45; cursor: not-allowed; }
+.manga-gpt-head, .manga-gpt-row {
+  display: flex; gap: 8px; align-items: end; justify-content: space-between;
+}
+.manga-gpt-head { align-items: center; margin-bottom: 12px; }
+.manga-gpt-head strong { font-size: 17px; }
+.manga-gpt-preview { display: block; max-width: 100%; max-height: 220px; margin: 10px auto; object-fit: contain; }
+.manga-gpt-preview:not([src]) { display: none; }
+.manga-gpt-hint { font-size: 12px; color: #b5c2cd; overflow-wrap: anywhere; }
+.manga-gpt-status { padding: 9px 0; font-size: 12px; overflow-wrap: anywhere; }
+.manga-gpt-status[data-error=true] { color: #ffaca6; }
+.manga-gpt-panel details { margin-top: 10px; border-top: 1px solid #496276; padding-top: 10px; }
+.manga-gpt-panel summary { cursor: pointer; }
+.manga-gpt-selection {
+  z-index: 5600; cursor: crosshair; touch-action: none;
+  border: 1px dashed #61d5ff; background: #1878ae11;
+}
+.manga-gpt-selection-rectangle {
+  position: absolute; pointer-events: none; border: 2px solid #62caff;
+  background: #54befe2e;
+}
+.manga-gpt-lasso { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.manga-gpt-lasso polygon { fill: #54befe2e; stroke: #62caff; stroke-width: 2; stroke-dasharray: 6 4; }
+#mangaGptShape { min-width: 4.5em; }
+.manga-gpt-lasso.is-brush polyline { fill: none; stroke: #54befe66; stroke-dasharray: none; stroke-linecap: round; stroke-linejoin: round; }
+.manga-gpt-head-buttons { display: flex; gap: 6px; }
+.manga-gpt-panel.is-collapsed { max-height: none; overflow: hidden; width: auto; min-width: 220px; }
+.manga-gpt-panel.is-collapsed > :not(.manga-gpt-head) { display: none !important; }
+
+.manga-gpt-compare {
+  margin-top: 4px;
+  padding: 3px 10px;
+  border: 1px solid #5aa0c8;
+  border-radius: 6px;
+  background: #1d2b38;
+  color: #eef6fb;
+  cursor: pointer;
+  font-size: 12px;
+}
+.manga-gpt-compare[aria-pressed="true"] { background: #2c6a8f; }
+
+/* "操作 [模式]" label must not collapse to 0 px next to the shape select (text broke one character per line) */
+.manga-gpt-row > label { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.manga-gpt-row > label > select { flex: 1 1 auto; min-width: 0; }
+.manga-gpt-row > #mangaGptShape { flex: 0 0 auto; width: auto; }

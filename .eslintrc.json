@@ -1,0 +1,78 @@
+{
+  "env": {
+    "browser": true,
+    "es2021": true
+  },
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "script"
+  },
+  "rules": {
+    "camelcase": [
+      "warn",
+      {
+        "properties": "never",
+        "ignoreDestructuring": true,
+        "ignoreImports": true,
+        "ignoreGlobals": true,
+        "allow": [
+          "^t2_",
+          "^sd_",
+          "^comfyui_",
+          "^MODE_T2_",
+          "^MangaPanelsImage_",
+          "^ComfyUI_",
+          "^base_",
+          "^OP_",
+          "^class_type$",
+          "^UPPER_"
+        ]
+      }
+    ],
+    "new-cap": [
+      "warn",
+      {
+        "newIsCap": true,
+        "capIsNew": false,
+        "properties": false
+      }
+    ],
+    "no-unused-vars": [
+      "warn",
+      {
+        "vars": "all",
+        "args": "none",
+        "ignoreRestSiblings": true
+      }
+    ],
+    "no-undef": "off",
+    "no-redeclare": "warn"
+  },
+  "globals": {
+    "$": "readonly",
+    "fabric": "readonly",
+    "jQuery": "readonly",
+    "Pickr": "readonly",
+    "rough": "readonly",
+    "Sortable": "readonly"
+  },
+  "ignorePatterns": [
+    "json_js/**",
+    "third/**",
+    "01_build/**",
+    "02_images_svg/**",
+    "03_images/**",
+    "font/**",
+    "node_modules/**"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "js/ui/third/base-translation/*.js"
+      ],
+      "rules": {
+        "no-unused-vars": "off"
+      }
+    }
+  ]
+}

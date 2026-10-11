@@ -1,0 +1,160 @@
+/* Responsive breakpoints for main layout structure */
+
+@media(max-width:1366px){
+.left_area{
+width:280px;
+min-width:260px;
+max-width:300px;
+}
+#layer-panel{
+flex:0 0 200px;
+min-width:180px;
+max-width:220px;
+}
+#controls{
+flex:0 0 240px;
+min-width:220px;
+max-width:260px;
+}
+}
+
+@media(max-width:1280px){
+#sidebar{
+width:76px;
+min-width:76px;
+max-width:76px;
+}
+.left_area{
+width:260px;
+min-width:240px;
+max-width:280px;
+}
+#layer-panel{
+flex:0 0 190px;
+min-width:170px;
+max-width:210px;
+}
+#controls{
+flex:0 0 230px;
+min-width:210px;
+max-width:250px;
+}
+.navbar-logo-text{
+width:auto;
+min-width:48px;
+font-size:11px;
+}
+}
+
+@media(max-width:1024px){
+#sidebar{
+width:56px;
+min-width:56px;
+max-width:56px;
+padding:4px 0;
+flex-basis:56px;
+}
+#sidebar i{
+font-size:20px;
+padding:0;
+margin-bottom:0;
+}
+.icon-label{
+display:none;
+}
+.icon-wrapper{
+margin:0;
+min-height:0;
+padding:6px 0;
+}
+.sidebar-group-label,
+.sidebar-more-toggle{
+font-size:9px;
+}
+.left_area{
+width:240px;
+min-width:220px;
+max-width:260px;
+}
+#layer-panel{
+flex:0 0 170px;
+min-width:150px;
+max-width:190px;
+}
+#controls{
+flex:0 0 220px;
+min-width:200px;
+max-width:240px;
+}
+.navbar-logo-text{
+width:auto;
+min-width:40px;
+font-size:10px;
+}
+.navbar-logo-ver{
+display:none;
+}
+}
+
+@media(max-width:768px){
+#sidebar{
+width:48px;
+min-width:48px;
+max-width:48px;
+padding:2px 0;
+flex-basis:48px;
+}
+#sidebar i{
+font-size:18px;
+padding:2px;
+margin-bottom:0;
+}
+.left_area{
+position:absolute;
+left:48px;
+top:0;
+z-index:var(--z-sidebar);
+width:280px;
+min-width:240px;
+max-width:300px;
+height:100%;
+max-height:100%;
+background:var(--background-color-A);
+box-shadow:2px 0 8px rgba(0,0,0,0.3);
+}
+#layer-panel{
+flex:0 0 160px;
+min-width:140px;
+max-width:180px;
+}
+#controls{
+display:none;
+}
+.navbar-logo-text{
+width:auto;
+min-width:36px;
+font-size:9px;
+}
+.navbar-logo-ver{
+display:none;
+}
+#canvas-area{
+min-width:0;
+}
+}
+
+/* Short screens (1440x900 / 1366x768 laptops): the sidebar column was ~1050px tall, so 文字 sat under
+   the sticky 「更多」 toggle and 网点 / 形状 / 抠图 were below the fold. Compact the icons, keep labels. */
+@media (max-height:1000px){
+#sidebar .icon-wrapper{padding:2px 0;margin:0;min-height:0;}
+#sidebar .icon-wrapper i{font-size:20px;margin-bottom:0;}
+#sidebar .icon-label{font-size:10px;line-height:1.1;}
+#sidebar .sidebar-group-label{padding:3px 0 1px;}
+#sidebar .sidebar-more-toggle{padding:5px 2px 6px;}
+}
+@media (max-height:820px){
+#sidebar .icon-wrapper{padding:1px 0;}
+#sidebar .icon-wrapper i{font-size:18px;}
+#sidebar .icon-label{font-size:9px;}
+#sidebar .sidebar-group-label{display:none;}
+}
