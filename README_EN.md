@@ -19,6 +19,9 @@ Manga-NAI-GPT is built on [Manga Editor Desu](https://github.com/new-sankaku/man
 
 ## Features
 
+**New in 1.5:** Edit an area (remove / replace / free edit), character library, non-destructive AI layers, automatic balloons, paste-a-script → page, Ctrl+K command palette + thumbnail history, PSD I/O, `MNAI_PORT`. See [CHANGELOG](CHANGELOG.md).
+
+
 | Task | What it does | Needs |
 |---|---|---|
 | **换角色 Character swap** | Finds the characters → click the one to replace → upload a reference → preview / compare → apply; can repeat for the same character in other panels (face matching) | Image service + local detection |

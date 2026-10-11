@@ -19,6 +19,9 @@ Manga-NAI-GPT 是基于 [Manga Editor Desu](https://github.com/new-sankaku/manga
 
 ## 功能
 
+**1.5 新增：** 改一块（去掉 / 换成 / 自由修改）、角色库、非破坏 AI 图层、自动对白气泡、粘贴剧本生成整页、Ctrl+K 命令面板与带缩略图的历史、PSD 导入导出、`MNAI_PORT` 换端口。详见 [CHANGELOG](CHANGELOG.md)。
+
+
 | 任务 | 做什么 | 需要 |
 |---|---|---|
 | **换角色** | 自动找出人物 → 点要换的人 → 上传参考图 → 预览对比 → 应用；同一角色可在其他格一起换（脸部识别） | 图像服务 + 本机人物识别 |
