@@ -146,6 +146,10 @@ jobs:
         run: node scripts/balloon-e2e.cjs
       - name: Script -> page e2e (mock GPT)
         run: node scripts/script-page-e2e.cjs
+      - name: NovelAI routes (mock NAI)
+        run: node scripts/nai-route-e2e.cjs
+      - name: Prompt assist (mock LLM, tag fixture)
+        run: node scripts/prompt-assist-e2e.cjs
       - name: Upload novice report, screenshots and Playwright traces
         if: always()
         uses: actions/upload-artifact@v4

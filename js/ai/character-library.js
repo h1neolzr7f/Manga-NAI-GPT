@@ -94,7 +94,26 @@
       html += '<ul class="charlib-faces">' + r.faces.map((f, i) => '<li data-i="' + i + '"><span class="ui-badge ' + (f.status === 'match' ? 'is-ok' : f.status === 'possible' ? 'is-warn' : '') + '">' + esc(statusText(f)) + '</span>' +
         (f.status === 'match' ? '' : ' <button type="button" class="ui-btn charlib-add" data-i="' + i + '">' + (f.status === 'possible' ? '是 ' + esc(f.name) + '，记住这张' : '加入角色库') + '</button>') + '</li>').join('') + '</ul>';
     } else if (!lib.length) html += '<p>先把主要角色加入角色库：在页面上点「认出本页人物」，再给认不出的人点「加入角色库」起个名字。</p>';
+    if (root.PromptAssist && root.PromptAssist.enabled() && S.cards.length) {
+      html += '<details class="charlib-tags" open><summary>角色标签（NovelAI 角色栏，提示词助手）</summary>' + S.cards.map(c => '<label class="ui-field"><span>' + esc(c.name) + '</span><input class="ui-input" data-nai-prompt="character prompt for ' + esc(c.name) + '" data-char-id="' + esc(c.id) + '" value="' + esc((c.identity && c.identity.tags) || '') + '" placeholder="例如：togawa sakiko, girl"><button type="button" class="ui-btn ui-btn-ghost" data-char-find="' + esc(c.id) + '" title="按名字在标签库里找角色标签（找不到时可下载 11 MB 扩展角色表）">找标签</button><span class="ui-muted" data-char-found="' + esc(c.id) + '"></span></label>').join('') + '</details>';
+    }
+    const sn = root.PromptAssist ? root.PromptAssist.snippets() : [];
+    if (sn.length) html += '<details class="charlib-tags"><summary>风格片段（' + sn.length + '）</summary>' + sn.map((x, i) => '<button type="button" class="ui-btn charlib-snip" data-snip="' + i + '" title="' + esc(x.text) + '">' + esc(x.name) + '</button>').join(' ') + '<p class="ui-muted">点一下复制到剪贴板；画一页的「统一画风」框里也能直接选。</p></details>';
     body.innerHTML = html;
+    body.querySelectorAll('[data-snip]').forEach(b => b.addEventListener('click', () => { const x = sn[+b.dataset.snip]; if (x && navigator.clipboard) navigator.clipboard.writeText(x.text).then(() => status('已复制「' + x.name + '」。'), () => status(x.text)); }));
+    body.querySelectorAll('[data-char-id]').forEach(inp => inp.addEventListener('change', async () => {
+      const c = S.cards.find(x => x.id === inp.dataset.charId); if (!c) return;
+      await bible().put(Object.assign({}, c, { identity: Object.assign({}, c.identity, { tags: inp.value.trim() }) })); await loadCards(); status('已保存「' + c.name + '」的标签。');
+    }));
+    if (root.PromptAssist) root.PromptAssist.scan();
+    body.querySelectorAll('[data-char-find]').forEach(b => b.addEventListener('click', async () => {
+      const c = S.cards.find(x => x.id === b.dataset.charFind), out = body.querySelector('[data-char-found="' + b.dataset.charFind + '"]'); if (!c || !root.PromptAssist) return;
+      out.textContent = '查找中…';
+      let tags = await root.PromptAssist.findCharacterTags(c.name, false);
+      if (!tags.length && confirm('常用标签里没找到「' + c.name + '」。下载扩展角色表（约 11 MB，34 万角色，只下载一次）再找？')) { try { tags = await root.PromptAssist.findCharacterTags(c.name, true); } catch (e) { out.textContent = e.message; return; } }
+      out.innerHTML = tags.length ? tags.map(t => '<button type="button" class="ui-btn pa-chip" data-pick="' + esc(t) + '">' + esc(t) + '</button>').join(' ') : '没找到；角色库名字用英文或罗马音更容易找到。';
+      out.querySelectorAll('[data-pick]').forEach(x => x.addEventListener('click', () => { const inp = body.querySelector('[data-char-id="' + c.id + '"]'); inp.value = x.dataset.pick + ', ' + inp.value.replace(/^\s*,?\s*/, ''); inp.dispatchEvent(new Event('change', { bubbles: true })); }));
+    }));
     body.querySelectorAll('.charlib-add').forEach(b => b.addEventListener('click', () => addFace(+b.dataset.i)));
   }
 

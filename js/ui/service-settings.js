@@ -201,7 +201,7 @@ var gk=el('button',{type:'button',class:'ui-btn',id:'svcGptKeyToggle'},'显示 K
 var gt=el('button',{type:'button',class:'ui-btn ui-btn-primary',id:'svcGptTest'},'测试连接');gr.appendChild(gt);
 gr.appendChild(el('span',{class:'ui-badge',id:'svcGptStatus'},'未测试'));
 
-var nai=section('svcNai','NovelAI（AI 生图）','只在 AI 生图时使用。测试连接只读取订阅信息，不花 Anlas。');
+var nai=section('svcNai','NovelAI','AI 生图、改一块、画一页 / 剧本成页都可以用 NovelAI。测试连接只读取订阅信息，不花 Anlas。提示词和图片只发给 NovelAI，不记录、不上传到别处。');
 card.appendChild(nai);
 moveField('novelaiApiKey','NovelAI 访问令牌（Token）',nai);
 var naiAdv=el('details',{class:'svc-adv'});naiAdv.appendChild(el('summary',{},'高级：API 地址 / 本地代理'));nai.appendChild(naiAdv);
@@ -213,6 +213,17 @@ var remember=$('novelaiRememberToken');
 if(remember){var rl=remember.closest('label');if(rl){nr.appendChild(rl);}}
 var toggle=$('novelaiApiKeyToggle');if(toggle){toggle.classList.add('ui-btn');nr.appendChild(toggle);}
 nr.appendChild(el('button',{type:'button',class:'ui-btn ui-btn-primary',id:'svcNaiTest'},'测试连接'));
+var nm=row(nai);nm.appendChild(el('label',{class:'ui-field'},'<span>NovelAI 模型</span>'));
+var src=$('novelaiModel'),ms=el('select',{id:'svcNaiModel',class:'ui-input'});
+if(src){Array.prototype.forEach.call(src.options,function(o){ms.appendChild(el('option',{value:o.value},o.textContent.replace('NAI Diffusion Anime ','')));});ms.value=src.value;
+ms.addEventListener('change',function(){src.value=ms.value;src.dispatchEvent(new Event('change',{bubbles:true}));});src.addEventListener('change',function(){if(ms.value!==src.value)ms.value=src.value;});}
+nm.firstChild.appendChild(ms);
+var mh=el('p',{class:'ui-muted',id:'svcNaiModelHint'});nai.appendChild(mh);
+function modelHint(){if(!window.NaiEngineCore)return;var f=NaiEngineCore.features(ms.value);mh.textContent=(f.characters?'支持多角色栏和位置（角色库标签会自动放进角色栏）。':'V3：不支持角色栏和位置，角色写进主提示词。')+(f.inpaintNative?'':' 改一块的局部重绘暂用 V4.5 重绘模型。')+' Opus 免费：≤1024×1024 像素、≤28 步、每次 1 张。';}
+ms.addEventListener('change',modelHint);modelHint();
+var sm=el('label',{class:'nai-inline-check',title:'默认关闭：编辑器不过滤也不改写你的提示词。打开后会在负面词里加 nsfw。'},'<input type="checkbox" id="svcNaiSafeMode"> 安全模式（负面词自动加 nsfw）');
+nai.appendChild(sm);var smi=sm.querySelector('input');smi.checked=!!(window.NaiEngine&&NaiEngine.safeMode());
+smi.addEventListener('change',function(){if(window.NaiEngine)NaiEngine.setSafeMode(smi.checked);});
 nr.appendChild(el('span',{class:'ui-badge',id:'svcNaiStatus'},'未测试'));
 nr.appendChild(el('button',{type:'button',class:'ui-btn ui-btn-ghost',id:'svcNaiAdvanced'},'NovelAI 高级设置…'));
 
@@ -222,7 +233,7 @@ var lr=row(local);
 lr.appendChild(el('button',{type:'button',class:'ui-btn ui-btn-primary',id:'svcLocalTest'},'检查状态'));
 lr.appendChild(el('span',{class:'ui-badge',id:'svcLocalStatus'},'未检查'));
 
-var dir=section('svcDirector','AI 导演（可选：AI 生图前自动优化提示词）','任意 OpenAI 兼容的聊天模型服务。不填就不使用，AI 生图照常可用。');
+var dir=section('svcDirector','提示词助手 / AI 导演（可选）','任意 OpenAI 兼容的聊天模型（例如 DeepSeek）。用于「润色 / 扩写」和 AI 生图前优化提示词。不填就不使用；Key 只存在本机。');
 card.appendChild(dir);
 var dirUse=$('naiDirectorUseApi');if(dirUse&&dirUse.closest('label'))dir.appendChild(dirUse.closest('label'));
 var dirRow=$('naiDirectorApiUrl')&&$('naiDirectorApiUrl').closest('.nai-director-api-row');
@@ -234,6 +245,13 @@ var dk=$('naiDirectorApiKeyToggle');if(dk){dk.classList.add('ui-btn');dr.appendC
 var oldDirTest=$('naiDirectorTestApi');if(oldDirTest)oldDirTest.remove();
 dr.appendChild(el('button',{type:'button',class:'ui-btn ui-btn-primary',id:'svcDirectorTest'},'测试连接'));
 dr.appendChild(el('span',{class:'ui-badge',id:'svcDirectorStatus'},'未测试'));
+var pa=row(dir);
+var pal=el('label',{class:'nai-inline-check',title:'默认关闭。打开后 NovelAI 提示词框会有标签补全和「润色 / 扩写 / 查标签」按钮。'},'<input type="checkbox" id="svcPaEnable"> 启用提示词助手（标签补全 + 润色 / 扩写）');pa.appendChild(pal);
+var pai=pal.querySelector('input');pai.checked=!!(window.PromptAssist&&PromptAssist.enabled());
+pai.addEventListener('change',function(){if(window.PromptAssist)PromptAssist.setEnabled(pai.checked);});
+var pdl=el('button',{type:'button',class:'ui-btn',id:'svcPaTags',title:'Danbooru 标签库（tagcomplete 项目，MIT），约 3.4 MB，下载后校验 SHA-256，只存在这个浏览器里'},'下载 / 检查标签库');pa.appendChild(pdl);
+pa.appendChild(el('span',{class:'ui-badge',id:'svcPaTagStatus'},(window.PromptAssist&&PromptAssist.index)?'标签库就绪':'标签库未下载'));
+pdl.addEventListener('click',function(){if(window.PromptAssist)PromptAssist.loadTags().catch(function(){});});
 
 var tag=section('svcTagger','导入漫画自动打标签（可选）','本机运行的 Danbooru Tagger（例如 WebUI 的 tagger 扩展）。没有也能导入，会使用保守的默认标签。');
 card.appendChild(tag);

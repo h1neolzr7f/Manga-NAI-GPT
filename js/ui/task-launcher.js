@@ -102,6 +102,7 @@ sep();
 item('taskServiceSettings','settings','服务设置（GPT / NovelAI / 本机）',function(){if(window.ServiceSettings)ServiceSettings.open('gpt');});
 item('taskCharacters','face','角色库 · 认出本页人物',function(){if(window.CharacterLibrary)CharacterLibrary.open();});
 sep();
+item('privacyToggle','visibility_off','隐私模式（模糊缩略图）：'+(privacyOn()?'开':'关'),function(){setPrivacy(!privacyOn());var b=$('privacyToggle');if(b)b.lastChild.textContent='隐私模式（模糊缩略图）：'+(privacyOn()?'开':'关');});
 item('themeToggle','contrast','浅色 / 深色界面',function(){var box=$('mode-toggle');if(!box)return;box.checked=!box.checked;box.dispatchEvent(new Event('change'));});
 item('taskShortcuts','keyboard','快捷键一览 (F1)',call('openShortcutModal'));
 item('uiModeToggle','tune','专业模式',function(){setMode(mode()==='beginner'?'pro':'beginner');});
@@ -246,6 +247,7 @@ return body;
 var NEEDS_GPT={swap:1,page:1,custom:1};
 function start(id){
 var t=task(id);if(!t)return;
+if(id==='page'&&window.NaiEngine&&NaiEngine.configured()){startNow(id);return;}
 if(NEEDS_GPT[id]&&window.ServiceSettings&&ServiceSettings.ensureReady&&(t.kind==='page'||hasPage())){
 ServiceSettings.ensureReady('gpt').then(function(ok){if(ok)startNow(id);});
 return;
@@ -441,12 +443,16 @@ markStep(0);
 body.innerHTML='<div class="svc-row" role="radiogroup" aria-label="格子数">'+
 '<button type="button" class="ui-btn" data-panels="3" id="taskPage3">3 格</button>'+
 '<button type="button" class="ui-btn" data-panels="4" id="taskPage4">4 格</button></div>'+
-'<label class="ui-field"><span>统一画风 / 角色（每格都会用）</span><input id="taskPageStyle" type="text" value="黑白日式漫画，清晰线稿，网点阴影，安全健康内容"></label>'+
+'<label class="ui-field"><span>统一画风 / 角色（每格都会用）</span><input id="taskPageStyle" type="text" data-nai-prompt="style tags shared by every panel" value="黑白日式漫画，清晰线稿，网点阴影，安全健康内容"></label>'+
 '<details class="task-script" id="taskScriptBox"><summary>粘贴剧本，自动分格</summary>'+
 '<textarea class="ui-textarea" id="taskScript" rows="6" placeholder="例如：&#10;第1格：清晨的车站，小雪在等车&#10;小雪：今天也要加油！&#10;第2格：列车进站&#10;旁白：列车准时到了。&#10;（不写「第N格」时，用空行分开每一格）"></textarea>'+
 '<div class="svc-row"><button type="button" class="ui-btn" id="taskScriptSplit">拆成格子</button><button type="button" class="ui-btn ui-btn-ghost" id="taskScriptNext" hidden>下一页剧本</button></div>'+
 '<p class="ui-muted" id="taskScriptInfo" role="status"></p></details>'+
 '<div id="taskPagePanels"></div>'+
+'<div class="task-engines" id="taskPageEngines" role="radiogroup" aria-label="用哪个 AI 画"><span class="ui-muted">用</span>'+
+'<button type="button" class="ui-btn" role="radio" data-eng="gpt">GPT</button><button type="button" class="ui-btn" role="radio" data-eng="nai">NovelAI</button>'+
+'<label class="ui-muted" title="每一格用同一个种子，画风更统一"><input type="checkbox" id="taskPageSeedLock"> 锁定种子</label>'+
+'<span class="task-engine-cost" id="taskPageEngineCost"></span></div>'+
 '<p class="ui-muted" id="taskPageCost"></p>'+
 '<div class="svc-row"><button type="button" class="ui-btn ui-btn-primary" id="taskPageGo" disabled>生成整页</button>'+
 '<button type="button" class="ui-btn" id="taskPageCancel" hidden>停止</button></div>'+
@@ -461,9 +467,34 @@ $('taskPage4').parentNode.appendChild(b);
 b.addEventListener('click',function(){pageLayout=r;choosePanels(n);});
 }).catch(function(){});
 $('taskPageGo').addEventListener('click',runPage);
+body.querySelectorAll('[data-eng]').forEach(function(b){b.addEventListener('click',function(){setPageEngine(b.dataset.eng,true);});});
+setPageEngine(window.NaiEngine?NaiEngine.preferred('page',!!($('mangaGptUrl')&&$('mangaGptUrl').value.trim())):'gpt',false);
 $('taskScriptSplit').addEventListener('click',function(){applyScript($('taskScript').value);});
 $('taskScriptNext').addEventListener('click',function(){fillScriptPage(scriptQueue.shift());});
 $('taskPageCancel').addEventListener('click',function(){if(pageJob)pageJob.cancel=true;if(pageJob&&pageJob.ctl)pageJob.ctl.abort();});
+}
+// 角色库 characters named in a scene that have NovelAI tags -> V4 character prompts, placed right-to-left (manga order)
+function libraryCharacters(scene){
+var lib=window.CharacterLibrary&&CharacterLibrary._state&&CharacterLibrary._state.cards||[];
+var hit=lib.filter(function(c){return c.identity&&c.identity.tags&&c.name&&scene.indexOf(c.name)>=0;}).slice(0,4);
+return hit.map(function(c,k){var x=hit.length===1?0.5:0.9-k*(0.8/(hit.length-1));return {prompt:c.identity.tags,center:NaiEngineCore.gridCenter(x,0.5)};});
+}
+var pageEngine='gpt';
+var GPT_STYLE='黑白日式漫画，清晰线稿，网点阴影，安全健康内容',NAI_STYLE='monochrome, greyscale, manga, screentone, clean lineart';
+function setPageEngine(v,user){
+pageEngine=v==='nai'?'nai':'gpt';if(user&&window.NaiEngine)NaiEngine.remember('page',pageEngine);
+document.querySelectorAll('#taskPageEngines [data-eng]').forEach(function(b){var on=b.dataset.eng===pageEngine;b.classList.toggle('is-active',on);b.setAttribute('aria-checked',String(on));});
+var st=$('taskPageStyle');if(st&&(st.value===GPT_STYLE||st.value===NAI_STYLE))st.value=pageEngine==='nai'?NAI_STYLE:GPT_STYLE;
+if(st)st.parentNode.querySelector('span').textContent=pageEngine==='nai'?'统一画风 / 角色标签（每格都会用，英文标签效果最好）':'统一画风 / 角色（每格都会用）';
+updatePageCost();
+}
+function updatePageCost(){
+var n=document.querySelectorAll('#taskPagePanels [data-scene]').length,c=$('taskPageEngineCost'),t=$('taskPageCost');
+if(c){c.textContent='';c.dataset.free='';}
+if(t&&n)t.textContent=(pageEngine==='nai'?'会调用 NovelAI '+n+' 次（每格一次，按格子比例出图，一张一张排队）。':'会调用 GPT 图像 '+n+' 次（每格一次）。')+'生成的每一格、气泡和文字都是独立图层，可单独修改或撤销。';
+if(pageEngine!=='nai'||!c||!window.NaiEngine)return;
+if(!NaiEngine.configured()){c.textContent='NovelAI 还没配置：点「生成整页」会打开「服务设置」。';return;}
+NaiEngine.costText({width:3,height:4},Math.max(1,n)).then(function(r){c.textContent=(n?n+' 格 · ':'每格 · ')+r.text.replace(/ · \d+×\d+/,'');c.dataset.free=String(r.free);});
 }
 var scriptQueue=[];
 function applyScript(text){
@@ -490,12 +521,12 @@ box.hidden=false;if($('taskPageEdit'))$('taskPageEdit').hidden=true;
 for(var i=0;i<n;i++){
 var f=el('fieldset',{class:'task-page-panel'});
 f.innerHTML='<legend>第 '+(i+1)+' 格</legend>'+
-'<textarea class="ui-textarea" rows="2" data-scene="'+i+'" placeholder="画面，例如：清晨，少女在车站等车"></textarea>'+
+'<textarea class="ui-textarea" rows="2" data-nai-prompt="one manga panel" data-scene="'+i+'" placeholder="画面，例如：清晨，少女在车站等车"></textarea>'+
 '<input class="ui-textarea" type="text" data-line="'+i+'" placeholder="对白（可不填；多句用 / 分开）">';
 box.appendChild(f);
 }
 $('taskPageGo').disabled=false;
-$('taskPageCost').textContent='会调用 GPT 图像 '+n+' 次（每格一次）。生成的每一格、气泡和文字都是独立图层，可单独修改或撤销。';
+updatePageCost();
 markStep(1);
 }
 function collapseForm(){
@@ -526,6 +557,12 @@ if(!scenes.length)return pageStatus('先选 3 格或 4 格。',true);
 var empty=scenes.indexOf('');
 if(empty>=0)return pageStatus('第 '+(empty+1)+' 格还没写画面。',true);
 var style=($('taskPageStyle').value||'').trim();
+if(pageEngine==='nai'&&!(window.NaiEngine&&NaiEngine.configured())){pageStatus('NovelAI 还没配置：已打开「服务设置」，填好 Token 后再点「生成整页」。',true);if(window.ServiceSettings)ServiceSettings.ensureReady('novelai');return;}
+// say 'checking' synchronously so a stale '整页完成' never stands for this click while settings are checked
+var goBtn=$('taskPageGo');pageStatus('正在检查服务设置…');if(goBtn)goBtn.disabled=true;
+var gptOk=pageEngine!=='gpt'||!window.ServiceSettings||await ServiceSettings.ready('gpt');if(goBtn)goBtn.disabled=false;
+if(!gptOk){pageStatus('GPT 还没配置：已打开「服务设置」。也可以点上面的「NovelAI」改用 NovelAI。',true);ServiceSettings.ensureReady('gpt');return;}
+var lockSeed=$('taskPageSeedLock')&&$('taskPageSeedLock').checked?Math.floor(Math.random()*4294967295):null;
 pageJob={cancel:false,ctl:null};
 $('taskPageGo').disabled=true;$('taskPageCancel').hidden=false;
 markStep(2);
@@ -552,14 +589,15 @@ if(pageJob.cancel)break;
 pageStatus('正在画第 '+(i+1)+' / '+rects.length+' 格…');
 pageJob.ctl=new AbortController();
 try{
-var data=await ServiceRequest.request('gpt','/gpt-image-proxy',{signal:pageJob.ctl.signal,timeoutMs:300000,headers:key?{Authorization:'Bearer '+key}:{},
+var data=pageEngine==='nai'?await NaiEngine.run({prompt:NaiEngineCore.joinTags(style,scenes[i]),characters:libraryCharacters(scenes[i]),width:rects[i].width,height:rects[i].height,seed:lockSeed==null?undefined:lockSeed},pageJob.ctl.signal,pageStatus):
+await ServiceRequest.request('gpt','/gpt-image-proxy',{signal:pageJob.ctl.signal,timeoutMs:300000,headers:key?{Authorization:'Bearer '+key}:{},
 body:{operation:'generate',baseUrl:$('mangaGptUrl').value.trim(),model:$('mangaGptModel').value.trim(),size:sizeFor(rects[i]),
 prompt:pagePrompt(style,scenes[i])}});
 var img=await loadFabricImage(data.image);
-img.name='第'+(i+1)+'格画面';
+img.name='第'+(i+1)+'格画面';if(data.seed!=null){img.naiSeed=data.seed;img.tempSeed=data.seed;img.tempPrompt=NaiEngineCore.joinTags(style,scenes[i]);}
 putImageInFrame(img,rects[i].left+rects[i].width/2,rects[i].top+rects[i].height/2,true,false,true,panels[i]);
 done++;
-}catch(error){failed.push(i+1);pageStatus('第 '+(i+1)+' 格没画成：'+(error.userMessage||error.message),true);if(error.status===401||error.network)break;}
+}catch(error){failed.push(i+1);var em=error.userMessage||error.message||'';pageStatus('第 '+(i+1)+' 格没画成：'+(pageEngine==='gpt'&&window.NaiEngine&&NaiEngine.isRefusal(em)?'这个 GPT 服务按它自己的内容规则拒绝了这一格（不是本编辑器的限制）。可以点上面的「NovelAI」改用 NovelAI 再生成。':em),true);if(pageEngine==='gpt'&&window.NaiEngine&&NaiEngine.isRefusal(em))pageJob.refused=true;if(error.status===401||error.network||(pageEngine==='nai'&&error.name!=='AbortError'))break;}
 canvas.renderAll();
 }
 if(lines.some(Boolean)&&!pageJob.cancel&&window.BalloonLayout){
@@ -573,7 +611,7 @@ if(typeof saveStateByManual==='function')saveStateByManual();
 // register/refresh this page in the page bar now (otherwise it only appears once another page is made)
 if(typeof btmSaveProjectFile==='function'){try{await btmSaveProjectFile(null,false);}catch(e){/* thumbnail is best-effort */}}
 if(pageJob.cancel)pageStatus('已停止：画好 '+done+' 格。');
-else if(failed.length)pageStatus('画好 '+done+' 格；第 '+failed.join('、')+' 格没成功，可以用「改一块」→「自由修改」重画那一格。',true);
+else if(failed.length)pageStatus('画好 '+done+' 格；第 '+failed.join('、')+' 格没成功，'+(pageJob.refused?'GPT 服务按它自己的内容规则拒绝了（不是本编辑器的限制），可以点上面的「NovelAI」改用 NovelAI 再生成。':'可以用「改一块」→「自由修改」重画那一格。'),true);
 else{collapseForm();pageStatus('整页完成：'+done+' 格画面和对白气泡都是独立图层，可直接拖动或修改（Ctrl+Z 可撤销）。');markStep(3,true);}
 }finally{
 if(pageJob&&pageJob.historyPaused&&typeof changeDoSaveHistory==='function'){changeDoSaveHistory();if(typeof saveStateByManual==='function')saveStateByManual();}
@@ -649,7 +687,10 @@ function registerHiddenTasks(){
 if(!window.Commands)return setTimeout(registerHiddenTasks,300);
 TASKS.forEach(function(t){if(t.hidden)Commands.register({id:'task.'+t.id,label:t.title,group:'任务',keywords:t.desc+' 向导 task',run:function(){start(t.id);}});});
 }
+function privacyOn(){try{return localStorage.getItem('mnai.privacyBlur')==='1';}catch(e){return false;}}
+function setPrivacy(on){try{localStorage.setItem('mnai.privacyBlur',on?'1':'0');}catch(e){/* private window */}document.body.classList.toggle('privacy-blur',!!on);}
 function init(){
+setPrivacy(privacyOn());
 registerHiddenTasks();
 buildBar();
 buildHome();

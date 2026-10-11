@@ -19,7 +19,7 @@ Manga-NAI-GPT is built on [Manga Editor Desu](https://github.com/new-sankaku/man
 
 ## Features
 
-Current version **1.5**: six tasks on the home screen, plus a character library, automatic speech balloons, a Ctrl+K command palette, a history panel with thumbnails, and PSD import/export. See [CHANGELOG](CHANGELOG.md).
+Current version **1.6**: six tasks on the home screen, plus a character library, automatic speech balloons, a Ctrl+K command palette, a history panel with thumbnails, and PSD import/export. Since 1.6, *Edit an area* and *Draw a page* can also use NovelAI (V5 supported), with the Anlas cost shown before generating. See [CHANGELOG](CHANGELOG.md).
 
 | Task | What it does | Needs |
 |---|---|---|
@@ -79,13 +79,23 @@ The browser opens `http://127.0.0.1:8000/index.html`. The launcher window is the
 | Service | What you enter |
 |---|---|
 | GPT image (swap, fix, custom, draw a page) | *OpenAI official* or *Custom* (any OpenAI Images compatible service, base URL ending in `/v1`) + API key; after testing, pick from the models that service lists |
-| NovelAI | Access token |
+| NovelAI (generate, edit an area, draw a page) | Access token; pick a model (V5 / V4.5 / V4 / V3) and the settings explain what it supports |
 | AI Director / import tagger (optional) | Your own chat-model service / local tagger URL |
 | Local OCR, text removal, cutout | No key; status only |
 
 - **No built-in relay.** Images are only sent to services you configure.
 - Keys stay on this computer. A key in `.env` is only ever sent to the base URL saved in Service settings.
 - Starting a GPT task without a configured service opens Service settings with a hint.
+
+### New in 1.6 (NovelAI)
+
+- NovelAI route for *Edit an area* and *Draw a page / script → page*, with an engine switch; when GPT refuses, you are offered NovelAI instead.
+- The editor does **not** filter NovelAI prompts — your NovelAI account rules apply. An optional *safe mode* is off by default.
+- Anlas estimate before each call, marked "free" inside the Opus free range (≤1024×1024, ≤28 steps, 1 image).
+- A timeout or dropped connection after sending is reported as "unknown" and **never retried automatically** (no double charge).
+- Privacy mode (⋯ menu) blurs history / file / candidate thumbnails.
+- Optional prompt assist (off by default): Danbooru tag autocomplete and check, Ctrl+↑/↓ weights, PNG parameter reading, *find tag* in the character library, and polish/expand with your own chat model, shown as a diff before applying.
+- Limits: with V5 selected, inpainting uses the V4.5 inpainting model; character swap is still GPT-only.
 
 ## Known limitations
 

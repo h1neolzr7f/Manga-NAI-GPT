@@ -152,3 +152,26 @@ body.ui-beginner #mangaPageOpen, body.ui-beginner #mangaCharacterOpen { display:
 .ai-fill-presets { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 6px; }
 .ai-fill-presets .ui-btn.is-active { background: var(--ui-accent, #c0392b); color: #fff; border-color: transparent; }
 .ai-fill-hint { margin: 2px 0 6px; font-size: 12px; }
+/* 1.6 engine chooser (GPT / NovelAI) + NAI cost preview */
+.ai-fill-engines,.task-engines{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:6px 0}
+.ai-fill-engines[hidden]{display:none}
+.ai-fill-engines .ui-btn.is-active,.task-engines .ui-btn.is-active{border-color:var(--ui-accent,#e0564b);color:var(--ui-accent,#e0564b)}
+.ai-fill-cost,.task-engine-cost{font-size:12px}
+.ai-fill-cost[data-free="true"],.task-engine-cost[data-free="true"]{color:var(--ui-ok,#3fb950)}
+/* 隐私模式: thumbnails blurred until hovered */
+body.privacy-blur .nai-history-panel img,body.privacy-blur .btm-image-container img,body.privacy-blur .ai-fill-cand img,body.privacy-blur .layer-item img,body.privacy-blur #layers-container img{filter:blur(10px)}
+body.privacy-blur .nai-history-panel img:hover,body.privacy-blur .btm-image-container img:hover,body.privacy-blur .ai-fill-cand img:hover,body.privacy-blur #layers-container img:hover{filter:none}
+/* 1.6 prompt assist (optional) */
+.pa-bar{display:none;flex-wrap:wrap;gap:4px;align-items:center;margin:2px 0 4px}
+body.pa-on .pa-bar{display:flex}
+.pa-bar .ui-btn{padding:2px 8px;font-size:12px}
+.pa-note{font-size:12px}
+.pa-menu{position:fixed;z-index:9600;background:var(--ui-surface,#1f2329);border:1px solid var(--ui-border,#444);border-radius:var(--ui-radius,8px);max-height:250px;overflow:auto;box-shadow:0 6px 20px rgba(0,0,0,.35);font-size:13px}
+.pa-item{display:flex;gap:8px;align-items:baseline;padding:4px 10px;cursor:pointer}
+.pa-item.is-active,.pa-item:hover{background:var(--ui-accent-soft,rgba(224,86,75,.18))}
+.pa-item small,.pa-item em{opacity:.65;font-style:normal;font-size:11px}.pa-item em{margin-left:auto}
+.pa-diff{position:fixed;z-index:9700;left:50%;top:18%;transform:translateX(-50%);width:min(560px,92vw)}
+.pa-chips{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0}
+.pa-chip{padding:1px 7px;border-radius:10px;font-size:12px;border:1px solid var(--ui-border,#555)}
+.pa-chip.is-add{border-color:#3fb950;color:#3fb950}.pa-chip.is-del{border-color:#e0564b;color:#e0564b;text-decoration:line-through}
+.pa-tokens{display:block;font-size:11px;text-align:right;margin-top:-2px}.pa-tokens.is-over{color:#e0564b}

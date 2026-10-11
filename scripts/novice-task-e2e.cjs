@@ -102,7 +102,7 @@ async function flow(name, fn) {
   cur = { name, ops: [], notes: [] };
   const t = Date.now(); let pass = false, detail = {};
   try { const r = await fn(); pass = !!r.pass; detail = r.detail || {}; }
-  catch (e) { detail = { error: String(e.message || e).split('\n')[0].slice(0, 300), at: global.__novicePage && global.__novicePage.__cur }; }
+  catch (e) { detail = { error: String(e.message || e).split('\n')[0].slice(0, 1500), at: global.__novicePage && global.__novicePage.__cur }; }
   const screenshot = await snap(name.replace(/[^\w\u4e00-\u9fff-]+/g, '_').slice(0, 40));
   const rec = { name, pass, keyOps: cur.ops.length, ops: cur.ops, seconds: +((Date.now() - t) / 1000).toFixed(1), screenshot, notes: cur.notes, detail };
   flows.push(rec);
@@ -1042,13 +1042,20 @@ async function main() {
     const p2After = await diff(p2Before, await pageImage());
     await openPage(0);
     await page.waitForFunction(() => !document.getElementById('mangaGptApply').disabled, null, { timeout: 10000 }).catch(() => {});
-    await op.click(page.locator('#mangaGptApply'), '应用（回到第 1 页）');
-    await page.waitForFunction(() => canvas.getObjects().filter(o => o.name === 'GPT 局部改图').length >= 1, null, { timeout: 20000 }).catch(() => {});
+    // slow CI: the page swap can still be settling; a person who sees "switch back first" just clicks 应用 again
+    let applyTries = 0, page1Status = '';
+    for (; applyTries < 3; applyTries++) {
+      await page.waitForTimeout(applyTries ? 2500 : 300);
+      await op.click(page.locator('#mangaGptApply'), '应用（回到第 1 页）');
+      const ok = await page.waitForFunction(() => canvas.getObjects().filter(o => o.name === 'GPT 局部改图').length >= 1, null, { timeout: 20000 }).then(() => true).catch(() => false);
+      page1Status = (await page.locator('#mangaGptStatus').textContent()).trim().slice(0, 80);
+      if (ok) break;
+    }
     await waitIdle();
     const p1After = await diff(p1Before, await pageImage(), { left: 100, top: 1100, width: 400, height: 300 });
     await page.locator('#mangaGptClose').click().catch(() => {});
     return { pass: p2After.changed === 0 && /第 ?1 ?页|另一页|其他页|切回/.test(onPage2Status) && p1After.changed > 0 && p1After.outside === 0,
-      detail: { applyEnabledOnPage2, onPage2Status: onPage2Status.slice(0, 80), page2Changed: p2After.changed, page1Changed: p1After.changed, page1Outside: p1After.outside } };
+      detail: { applyEnabledOnPage2, onPage2Status: onPage2Status.slice(0, 80), applyTries: applyTries + 1, page1Status, page2Changed: p2After.changed, page1Changed: p1After.changed, page1Outside: p1After.outside } };
   });
 
   // 6. small window / zoom: nothing important is cut off or causes horizontal page scroll
@@ -1427,9 +1434,10 @@ async function main() {
       const badStart = kinsoku.some(t => t.split('\n').slice(1).some(l => /^[，。！？…、」）]/.test(l)));
       const here = await p.evaluate(() => getCanvasGUID());
       const pageCount = await p.evaluate(() => btmProjectsMap.size);
+      const cons = []; p.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') cons.push(m.text().slice(0, 160)); });
       const dl = p.waitForEvent('download', { timeout: 60000 }).catch(e => e);   // never an unhandled rejection
       await op.click(p.locator('#taskExportAll'), '导出全部');
-      const d = await dl; if (d instanceof Error) throw d; const file = path.join(OUT, 'export-all.zip'); await d.saveAs(file);
+      const d = await dl; if (d instanceof Error) { const diag = await p.evaluate(() => ({ pages: btmProjectsMap.size, status: (document.getElementById('taskPageStatus') || {}).textContent, toasts: Array.from(document.querySelectorAll('.ui-toast, .toast, [role=status]')).map(t => t.textContent.slice(0, 120)).slice(-4), btn: !!document.getElementById('taskExportAll'), disabled: (document.getElementById('taskExportAll') || {}).disabled, exportText: (document.body.innerText.match(/导出[^\n]{0,80}/g) || []).slice(-5) })).catch(e => String(e)); throw new Error(String(d.message).split('\n')[0].slice(0, 60) + ' ' + JSON.stringify(diag) + ' console=' + JSON.stringify(cons.slice(-6))); } const file = path.join(OUT, 'export-all.zip'); await d.saveAs(file);
       const list = require('child_process').execFileSync('unzip', ['-Z1', file], { encoding: 'utf8' }).trim().split('\n');
       const png = require('child_process').execFileSync('unzip', ['-p', file, 'page-01.png']).subarray(0, 8).toString('hex');
       const back = await p.evaluate(() => getCanvasGUID());
