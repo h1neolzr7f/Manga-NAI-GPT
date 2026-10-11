@@ -93,7 +93,7 @@ The browser opens `http://127.0.0.1:8000/index.html`. The launcher window is the
 - **Panel detection needs white gutters** — borderless, full-bleed or black-gutter pages need manual boxes.
 - **Local AI is CPU-only** — first character detection takes 20–60 s; slow on machines with < 8 GB RAM.
 - **Windows is not yet verified on a real machine.** Every commit runs `一键启动.bat` for real on `windows-latest` CI (from a path with spaces and Chinese characters, checking the page and the local API), but nobody has walked through it on a physical PC yet. See [docs/dev/WINDOWS_READINESS.md](docs/dev/WINDOWS_READINESS.md).
-- Real-GPT quality of "replace with… / free edit" and the character library's automatic reference has not been re-verified on 1.5.
+- "Edit an area → replace with…" was verified with real gpt-image-2.5 (3 candidates in ~35 s): the painted area is replaced cleanly and panel borders are kept, but **only the painted pixels change** — if the object extends beyond your strokes, the rest of it stays as it was (e.g. only the painted part of an umbrella turns red). Paint the whole object to replace all of it. On black-and-white pages, a colour replacement may lightly tint other things inside the painted area. The character library's automatic reference is not yet re-verified with real GPT on 1.5.
 - Colour pages export to PSD at about 16–18 MB (lossless); black-and-white pages about 6 MB.
 - OCR targets Japanese manga; handwriting and stylised lettering are weaker.
 
