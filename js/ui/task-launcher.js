@@ -558,7 +558,10 @@ var empty=scenes.indexOf('');
 if(empty>=0)return pageStatus('第 '+(empty+1)+' 格还没写画面。',true);
 var style=($('taskPageStyle').value||'').trim();
 if(pageEngine==='nai'&&!(window.NaiEngine&&NaiEngine.configured())){pageStatus('NovelAI 还没配置：已打开「服务设置」，填好 Token 后再点「生成整页」。',true);if(window.ServiceSettings)ServiceSettings.ensureReady('novelai');return;}
-if(pageEngine==='gpt'&&window.ServiceSettings&&!(await ServiceSettings.ready('gpt'))){pageStatus('GPT 还没配置：已打开「服务设置」。也可以点上面的「NovelAI」改用 NovelAI。',true);ServiceSettings.ensureReady('gpt');return;}
+// say 'checking' synchronously so a stale '整页完成' never stands for this click while settings are checked
+var goBtn=$('taskPageGo');pageStatus('正在检查服务设置…');if(goBtn)goBtn.disabled=true;
+var gptOk=pageEngine!=='gpt'||!window.ServiceSettings||await ServiceSettings.ready('gpt');if(goBtn)goBtn.disabled=false;
+if(!gptOk){pageStatus('GPT 还没配置：已打开「服务设置」。也可以点上面的「NovelAI」改用 NovelAI。',true);ServiceSettings.ensureReady('gpt');return;}
 var lockSeed=$('taskPageSeedLock')&&$('taskPageSeedLock').checked?Math.floor(Math.random()*4294967295):null;
 pageJob={cancel:false,ctl:null};
 $('taskPageGo').disabled=true;$('taskPageCancel').hidden=false;
