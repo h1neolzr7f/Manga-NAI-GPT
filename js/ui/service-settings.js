@@ -201,7 +201,7 @@ var gk=el('button',{type:'button',class:'ui-btn',id:'svcGptKeyToggle'},'显示 K
 var gt=el('button',{type:'button',class:'ui-btn ui-btn-primary',id:'svcGptTest'},'测试连接');gr.appendChild(gt);
 gr.appendChild(el('span',{class:'ui-badge',id:'svcGptStatus'},'未测试'));
 
-var nai=section('svcNai','NovelAI（AI 生图）','只在 AI 生图时使用。测试连接只读取订阅信息，不花 Anlas。');
+var nai=section('svcNai','NovelAI','AI 生图、改一块、画一页 / 剧本成页都可以用 NovelAI。测试连接只读取订阅信息，不花 Anlas。提示词和图片只发给 NovelAI，不记录、不上传到别处。');
 card.appendChild(nai);
 moveField('novelaiApiKey','NovelAI 访问令牌（Token）',nai);
 var naiAdv=el('details',{class:'svc-adv'});naiAdv.appendChild(el('summary',{},'高级：API 地址 / 本地代理'));nai.appendChild(naiAdv);
@@ -213,6 +213,14 @@ var remember=$('novelaiRememberToken');
 if(remember){var rl=remember.closest('label');if(rl){nr.appendChild(rl);}}
 var toggle=$('novelaiApiKeyToggle');if(toggle){toggle.classList.add('ui-btn');nr.appendChild(toggle);}
 nr.appendChild(el('button',{type:'button',class:'ui-btn ui-btn-primary',id:'svcNaiTest'},'测试连接'));
+var nm=row(nai);nm.appendChild(el('label',{class:'ui-field'},'<span>NovelAI 模型</span>'));
+var src=$('novelaiModel'),ms=el('select',{id:'svcNaiModel',class:'ui-input'});
+if(src){Array.prototype.forEach.call(src.options,function(o){ms.appendChild(el('option',{value:o.value},o.textContent.replace('NAI Diffusion Anime ','')));});ms.value=src.value;
+ms.addEventListener('change',function(){src.value=ms.value;src.dispatchEvent(new Event('change',{bubbles:true}));});src.addEventListener('change',function(){if(ms.value!==src.value)ms.value=src.value;});}
+nm.firstChild.appendChild(ms);
+var sm=el('label',{class:'nai-inline-check',title:'默认关闭：编辑器不过滤也不改写你的提示词。打开后会在负面词里加 nsfw。'},'<input type="checkbox" id="svcNaiSafeMode"> 安全模式（负面词自动加 nsfw）');
+nai.appendChild(sm);var smi=sm.querySelector('input');smi.checked=!!(window.NaiEngine&&NaiEngine.safeMode());
+smi.addEventListener('change',function(){if(window.NaiEngine)NaiEngine.setSafeMode(smi.checked);});
 nr.appendChild(el('span',{class:'ui-badge',id:'svcNaiStatus'},'未测试'));
 nr.appendChild(el('button',{type:'button',class:'ui-btn ui-btn-ghost',id:'svcNaiAdvanced'},'NovelAI 高级设置…'));
 

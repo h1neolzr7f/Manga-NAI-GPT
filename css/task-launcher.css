@@ -152,3 +152,12 @@ body.ui-beginner #mangaPageOpen, body.ui-beginner #mangaCharacterOpen { display:
 .ai-fill-presets { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 6px; }
 .ai-fill-presets .ui-btn.is-active { background: var(--ui-accent, #c0392b); color: #fff; border-color: transparent; }
 .ai-fill-hint { margin: 2px 0 6px; font-size: 12px; }
+/* 1.6 engine chooser (GPT / NovelAI) + NAI cost preview */
+.ai-fill-engines,.task-engines{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:6px 0}
+.ai-fill-engines[hidden]{display:none}
+.ai-fill-engines .ui-btn.is-active,.task-engines .ui-btn.is-active{border-color:var(--ui-accent,#e0564b);color:var(--ui-accent,#e0564b)}
+.ai-fill-cost,.task-engine-cost{font-size:12px}
+.ai-fill-cost[data-free="true"],.task-engine-cost[data-free="true"]{color:var(--ui-ok,#3fb950)}
+/* 隐私模式: thumbnails blurred until hovered */
+body.privacy-blur .nai-history-panel img,body.privacy-blur .btm-image-container img,body.privacy-blur .ai-fill-cand img,body.privacy-blur .layer-item img,body.privacy-blur #layers-container img{filter:blur(10px)}
+body.privacy-blur .nai-history-panel img:hover,body.privacy-blur .btm-image-container img:hover,body.privacy-blur .ai-fill-cand img:hover,body.privacy-blur #layers-container img:hover{filter:none}
