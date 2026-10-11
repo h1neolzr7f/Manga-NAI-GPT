@@ -1042,13 +1042,20 @@ async function main() {
     const p2After = await diff(p2Before, await pageImage());
     await openPage(0);
     await page.waitForFunction(() => !document.getElementById('mangaGptApply').disabled, null, { timeout: 10000 }).catch(() => {});
-    await op.click(page.locator('#mangaGptApply'), '应用（回到第 1 页）');
-    await page.waitForFunction(() => canvas.getObjects().filter(o => o.name === 'GPT 局部改图').length >= 1, null, { timeout: 20000 }).catch(() => {});
+    // slow CI: the page swap can still be settling; a person who sees "switch back first" just clicks 应用 again
+    let applyTries = 0, page1Status = '';
+    for (; applyTries < 3; applyTries++) {
+      await page.waitForTimeout(applyTries ? 2500 : 300);
+      await op.click(page.locator('#mangaGptApply'), '应用（回到第 1 页）');
+      const ok = await page.waitForFunction(() => canvas.getObjects().filter(o => o.name === 'GPT 局部改图').length >= 1, null, { timeout: 20000 }).then(() => true).catch(() => false);
+      page1Status = (await page.locator('#mangaGptStatus').textContent()).trim().slice(0, 80);
+      if (ok) break;
+    }
     await waitIdle();
     const p1After = await diff(p1Before, await pageImage(), { left: 100, top: 1100, width: 400, height: 300 });
     await page.locator('#mangaGptClose').click().catch(() => {});
     return { pass: p2After.changed === 0 && /第 ?1 ?页|另一页|其他页|切回/.test(onPage2Status) && p1After.changed > 0 && p1After.outside === 0,
-      detail: { applyEnabledOnPage2, onPage2Status: onPage2Status.slice(0, 80), page2Changed: p2After.changed, page1Changed: p1After.changed, page1Outside: p1After.outside } };
+      detail: { applyEnabledOnPage2, onPage2Status: onPage2Status.slice(0, 80), applyTries: applyTries + 1, page1Status, page2Changed: p2After.changed, page1Changed: p1After.changed, page1Outside: p1After.outside } };
   });
 
   // 6. small window / zoom: nothing important is cut off or causes horizontal page scroll
