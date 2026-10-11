@@ -33,6 +33,9 @@ async function startServer() {
     // wait until the import has finished saving history (slow CI runners): stack length stable for 1.5 s
     await p.waitForFunction(() => !canvas.getObjects().some(o => o.text === '拖放或生成图片') && stateStack.some(x => /"type":"image"/i.test(x)), null, { timeout: 30000, polling: 200 });
     await p.waitForFunction(() => { const n = stateStack.length; if (window.__hn !== n) { window.__hn = n; window.__ht = Date.now(); } return Date.now() - window.__ht > 1500; }, null, { timeout: 30000, polling: 200 });
+    // regression: a window resize must not put the empty-page hint back over an imported page
+    await p.evaluate(() => initMessage());   // what the resize handler calls
+    assert.equal(await p.evaluate(() => canvas.getObjects().filter(o => o.text === '拖放或生成图片').length), 0, 'no empty-page hint after resize');
     // three ordinary edits, no command announced -> labels come from the diff
     await p.evaluate(() => { const t = new fabric.Textbox('早上好', { left: 100, top: 100, width: 200, fontSize: 40, fill: '#111' }); t.guid = 'cmd-t'; canvas.add(t); saveStateByManual(); });
     await p.evaluate(() => { const t = canvas.getObjects().find(o => o.text === '早上好'); t.set({ left: 300 }); saveStateByManual(); });

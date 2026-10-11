@@ -797,6 +797,10 @@ return lastCheckObject;
 
 let initMessageText=null;
 function initMessage(){
+// only on an empty page, and only once: this also runs from the window-resize handler, which used to put the
+// hint back over an imported page (and into its history)
+if(initMessageText&&canvas.getObjects().includes(initMessageText))return;
+if(canvas.getObjects().length)return;
 // const message = "Drop or Generate";
 const message=getText("canvasInitMessage");
 const text=new fabric.IText(message,{
