@@ -72,10 +72,10 @@ async function shotsMock(browser) {
   await p.locator('.manga-smart-item textarea').first().fill('谢谢你'); await p.waitForTimeout(400);
   await shot(p, '06-wizard-caption', '改字幕向导：检测到气泡文字，直接改成新台词；语言/精修/LaMa 等选项收进「高级」');
   await p.locator('#taskBack').click();
-  await p.locator('#taskBtn-fix').click(); await drag(p, [0.1, 0.65], [0.5, 0.95]); await p.waitForTimeout(400);
+  await p.evaluate(() => TaskLauncher.start('fix')); await drag(p, [0.1, 0.65], [0.5, 0.95]); await p.waitForTimeout(400);
   await shot(p, '07-wizard-fix', '修瑕疵/去杂物向导：框住不想要的东西，直接点「生成预览」（无需写字）');
   await p.locator('#taskBack').click();
-  await p.locator('#taskBtn-custom').click(); await drag(p, [0.1, 0.05], [0.9, 0.3]); await p.locator('#mangaGptPrompt').fill('把背景改成黄昏的天空'); await p.waitForTimeout(400);
+  await p.evaluate(() => TaskLauncher.start('custom')); await drag(p, [0.1, 0.05], [0.9, 0.3]); await p.locator('#mangaGptPrompt').fill('把背景改成黄昏的天空'); await p.waitForTimeout(400);
   await shot(p, '08-wizard-custom', '自定义修改向导：框一块区域 + 一句话描述');
   await p.locator('#taskBack').click();
   await p.locator('#taskBtn-layer').click(); await p.locator('#taskLayerPick').click(); await drag(p, [0.25, 0.05], [0.8, 0.7]);

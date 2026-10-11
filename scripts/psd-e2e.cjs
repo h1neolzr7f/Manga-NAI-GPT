@@ -66,7 +66,7 @@ function thirdPartyPsd() {
     await p.locator('[data-tool="box"]').click();
     const vb = await p.locator('#aiFillView').boundingBox();
     await p.mouse.move(vb.x + vb.width * 0.3, vb.y + vb.height * 0.15); await p.mouse.down(); await p.mouse.move(vb.x + vb.width * 0.4, vb.y + vb.height * 0.22, { steps: 3 }); await p.mouse.up();
-    await p.locator('input[name=aiFillEngine][value=lama]').check(); await p.locator('#aiFillGenerate').click();
+    await p.locator('[data-preset="remove"]').click(); await p.locator('#aiFillGenerate').click();
     await p.locator('#aiFillUse').click(); await p.waitForFunction(() => canvas.getObjects().some(o => o.aiFill), null, { timeout: 15000 });
     await p.evaluate(() => canvas.discardActiveObject());
     const nObjs = await p.evaluate(() => canvas.getObjects().filter(o => !o.excludeFromLayerPanel && !o.isIcon).length);

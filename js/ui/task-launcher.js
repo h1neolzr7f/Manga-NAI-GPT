@@ -33,14 +33,14 @@ manualSteps:['在画布上拖一个框，框住要换的人物','上传新角色
 placeholder:'补充要求（可不填），例如：表情改成微笑',preset:GPT_PRESETS.swap},
 {id:'caption',icon:'translate',title:'改字幕',desc:'识别气泡里的字，改成新台词',kind:'caption',
 steps:['自动识别本页文字（打开就开始；识别不到可点「手动框选字幕」）','在每条下面改成新台词','点「应用为可编辑图层」，旧字会自动盖掉']},
-{id:'fix',icon:'healing',title:'修瑕疵 / 去杂物',desc:'框住不想要的东西，AI 补好背景',kind:'gpt',
+{id:'fix',hidden:true,icon:'healing',title:'修瑕疵（框选 · GPT 预览）',desc:'框住不想要的东西，GPT 补好背景（旧版向导，「改一块」已包含）',kind:'gpt',
 steps:['在画布上拖一个框，框住要去掉的东西','点「生成预览」，可用「对比原图」看前后','满意就点「作为新图层应用」'],
 placeholder:'补充说明（可不填），例如：去掉右下角的水印',preset:GPT_PRESETS.fix},
-{id:'fill',icon:'format_paint',title:'AI 填充',desc:'涂出要改的地方，写一句话，从 3 张里挑一张',kind:'aifill',
-steps:['用笔刷涂出要改的地方（也可框选或智能点选）','写一句想怎么改；只想去掉东西可以不写','点「生成」，挑一张满意的点「用这张」：会变成可再改的 AI 图层']},
+{id:'fill',icon:'format_paint',title:'改一块',desc:'涂出一块：去掉杂物、换成别的，或自由修改',kind:'aifill',
+steps:['用笔刷涂出要改的地方（也可框选或智能点选）','选「去掉杂物」（本机，免费）、「换成…」或「自由修改」，后两种写一句话','点生成，挑一张满意的点「用这张」：会变成可再改、可还原的图层']},
 {id:'layer',icon:'layers',title:'分层',desc:'把人物或物体抠成独立图层',kind:'layer',
 steps:['点「开始框选」，在画布上框住要分出来的人物或物体','自动抠图并放到新图层（原图不变，可撤销）']},
-{id:'custom',icon:'auto_fix_high',title:'自定义修改',desc:'框一块区域，用一句话描述怎么改',kind:'gpt',
+{id:'custom',hidden:true,icon:'auto_fix_high',title:'自定义修改（框选 · 可加参考图）',desc:'框一块区域，用一句话描述怎么改，可加参考图（旧版向导）',kind:'gpt',
 steps:['在画布上拖一个框，框住要改的地方','写一句想怎么改（可加参考图）','点「生成预览」，满意就应用'],
 placeholder:'想怎么改？例如：把天空改成黄昏',preset:''},
 {id:'nai',icon:'brush',title:'AI 生图',desc:'用 NovelAI 从文字生成新画面',kind:'nai',
@@ -74,6 +74,7 @@ if(!header||$('taskBar'))return;
 var bar=el('div',{id:'taskBar',class:'task-bar',role:'toolbar','aria-label':'新手任务'});
 var tasks=el('div',{class:'task-group task-group-tasks'});
 TASKS.forEach(function(t){
+if(t.hidden)return;   // folded into 改一块; still reachable via Ctrl+K and 专业模式
 var b=el('button',{type:'button',class:'ui-btn task-btn','data-task':t.id,id:'taskBtn-'+t.id,title:t.desc},'<i class="material-icons" aria-hidden="true">'+t.icon+'</i>'+t.title);
 b.addEventListener('click',function(){start(t.id);});
 tasks.appendChild(b);
@@ -93,10 +94,15 @@ var moreWrap=el('div',{class:'task-more-wrap'});
 var more=el('button',{type:'button',class:'ui-btn ui-btn-ghost task-quick task-icon-only',id:'taskMore',title:'更多：服务设置、浅色/深色、专业模式…','aria-label':'更多','aria-haspopup':'menu','aria-expanded':'false'},'<i class="material-icons" aria-hidden="true">more_horiz</i>');
 var menu=el('div',{id:'taskMoreMenu',class:'ui-card task-more-menu',role:'menu',hidden:''});
 function item(id,icon,text,fn){var b=el('button',{type:'button',class:'task-menu-item',role:'menuitem',id:id},'<i class="material-icons" aria-hidden="true">'+icon+'</i><span>'+text+'</span>');b.addEventListener('click',function(){closeMenu();fn();});menu.appendChild(b);return b;}
+// grouped: (找功能 / 历史 are inserted on top by the command layer) | file | services & characters | view
+function sep(){menu.appendChild(el('div',{class:'task-menu-sep',role:'separator'}));}
+sep();
+item('taskOpenProject','folder_open','打开项目 (Ctrl+O)',function(){var l=$('projectLoad');if(l)l.click();});
+sep();
 item('taskServiceSettings','settings','服务设置（GPT / NovelAI / 本机）',function(){if(window.ServiceSettings)ServiceSettings.open('gpt');});
 item('taskCharacters','face','角色库 · 认出本页人物',function(){if(window.CharacterLibrary)CharacterLibrary.open();});
+sep();
 item('themeToggle','contrast','浅色 / 深色界面',function(){var box=$('mode-toggle');if(!box)return;box.checked=!box.checked;box.dispatchEvent(new Event('change'));});
-item('taskOpenProject','folder_open','打开项目 (Ctrl+O)',function(){var l=$('projectLoad');if(l)l.click();});
 item('taskShortcuts','keyboard','快捷键一览 (F1)',call('openShortcutModal'));
 item('uiModeToggle','tune','专业模式',function(){setMode(mode()==='beginner'?'pro':'beginner');});
 function closeMenu(){menu.hidden=true;more.setAttribute('aria-expanded','false');}
@@ -151,6 +157,7 @@ imp.addEventListener('click',function(){var input=$('imageInput');if(input)input
 home.appendChild(imp);
 var grid=el('div',{class:'task-grid'});
 TASKS.forEach(function(t){
+if(t.hidden)return;
 var c=el('button',{type:'button',class:'task-tile','data-task':t.id},'<i class="material-icons" aria-hidden="true">'+t.icon+'</i><strong>'+t.title+'</strong><span>'+t.desc+'</span>');
 c.addEventListener('click',function(){start(t.id);});
 grid.appendChild(c);
@@ -566,7 +573,7 @@ if(typeof saveStateByManual==='function')saveStateByManual();
 // register/refresh this page in the page bar now (otherwise it only appears once another page is made)
 if(typeof btmSaveProjectFile==='function'){try{await btmSaveProjectFile(null,false);}catch(e){/* thumbnail is best-effort */}}
 if(pageJob.cancel)pageStatus('已停止：画好 '+done+' 格。');
-else if(failed.length)pageStatus('画好 '+done+' 格；第 '+failed.join('、')+' 格没成功，可以用「自定义修改」重画那一格。',true);
+else if(failed.length)pageStatus('画好 '+done+' 格；第 '+failed.join('、')+' 格没成功，可以用「改一块」→「自由修改」重画那一格。',true);
 else{collapseForm();pageStatus('整页完成：'+done+' 格画面和对白气泡都是独立图层，可直接拖动或修改（Ctrl+Z 可撤销）。');markStep(3,true);}
 }finally{
 if(pageJob&&pageJob.historyPaused&&typeof changeDoSaveHistory==='function'){changeDoSaveHistory();if(typeof saveStateByManual==='function')saveStateByManual();}
@@ -638,7 +645,12 @@ return {pages:n,bytes:blob.size};
 finally{exporting=false;if(btn)btn.disabled=false;}
 }
 
+function registerHiddenTasks(){
+if(!window.Commands)return setTimeout(registerHiddenTasks,300);
+TASKS.forEach(function(t){if(t.hidden)Commands.register({id:'task.'+t.id,label:t.title,group:'任务',keywords:t.desc+' 向导 task',run:function(){start(t.id);}});});
+}
 function init(){
+registerHiddenTasks();
 buildBar();
 buildHome();
 applyMode(mode());

@@ -87,27 +87,29 @@
     const api = ed(); const pg = api && api.pageImage && api.pageImage(false);
     if (!pg || !pg.image) return false;
     const gptReady = root.ServiceSettings ? await root.ServiceSettings.ready('gpt') : true;
-    S = { W: pg.width, H: pg.height, page: pg.image, tool: 'brush', size: Math.max(12, Math.round(pg.width / 40)), engine: opts.engine || (gptReady ? 'gpt' : 'lama'),
+    // 改一块: one entry, three presets. Default 去掉杂物 (local LaMa: free, works before any GPT is set up).
+    const preset = opts.preset || (opts.engine === 'gpt' ? 'free' : 'remove');
+    S = { W: pg.width, H: pg.height, page: pg.image, tool: 'brush', size: Math.max(12, Math.round(pg.width / 40)), preset, engine: PRESETS[preset].engine,
       count: 3, layer: opts.layer || null, results: [], busy: false };
     S.mask = canvasOf(S.W, S.H); S.tint = canvasOf(S.W, S.H);
     const meta = opts.layer && opts.layer.aiFill;
     if (meta) {   // regenerate: start from the stored mask and prompt
       const im = await loadImg(meta.mask); S.mask.getContext('2d').drawImage(im, meta.box[0], meta.box[1]);
-      S.engine = meta.engine; S.prompt = meta.prompt;
+      S.engine = meta.engine; S.prompt = meta.typed != null ? meta.typed : meta.prompt; S.preset = meta.preset || (meta.engine === 'lama' ? 'remove' : 'free');
     }
     const box = el('div', { class: 'ai-fill-pick', id: 'aiFillPick' }); const view = el('canvas', { id: 'aiFillView' });
     box.appendChild(view); document.body.appendChild(box); S.ov = { box, view }; bindOverlay();
     const card = el('div', { id: 'aiFillCard', class: 'ui-card ai-fill-card', role: 'dialog', 'aria-label': 'AI 填充' });
-    card.innerHTML = '<div class="charlib-head"><b>AI 填充' + (meta ? ' · 重新生成' : '') + '</b><button type="button" class="ui-btn ui-btn-ghost" id="aiFillClose" aria-label="关闭">×</button></div>' +
+    card.innerHTML = '<div class="charlib-head"><b>改一块' + (meta ? ' · 重新生成' : '') + '</b><button type="button" class="ui-btn ui-btn-ghost" id="aiFillClose" aria-label="关闭">×</button></div>' +
       '<p class="ui-muted">① 在画面上涂出要改的地方</p>' +
       '<div class="ai-fill-tools"><button type="button" class="ui-btn is-active" data-tool="brush">笔刷</button><button type="button" class="ui-btn" data-tool="erase">橡皮</button>' +
       '<button type="button" class="ui-btn" data-tool="box">框选</button><button type="button" class="ui-btn" data-tool="sam" title="点一下物体，自动选出轮廓">智能点选</button>' +
       '<button type="button" class="ui-btn ui-btn-ghost" id="aiFillClear">清除</button></div>' +
       '<label class="ai-fill-size">笔刷大小 <input type="range" id="aiFillSize" min="4" max="160" value="' + S.size + '"></label>' +
-      '<p class="ui-muted">② 写一句想怎么改（去掉东西可以不写）</p>' +
-      '<textarea id="aiFillPrompt" rows="2" class="ui-input" placeholder="例如：把雨伞改成红色 / 去掉路人 / 加一只猫"></textarea>' +
-      '<div class="ai-fill-engine"><label><input type="radio" name="aiFillEngine" value="gpt"' + (S.engine === 'gpt' ? ' checked' : '') + '> 按描述生成（GPT，3 张候选）</label>' +
-      '<label><input type="radio" name="aiFillEngine" value="lama"' + (S.engine === 'lama' ? ' checked' : '') + '> 只去掉（本机 LaMa，免费）</label></div>' +
+      '<p class="ui-muted">② 想怎么改？</p>' +
+      '<div class="ai-fill-presets" role="radiogroup" aria-label="怎么改">' + Object.keys(PRESETS).map(k => '<button type="button" class="ui-btn" role="radio" data-preset="' + k + '" title="' + PRESETS[k].tip + '">' + PRESETS[k].label + '</button>').join('') + '</div>' +
+      '<textarea id="aiFillPrompt" rows="2" class="ui-input"></textarea>' +
+      '<p class="ui-muted ai-fill-hint" id="aiFillHint"></p>' +
       '<div class="charlib-actions"><button type="button" class="ui-btn ui-btn-primary" id="aiFillGenerate">生成</button></div>' +
       '<div id="aiFillResults" class="ai-fill-results"></div><p id="aiFillStatus" class="ui-muted" role="status"></p>';
     document.body.appendChild(card); S.card = card;
@@ -115,18 +117,29 @@
     card.querySelectorAll('[data-tool]').forEach(b => b.addEventListener('click', () => setTool(b.dataset.tool)));
     $('aiFillClear').addEventListener('click', () => { S.mask.getContext('2d').clearRect(0, 0, S.W, S.H); refreshTint(); });
     $('aiFillSize').addEventListener('input', e => { S.size = +e.target.value; });
-    card.querySelectorAll('input[name=aiFillEngine]').forEach(r => r.addEventListener('change', async e => {
-      S.engine = e.target.value;
-      if (S.engine === 'gpt' && root.ServiceSettings && !(await root.ServiceSettings.ready('gpt'))) status('按描述生成要用 GPT 图像服务：点「生成」时会先打开「服务设置」。');
-    }));
+    card.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => setPreset(b.dataset.preset, true)));
+    setPreset(S.preset, false);
     $('aiFillGenerate').addEventListener('click', generate);
     $('aiFillClose').addEventListener('click', close);
     S.onResize = () => placeOverlay(); window.addEventListener('resize', S.onResize);
     S.onKey = e => { if (e.key === 'Escape' && S && !(root.SamClickSelect && root.SamClickSelect.active())) close(); };
     document.addEventListener('keydown', S.onKey);
     placeOverlay(); refreshTint();
-    status(gptReady || S.engine === 'lama' ? '' : '还没配置 GPT：先用「只去掉」，或在「服务设置」里填好 GPT。');
+    status(gptReady || S.engine === 'lama' ? '' : '「换成…」「自由修改」要用 GPT：点「生成」时会打开「服务设置」。「去掉杂物」用本机模型，不用配置。');
     return true;
+  }
+  const PRESETS = {
+    remove: { label: '去掉杂物', engine: 'lama', tip: '本机 LaMa 补背景，免费、不用配置', placeholder: '', hint: '涂出要去掉的东西就行，不用写字。用本机模型，免费。', go: '去掉' },
+    replace: { label: '换成…', engine: 'gpt', tip: 'GPT 按一句话重画这块，给 3 张候选', placeholder: '换成什么？例如：一只白猫 / 红色的雨伞', hint: '用 GPT 生成 3 张候选，挑一张；之后还能换、重生或还原。', go: '生成 3 张' },
+    free: { label: '自由修改', engine: 'gpt', tip: '用一句话描述怎么改这块（GPT）', placeholder: '想怎么改？例如：把天空改成黄昏 / 表情改成微笑', hint: '用 GPT 按描述修改涂出的地方，给 3 张候选。', go: '生成 3 张' },
+  };
+  function setPreset(k, user) {
+    if (!S || !PRESETS[k]) return; const P = PRESETS[k]; S.preset = k; S.engine = P.engine;
+    S.card.querySelectorAll('[data-preset]').forEach(b => { const on = b.dataset.preset === k; b.classList.toggle('is-active', on); b.setAttribute('aria-checked', String(on)); });
+    const t = $('aiFillPrompt'); t.hidden = k === 'remove'; t.placeholder = P.placeholder;
+    $('aiFillHint').textContent = P.hint; $('aiFillGenerate').textContent = P.go;
+    if (user && P.engine === 'gpt' && root.ServiceSettings) root.ServiceSettings.ready('gpt').then(ok => { if (!ok && S) status('「' + P.label + '」要用 GPT：点「' + P.go + '」时会先打开「服务设置」。'); });
+    else if (user) status('');
   }
   function close() {
     if (!S) return;
@@ -186,9 +199,11 @@
     if (!S || S.busy) return;
     const hard = maskData(); const box = F.maskBox(hard, S.W, S.H);
     if (!box) return status('先在画面上涂出要改的地方（笔刷、框选或智能点选）。', true);
-    const sentence = $('aiFillPrompt').value.trim();
+    const typed = S.preset === 'remove' ? '' : $('aiFillPrompt').value.trim();
+    if (S.preset !== 'remove' && !typed) { $('aiFillPrompt').focus(); return status(S.preset === 'replace' ? '写一下换成什么，例如：一只白猫。' : '写一句想怎么改，例如：把天空改成黄昏。', true); }
+    const sentence = S.preset === 'replace' ? '把涂出的地方换成：' + typed : typed;
     if (S.engine === 'gpt' && root.ServiceSettings && !(await root.ServiceSettings.ready('gpt'))) {
-      status('按描述生成要用 GPT：已打开「服务设置」。也可以改选「只去掉（本机 LaMa）」。', true);
+      status('「' + PRESETS[S.preset].label + '」要用 GPT：已打开「服务设置」。只想去掉东西可以选「去掉杂物」（本机，免费）。', true);
       if (root.ServiceSettings.ensureReady) root.ServiceSettings.ensureReady('gpt');
       return;
     }
@@ -202,7 +217,7 @@
     S.busy = true; updateButtons(); S.ctrl = new AbortController();
     const model = (($('mangaGptModel') || {}).value || '').trim();
     const pa = root.PanelAuto ? await root.PanelAuto.get().catch(() => null) : null;
-    const meta = { engine: S.engine, prompt: sentence, model: S.engine === 'gpt' ? model : 'lama', box: [r.x, r.y, r.w, r.h], mask, source, candidates: [], chosen: 0, edge: F.edgeFor(F.maskBox(hard, S.W, S.H).map((v, i) => v - (i % 2 ? r.y : r.x))), created: new Date().toISOString(), clip: F.panelClip(pa && pa.panels && pa.panels.length > 1 ? pa.panels : [], r, S.W) };
+    const meta = { engine: S.engine, preset: S.preset, typed, prompt: sentence, model: S.engine === 'gpt' ? model : 'lama', box: [r.x, r.y, r.w, r.h], mask, source, candidates: [], chosen: 0, edge: F.edgeFor(F.maskBox(hard, S.W, S.H).map((v, i) => v - (i % 2 ? r.y : r.x))), created: new Date().toISOString(), clip: F.panelClip(pa && pa.panels && pa.panels.length > 1 ? pa.panels : [], r, S.W) };
     $('aiFillResults').innerHTML = '';
     const t0 = performance.now();
     try {
@@ -273,7 +288,7 @@
       });
     });
   }
-  function layerName(meta) { return 'AI 填充：' + (meta.prompt ? meta.prompt.slice(0, 14) : meta.engine === 'lama' ? '去除' : '修改'); }
+  function layerName(meta) { return 'AI 填充：' + ((meta.typed || meta.prompt) ? (meta.typed || meta.prompt).slice(0, 14) : meta.engine === 'lama' ? '去除' : '修改'); }
 
   // ---------- controls on a selected AI layer ----------
   async function switchCandidate(obj, k) {

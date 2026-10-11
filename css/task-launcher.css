@@ -148,3 +148,7 @@ body.ui-beginner #mangaPageOpen, body.ui-beginner #mangaCharacterOpen { display:
 .task-script { margin: var(--ui-space-2) 0; border: 1px dashed var(--ui-border); border-radius: var(--ui-radius); padding: 6px 10px; }
 .task-script summary { cursor: pointer; font-weight: 600; }
 .task-script textarea { width: 100%; margin: 6px 0; font-size: 13px; }
+.task-more-menu .task-menu-sep { height: 1px; margin: 4px 6px; background: var(--ui-border); flex-shrink: 0; }
+.ai-fill-presets { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 6px; }
+.ai-fill-presets .ui-btn.is-active { background: var(--ui-accent, #c0392b); color: #fff; border-color: transparent; }
+.ai-fill-hint { margin: 2px 0 6px; font-size: 12px; }

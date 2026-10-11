@@ -64,7 +64,14 @@ async function startServer() {
     for (let i = 1; i <= 10; i++) await p.mouse.move(sx + i * vb.width * 0.012, sy + i * vb.height * 0.004);
     await p.mouse.up(); clicks++;
     await p.screenshot({ path: path.join(OUT, '01-painted.png') });
-    await p.locator('#aiFillPrompt').fill('把这里改成一把红色雨伞'); clicks++;
+    // 改一块: default preset 去掉杂物 (no text box); 换成… needs a sentence
+    assert.equal(await p.locator('[data-preset="remove"]').getAttribute('aria-checked'), 'true', 'default preset = 去掉杂物');
+    assert(await p.locator('#aiFillPrompt').isHidden(), '去掉杂物 needs no text');
+    await p.locator('[data-preset="replace"]').click(); clicks++;
+    assert.equal(await p.locator('#aiFillGenerate').innerText(), '生成 3 张');
+    await p.locator('#aiFillGenerate').click();
+    assert.match(await p.locator('#aiFillStatus').innerText(), /写一下换成什么/);
+    await p.locator('#aiFillPrompt').fill('一把红色雨伞'); clicks++;
     await p.locator('#aiFillGenerate').click(); clicks++;
     await p.locator('.ai-fill-cand[data-k]').nth(2).waitFor({ timeout: 30000 });
     assert.equal(gpt.length, 3, '3 candidates requested');
@@ -101,8 +108,9 @@ async function startServer() {
     // 4) regenerate replaces the same layer (prompt + mask remembered)
     await p.locator('#aiFillChip [data-a="regen"]').click();
     await p.locator('#aiFillCard').waitFor({ state: 'visible' });
-    assert.equal(await p.locator('#aiFillPrompt').inputValue(), '把这里改成一把红色雨伞', 'prompt remembered');
-    await p.locator('#aiFillPrompt').fill('把这里改成一把蓝色雨伞');
+    assert.equal(await p.locator('#aiFillPrompt').inputValue(), '一把红色雨伞', 'typed text remembered (not the wrapped prompt)');
+    assert.equal(await p.locator('[data-preset="replace"]').getAttribute('aria-checked'), 'true', 'preset remembered');
+    await p.locator('#aiFillPrompt').fill('一把蓝色雨伞');
     await p.locator('#aiFillGenerate').click();
     await p.locator('.ai-fill-cand[data-k]').nth(2).waitFor({ timeout: 30000 });
     await p.locator('#aiFillUse').click();
@@ -137,7 +145,7 @@ async function startServer() {
     const toView = (x, y) => [vb2.x + x * vb2.width / gut.W, vb2.y + y * vb2.height / gut.H];
     let [bx, by] = toView(gut.x, gut.y - 60); await p.mouse.move(bx, by); await p.mouse.down();
     [bx, by] = toView(gut.x + 160, gut.y + 60); await p.mouse.move(bx, by, { steps: 4 }); await p.mouse.up();
-    await p.locator('input[name=aiFillEngine][value=lama]').check();
+    await p.locator('[data-preset="remove"]').click();
     await p.locator('#aiFillGenerate').click();
     await p.locator('.ai-fill-cand[data-k="0"]').waitFor({ timeout: 30000 });
     assert.equal(await p.locator('.ai-fill-cand[data-k]').count(), 1); if (process.env.AIFILL_REAL_LAMA !== '1') assert.equal(lama.length, 1);

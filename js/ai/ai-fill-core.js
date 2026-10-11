@@ -88,6 +88,7 @@
     if (!box || !img(m.mask) || !img(m.source)) return null;
     const cands = (Array.isArray(m.candidates) ? m.candidates : []).filter(img).slice(0, MAX_CANDIDATES);
     return { v: META_VERSION, engine: m.engine === 'lama' ? 'lama' : 'gpt', prompt: String(m.prompt || '').slice(0, 800),
+      preset: ['remove', 'replace', 'free'].includes(m.preset) ? m.preset : undefined, typed: m.typed == null ? undefined : String(m.typed).slice(0, 800),
       model: String(m.model || '').slice(0, 80), box, mask: m.mask, source: m.source, candidates: cands,
       chosen: Math.max(0, Math.min(cands.length - 1, m.chosen | 0)), edge: m.edge && Number.isFinite(m.edge.grow) && Number.isFinite(m.edge.feather) ? { grow: m.edge.grow, feather: m.edge.feather } : null,
       clip: (Array.isArray(m.clip) ? m.clip : []).filter(r => Array.isArray(r) && r.length === 4 && r.every(Number.isFinite)).slice(0, 24),
