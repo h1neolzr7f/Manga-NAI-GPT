@@ -100,10 +100,14 @@ item('taskOpenProject','folder_open','打开项目 (Ctrl+O)',function(){var l=$(
 item('taskShortcuts','keyboard','快捷键一览 (F1)',call('openShortcutModal'));
 item('uiModeToggle','tune','专业模式',function(){setMode(mode()==='beginner'?'pro':'beginner');});
 function closeMenu(){menu.hidden=true;more.setAttribute('aria-expanded','false');}
-more.addEventListener('click',function(e){e.stopPropagation();menu.hidden=!menu.hidden;more.setAttribute('aria-expanded',String(!menu.hidden));if(!menu.hidden){var f=menu.querySelector('button');if(f)f.focus();}});
-document.addEventListener('click',function(e){if(!menu.hidden&&!moreWrap.contains(e.target))closeMenu();});
+more.addEventListener('click',function(e){e.stopPropagation();menu.hidden=!menu.hidden;
+// fixed + placed from the ⋯ button
+if(!menu.hidden){var r=more.getBoundingClientRect();menu.style.position='fixed';menu.style.top=Math.round(r.bottom+6)+'px';menu.style.right=Math.max(4,Math.round(window.innerWidth-r.right))+'px';menu.style.maxHeight=Math.max(200,window.innerHeight-r.bottom-16)+'px';menu.style.overflowY='auto';}
+more.setAttribute('aria-expanded',String(!menu.hidden));if(!menu.hidden){var f=menu.querySelector('button');if(f)f.focus();}});
+document.addEventListener('click',function(e){if(!menu.hidden&&!moreWrap.contains(e.target)&&!menu.contains(e.target))closeMenu();});
 menu.addEventListener('keydown',function(e){if(e.key==='Escape'){closeMenu();more.focus();}});
-moreWrap.appendChild(more);moreWrap.appendChild(menu);bar.appendChild(moreWrap);
+// the menu lives on <body>: inside the header its z-index could never rise above the start card
+moreWrap.appendChild(more);document.body.appendChild(menu);bar.appendChild(moreWrap);
 header.insertBefore(bar,header.firstChild);
 setInterval(updatePageNav,700);
 }

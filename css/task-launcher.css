@@ -90,6 +90,7 @@ body.ui-beginner #mangaPageOpen, body.ui-beginner #mangaCharacterOpen { display:
 .task-more-wrap { position: relative; flex: 0 0 auto; }
 .task-more-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 2600; min-width: 240px; padding: var(--ui-space-1); display: flex; flex-direction: column; box-shadow: var(--ui-shadow, 0 8px 24px rgba(0,0,0,.35)); }
 .task-more-menu[hidden] { display: none; }
+.task-more-menu > * { flex-shrink: 0; }
 .task-menu-item { display: flex; align-items: center; gap: var(--ui-space-2); width: 100%; padding: 8px 10px; border: 0; border-radius: calc(var(--ui-radius) - 4px); background: transparent; color: var(--ui-text); font-size: 13px; text-align: left; cursor: pointer; }
 .task-menu-item:hover, .task-menu-item:focus-visible { background: var(--ui-surface-2, rgba(127,127,127,.15)); outline: none; }
 .task-menu-item .material-icons { font-size: 18px; opacity: .85; }
