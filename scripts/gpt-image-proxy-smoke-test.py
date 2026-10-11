@@ -184,6 +184,18 @@ class ImageRelayTest(unittest.TestCase):
         self.assertTrue(allowed({**original, "Host": "localhost:8000",
                                  "Origin": "http://localhost:8000"}))
 
+    def test_local_guard_follows_the_served_port(self):
+        """MNAI_PORT: a copy on 8001 accepts its own page and still rejects the 8000 copy (and vice versa)."""
+        def allowed(port, served):
+            h = "127.0.0.1:%d" % port
+            return proxy._authorized_local_request(SimpleNamespace(
+                client_address=("127.0.0.1", 43315), server=SimpleNamespace(server_address=("127.0.0.1", served)),
+                headers={"Host": h, "Origin": "http://" + h, "Sec-Fetch-Site": "same-origin"}))
+        self.assertTrue(allowed(8001, 8001))
+        self.assertFalse(allowed(8000, 8001))
+        self.assertFalse(allowed(8001, 8000))
+        self.assertTrue(allowed(8000, 8000))
+
     @mock.patch.object(proxy.socket, "getaddrinfo",
                        return_value=[(2, 1, 6, "", ("198.18.0.22", 443))])
     def test_clash_tun_fake_ip_allowed_for_dns_names_but_not_ip_literals(self, _dns):

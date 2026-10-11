@@ -82,7 +82,7 @@ The browser opens `http://127.0.0.1:8000/index.html`. The launcher window is the
 
 **Double-clicking `index.html` doesn't work?** Use the launcher; browsers disable most features on `file://`.
 
-**Port 8000 in use?** If an editor is already running the launcher just opens the browser; otherwise close the program using the port.
+**Port 8000 in use?** If an editor is already running the launcher just opens the browser; otherwise close the program using the port. Or pick another port: `MNAI_PORT=8001 ./start.sh` (Linux / macOS) and open `http://127.0.0.1:8001/index.html` - this also lets two versions run side by side.
 
 **Do I need GPT / NovelAI?** No. Lettering, captions, text removal, layers and pro mode work fully offline; only swap, draw-a-page and custom edits need an image service.
 

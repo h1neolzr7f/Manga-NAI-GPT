@@ -2,7 +2,7 @@
 # Start the editor on Linux / macOS: local server on 127.0.0.1:8000, then open the browser. Ctrl+C stops it.
 set -euo pipefail
 cd "$(dirname "$0")"
-PORT=8000; URL="http://127.0.0.1:$PORT/index.html"
+PORT="${MNAI_PORT:-8000}"; export MNAI_PORT="$PORT"; URL="http://127.0.0.1:$PORT/index.html"
 if [ -x .venv/bin/python ]; then PY=.venv/bin/python; else PY="${PYTHON:-python3}"; fi
 command -v "$PY" >/dev/null || [ -x "$PY" ] || { echo "需要 Python 3（Need Python 3）: https://www.python.org/downloads/"; exit 1; }
 open_url() { if command -v xdg-open >/dev/null; then xdg-open "$1" >/dev/null 2>&1 & elif command -v open >/dev/null; then open "$1"; else echo "请在浏览器打开 $1"; fi; }
