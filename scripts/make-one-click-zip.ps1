@@ -1,10 +1,16 @@
 ﻿# Build a beginner zip without git history, secrets, or machine caches.
 param(
     [string]$Version = "1.0.3",
+    [string]$SourceRoot = "",
     [switch]$SkipDesktop
 )
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+if (-not $SourceRoot) { $SourceRoot = $Root }
+$SourceRoot = [IO.Path]::GetFullPath($SourceRoot)
+if (-not (Test-Path -LiteralPath (Join-Path $SourceRoot "99_server.py"))) {
+    throw "SourceRoot does not look like the application repository: $SourceRoot"
+}
 $Name = "Manga-Editor-Desu-NAI-$Version"
 $Desktop = [Environment]::GetFolderPath("Desktop")
 $OutDir = Join-Path $Root "dist"
@@ -21,6 +27,8 @@ $excludeDirs = @(
     ".pytest_cache",
     ".claude",
     "node_modules",
+    ".venv",
+    "work",
     "user_data",
     "outputs",
     "dist",
@@ -31,16 +39,16 @@ $excludeDirs = @(
     "test",
     ".github"
 )
-$excludeFiles = @(".env", ".DS_Store")
+$excludeFiles = @(".env", ".env.*", "*.env", ".DS_Store")
 
-Get-ChildItem -LiteralPath $Root -Directory | ForEach-Object {
+Get-ChildItem -LiteralPath $SourceRoot -Directory | ForEach-Object {
     if ($_.Name -like "*API*" -or $_.Name -like "*roadmap*") {
         $excludeDirs += $_.Name
     }
 }
 
 $dest = Join-Path $Staging $Name
-$robocopyArgs = @($Root, $dest, "/E", "/NFL", "/NDL", "/NJH", "/NJS", "/NC", "/NS", "/NP", "/XD") + $excludeDirs + @("/XF") + $excludeFiles
+$robocopyArgs = @($SourceRoot, $dest, "/E", "/NFL", "/NDL", "/NJH", "/NJS", "/NC", "/NS", "/NP", "/XD") + $excludeDirs + @("/XF") + $excludeFiles
 & robocopy @robocopyArgs | Out-Null
 $rc = $LASTEXITCODE
 # robocopy uses 0–7 as success (1 = files copied). GitHub Actions treats a leftover

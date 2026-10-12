@@ -11,17 +11,9 @@ on:
         description: Release tag to create/update with the EXE; leave blank for artifact only
         required: false
         default: ""
+  push:
     tags:
       - "v*"
-    paths:
-      - ".github/workflows/build-windows-installer.yml"
-      - "installer/**"
-      - "scripts/prepare-installer.ps1"
-      - "scripts/windows/**"
-      - "一键启动.bat"
-      - "package.json"
-      - "CHANGELOG.md"
-      - "installer/**"
 
 permissions:
   contents: write
@@ -133,10 +125,12 @@ jobs:
 
       - name: Build portable zip
         id: zip
-        continue-on-error: true
         shell: pwsh
         run: |
-          .\scripts\make-one-click-zip.ps1 -Version "${{ steps.package.outputs.version }}" -SkipDesktop
+          .\scripts\make-one-click-zip.ps1 -Version "${{ steps.package.outputs.version }}" -SourceRoot "$PWD\dist\installer-staging" -SkipDesktop
+          $portable = Join-Path $PWD "dist\Manga-Editor-Desu-NAI-${{ steps.package.outputs.version }}.zip"
+          python -c "import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); assert z.testzip() is None; names=z.namelist(); assert any(n.endswith('/runtime/python/python.exe') for n in names); assert any(n.endswith('/runtime/node/node.exe') for n in names); print('Portable ZIP CRC and embedded runtimes verified')" $portable
+          if ($LASTEXITCODE -ne 0) { throw "Portable ZIP runtime validation failed." }
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v6

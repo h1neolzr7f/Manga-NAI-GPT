@@ -8,7 +8,7 @@
 
 #define AppName "Manga Editor Desu - NovelAI Edition"
 #define AppPublisher "nai学长"
-#define AppURL "https://github.com/h1neolzr7f/Manga-Editor-Desu-NAI"
+#define AppURL "https://github.com/h1neolzr7f/Manga-NAI-GPT"
 
 [Setup]
 AppId={{0D4C958A-63D9-4B50-A13A-AE55EA4B455E}
@@ -30,7 +30,7 @@ OutputBaseFilename=Manga-Editor-Desu-NAI-Setup-{#AppVersion}
 SetupIconFile={#SourceRoot}\app.ico
 UninstallDisplayIcon={app}\app.ico
 LicenseFile={#SourceRoot}\LICENSE
-InfoBeforeFile={#SourceRoot}\installer\先看我.txt
+InfoBeforeFile=.\先看我.txt
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
