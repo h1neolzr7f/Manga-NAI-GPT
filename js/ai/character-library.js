@@ -28,7 +28,12 @@
     return true;
   }
 
-  async function loadCards() { S.cards = bible() && bible().all ? (await bible().all()) : []; return S.cards; }
+  let loadingCards = null;
+  function loadCards() {
+    if (!loadingCards) loadingCards = Promise.resolve().then(() => bible() && bible().all ? bible().all() : [])
+      .then(cards => { S.cards = cards; return S.cards; }).finally(() => { loadingCards = null; });
+    return loadingCards;
+  }
   function library() {
     return S.cards.filter(c => c.identity && c.identity.features.length)
       .map(c => ({ id: c.id, name: c.name, features: c.identity.features, palette: c.identity.palette }));

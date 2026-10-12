@@ -10,6 +10,9 @@
     appliedCount: 0,
     region: null,
     result: '',
+    resultContext: null,
+    applying: false,
+    sessionEpoch: 0,
     pending: false,
     references: [],
     characterPromptSuffix: '',
@@ -376,8 +379,11 @@
   // A whole-region shift is drift only when the context ring drifted the same way.
   function ringConfirmed(shift, ringOffset) {
     if (!shift || !ringOffset) return null;
-    const ring = (ringOffset[0] + ringOffset[1] + ringOffset[2]) / 3, mean = (shift[0] + shift[1] + shift[2]) / 3;
-    return Math.abs(ring) >= 2 && Math.sign(ring) === Math.sign(mean) ? shift : null;
+    // The ring offset was already deducted. Only finish a small residual of a
+    // substantial measured drift; its direction alone cannot explain a local edit.
+    return shift.every((v, c) => Math.abs(v) <= 1 ||
+      (Math.abs(ringOffset[c]) >= 16 && Math.sign(v) === Math.sign(ringOffset[c]) &&
+       Math.abs(v) <= Math.max(4, Math.abs(ringOffset[c]) * 0.3))) ? shift : null;
   }
 
   function globalShift(patch, orig, w, h) {
@@ -411,12 +417,22 @@
       // Compare cell mean colour (resampling/re-rendering of fine texture keeps it) plus half the difference in
       // texture contrast (new line art of the same mean tone). Per-pixel |diff| flagged every rainy/hatched cell.
       const mo = [0, 0, 0], mp = [0, 0, 0]; let so = 0, sp = 0, so2 = 0, sp2 = 0, n = 0, transparent = false;
+      let ox = 0, oy = 0, px = 0, py = 0;
       for (let y = gy * cell; y < Math.min(h, gy * cell + cell); y++) for (let x = gx * cell; x < Math.min(w, gx * cell + cell); x++) {
         const i = (y * w + x) * 4;
         if (orig[i + 3] < 250) { transparent = true; continue; } // transparent original: whatever is new counts as change
         for (let c = 0; c < 3; c++) { mo[c] += orig[i + c]; mp[c] += patch[i + c]; }
         const lo = (orig[i] + orig[i + 1] + orig[i + 2]) / 3, lp = (patch[i] + patch[i + 1] + patch[i + 2]) / 3;
         so += lo; sp += lp; so2 += lo * lo; sp2 += lp * lp; n++;
+        if (x + 1 < Math.min(w, gx * cell + cell)) {
+          ox += Math.abs(lo - (orig[i+4] + orig[i+5] + orig[i+6]) / 3);
+          px += Math.abs(lp - (patch[i+4] + patch[i+5] + patch[i+6]) / 3);
+        }
+        if (y + 1 < Math.min(h, gy * cell + cell)) {
+          const j = i + w * 4;
+          oy += Math.abs(lo - (orig[j] + orig[j+1] + orig[j+2]) / 3);
+          py += Math.abs(lp - (patch[j] + patch[j+1] + patch[j+2]) / 3);
+        }
       }
       let d = 255;
       if (n && !transparent) {
@@ -426,7 +442,11 @@
         // so the channel average barely registers; resampling noise never adds colour, so weight it up.
         const chroma = v => Math.max(v[0], v[1], v[2]) - Math.min(v[0], v[1], v[2]);
         const dChroma = Math.abs(chroma(mo) - chroma(mp)) / n;
-        d = Math.max(mean, 0.5 * Math.abs(sdO - sdP), 1.5 * dChroma);
+        // Direction survives a texture phase/resampling shift, unlike individual
+        // pixels, but detects an equal-mean vertical stroke changed to horizontal.
+        const orientation = Math.abs((ox - oy) / (ox + oy + 1) - (px - py) / (px + py + 1));
+        d = Math.max(mean, 0.5 * Math.abs(sdO - sdP), 1.5 * dChroma,
+          0.5 * Math.min(sdO, sdP) * orientation);
       }
       g[gy * gw + gx] = Math.max(0, Math.min(1, (d - CHANGE_LO) / (CHANGE_HI - CHANGE_LO)));
     }
@@ -486,6 +506,58 @@
     return touched;
   }
 
+  // Evidence about protected surroundings, not semantic identity or registration.
+  // Positive allowedAlpha excludes intended face/outfit/selection changes.
+  function geometryReview(patch, orig, w, h, allowedAlpha) {
+    const unknown = { needsReview: false, residual: 0, changedFraction: 0, samples: 0, reason: 'insufficient-context' };
+    if (!(w > 0 && h > 0) || !patch || !orig || patch.length !== w*h*4 || orig.length !== w*h*4 ||
+        (allowedAlpha && allowedAlpha.length !== w*h)) return unknown;
+    const ds = [[], [], []];
+    const step = Math.max(1, Math.ceil(Math.sqrt(w*h / 16000)));
+    for (let y=1; y<h-2; y+=step) for (let x=1; x<w-2; x+=step) {
+      let valid = true;
+      const d = [0,0,0];
+      for (let yy=y-1; yy<=y+2; yy++) for (let xx=x-1; xx<=x+2; xx++) {
+        const k=yy*w+xx, i=k*4;
+        if ((allowedAlpha && allowedAlpha[k]>0) || orig[i+3]<250 || patch[i+3]<250) { valid=false; continue; }
+        for(let c=0;c<3;c++) d[c] += orig[i+c]-patch[i+c];
+      }
+      if(valid) for(let c=0;c<3;c++) ds[c].push(d[c]/16);
+    }
+    const n=ds[0].length;
+    if(n<128) return { ...unknown, samples:n };
+    const med=ds.map(a=>a.slice().sort((a,b)=>a-b)[n>>1]);
+    let sum=0, changed=0;
+    for(let j=0;j<n;j++) {
+      const d=(Math.abs(ds[0][j]-med[0])+Math.abs(ds[1][j]-med[1])+Math.abs(ds[2][j]-med[2]))/3;
+      sum+=d; if(d>28) changed++;
+    }
+    const residual=sum/n, changedFraction=changed/n;
+    const needsReview=residual>DRIFT_MAX_RESIDUAL && changedFraction>0.25;
+    return { needsReview, residual:+residual.toFixed(2), changedFraction:+changedFraction.toFixed(3), samples:n,
+      reason:needsReview ? 'changed-context' : 'no-obvious-context-change' };
+  }
+
+  function candidateContextReview(region, resultElement) {
+    if(!region || !region.sentImage || !region.contextBox || !region.plan)
+      return { needsReview:false, reason:'insufficient-context' };
+    const sent=region.sentImage, w=sent.width, h=sent.height, box=region.contextBox, inner=region.plan.inner;
+    const tmp=document.createElement('canvas'); tmp.width=w; tmp.height=h;
+    const ctx=tmp.getContext('2d'); ctx.drawImage(resultElement,0,0,w,h);
+    const allowed=new Uint8Array(w*h);
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++) {
+      if(x<box.x0 || x>=box.x1 || y<box.y0 || y>=box.y1 ||
+        (x>=inner.x*w-2 && x<(inner.x+inner.w)*w+2 && y>=inner.y*h-2 && y<(inner.y+inner.h)*h+2)) allowed[y*w+x]=255;
+    }
+    return geometryReview(ctx.getImageData(0,0,w,h).data, sent.getContext('2d').getImageData(0,0,w,h).data,w,h,allowed);
+  }
+
+  function resetCandidateReview() {
+    const choice=$g('mangaGptReviewChoice'), override=$g('mangaGptReviewOverride');
+    if(choice) choice.hidden=true;
+    if(override) override.checked=false;
+  }
+
   function loadRegionPixels(dataUrl, w, h) {
     return new Promise(resolve => {
       if (!dataUrl) return resolve(null);
@@ -537,7 +609,8 @@
       if (seam.changeOnly) { changeOnly = changeMask(data.data, seam.orig, w, h); seam.changedFraction = changeOnly ? +changeOnly.changedFraction.toFixed(3) : 1; }
       const diffs = seamDiffs(data.data, seam.orig, w, h, seam.sides);
       seam.diffs = diffs;
-      if (applySeamMatch(data.data, w, h, diffs)) ctx.putImageData(data, 0, 0);
+      const seamTouched = applySeamMatch(data.data, w, h, diffs);
+      if (shift || seamTouched) ctx.putImageData(data, 0, 0);
     }
     if (feather && feather.width > 0 && (feather.left || feather.right || feather.top || feather.bottom)) {
       const fw = feather.width / scale; // page pixels -> source pixels
@@ -683,6 +756,8 @@
       state.region = { canvas: c, ...region, image, excludeLettering, cut, pageGuid: currentPageGuid(),
         canvasWidth: c.getWidth(), canvasHeight: c.getHeight() };
       state.result = '';
+      state.resultContext = null;
+      resetCandidateReview();
       $g('mangaGptApply').disabled = true;
       $g('mangaGptPreview').src = image;
       setCompare(false);
@@ -1136,9 +1211,15 @@
       window.removeEventListener('scroll', abortOnMove, true);
     };
     let start = null;
+    const mappingCurrent = () => {
+      if(state.selectionOverlay !== overlay) return false;
+      if(pageCanvas() !== c || canvasRectMoved(rect,c.upperCanvasEl.getBoundingClientRect())) { abortOnMove(); return false; }
+      return true;
+    };
     overlay.addEventListener('pointerdown', event => {
       if (event.button !== 0 && event.button !== 2) return;
       event.preventDefault();
+      if(!mappingCurrent()) return;
       // Auto-started selection must not swallow clicks meant for the GPT panel floating over the
       // canvas (e.g. 生成 / 模式 / 关闭): leave selection mode and hand the click to the panel.
       const panelEl = $g('mangaGptPanel');
@@ -1159,7 +1240,7 @@
       overlay.setPointerCapture(event.pointerId);
     });
     overlay.addEventListener('pointermove', event => {
-      if (!start) return;
+      if (!start || !mappingCurrent()) return;
       const x = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
       const y = Math.max(0, Math.min(rect.height, event.clientY - rect.top));
       if (lasso) {
@@ -1176,7 +1257,7 @@
       rectangle.style.height = Math.abs(y - start.y) + 'px';
     });
     overlay.addEventListener('pointerup', event => {
-      if (!start) return;
+      if (!start || !mappingCurrent()) return;
       const x = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
       const y = Math.max(0, Math.min(rect.height, event.clientY - rect.top));
       if (lasso) {
@@ -1224,10 +1305,26 @@
     return $g('mangaGptMode').value;
   }
 
+  function sessionSnapshot() {
+    return { epoch:state.sessionEpoch, operation:currentOperation(), task:state.task, taskValue:JSON.stringify(state.task) };
+  }
+
+  function sessionCurrent(session) {
+    return session.epoch===state.sessionEpoch && session.operation===currentOperation() &&
+      session.task===state.task && session.taskValue===JSON.stringify(state.task);
+  }
+
+  function invalidateSession() {
+    state.sessionEpoch++;
+    if(state.controller) state.controller.abort();
+    if($g('mangaGptApply')) $g('mangaGptApply').disabled=true;
+  }
+
   async function generate() {
-    if (state.pending) return;
+    if (state.pending || state.applying) return;
     const c = pageCanvas();
     const operation = currentOperation();
+    const region = state.region;
     if (!c) return feedback(tr('mgpt_open_canvas', '请先打开画布。'), true);
     if (operation === 'edit' && (!state.region || state.region.canvas !== c)) {
       return feedback(tr('mgpt_select_first', '请先在当前画布框选需要修改的区域。'), true);
@@ -1235,6 +1332,8 @@
     if (operation === 'edit' && !regionUnchanged(c, state.region)) {
       return feedback(tr('mgpt_region_changed', '画布或选中区域已经变化，请重新框选。'), true);
     }
+    if(operation==='edit' && region.pageGuid && currentPageGuid() !== region.pageGuid)
+      return feedback(tr('mgpt_region_changed','画布或选中区域已经变化，请重新框选。'),true);
     const apiKey = $g('mangaGptKey').value.trim().replace(/^Bearer\s+/i, '');
     // An empty input lets the localhost relay use optional GPT_IMAGE_API_KEY from .env.
     // A wizard task adds its hidden preset instruction; the user's own words come after it.
@@ -1248,6 +1347,10 @@
     if (!prompt) return feedback(tr('mgpt_prompt_required', '请先描述想要的画面修改。'), true);
     state.pending = true;
     state.result = '';
+    state.resultContext = null;
+    resetCandidateReview();
+    const session=sessionSnapshot();
+    const origin = { canvas:c, pageGuid:currentPageGuid(), width:c.getWidth(), height:c.getHeight(), operation, region, session };
     $g('mangaGptGenerate').disabled = true;
     $g('mangaGptMode').disabled = true;
     $g('mangaGptApply').disabled = true;
@@ -1258,6 +1361,11 @@
     let timedOut = false;
     const timer = controller ? setTimeout(() => { timedOut = true; controller.abort(); }, REQUEST_TIMEOUT_MS) : null;
     if ($g('mangaGptCancel')) $g('mangaGptCancel').disabled = !controller;
+    const requestCurrent = () => {
+      if(controller && controller.signal.aborted) { const error=new Error('cancelled'); error.name='AbortError'; throw error; }
+      if(!sessionCurrent(session) || (operation==='edit' && state.region !== region))
+        throw new Error(tr('mgpt_selection_replaced','选区或操作已变化，旧请求结果未关联到当前选区。请重新生成。'));
+    };
     let sizeChoice = { size: $g('mangaGptSize').value, switchedFrom: null };
     try {
       const payload = {
@@ -1266,20 +1374,21 @@
         operation,
         prompt,
         size: $g('mangaGptSize').value,
-        references: operation === 'edit' ? state.references : []
+        references: operation === 'edit' ? state.references.slice() : []
       };
       if (operation === 'edit') {
         const guard = !$g('mangaGptAspectGuard') || $g('mangaGptAspectGuard').checked;
-        sizeChoice = effectiveSize(state.region.width, state.region.height, payload.size, guard);
-        const plan = letterboxPlan(state.region.width, state.region.height, sizeChoice.size);
-        state.region.plan = plan;
+        sizeChoice = effectiveSize(region.width, region.height, payload.size, guard);
+        const plan = letterboxPlan(region.width, region.height, sizeChoice.size);
+        region.plan = plan;
         payload.size = plan.size;
-        state.region.contextBox = null;
-        state.region.sentImage = null;
+        region.contextBox = null;
+        region.sentImage = null;
         const useContext = !$g('mangaGptContext') || $g('mangaGptContext').checked;
-        payload.image = useContext ? await contextPaddedImage(c, state.region, plan) :
-          await letterboxImage(state.region.image, plan);
+        payload.image = useContext ? await contextPaddedImage(c, region, plan) :
+          await letterboxImage(region.image, plan);
       }
+      requestCurrent();
       const response = await fetch(imageProxyBase() + '/gpt-image-proxy', {
         method: 'POST',
         headers: Object.assign({ 'Content-Type': 'application/json' },
@@ -1299,7 +1408,9 @@
       if (!/^data:image\/(png|jpeg|webp);base64,/.test(json.image)) {
         throw new Error(tr('mgpt_bad_image', '图像响应格式无效。'));
       }
+      requestCurrent();
       state.result = json.image;
+      state.resultContext = origin;
       $g('mangaGptPreview').src = json.image;
       $g('mangaGptApply').disabled = false;
       setCompare(true);
@@ -1314,6 +1425,7 @@
       }
       feedback(tr('mgpt_generated', '图像已生成，请检查预览后点击“作为新图层应用”。') + note);
     } catch (error) {
+      if(!sessionCurrent(session)) return;
       if (error && error.name === 'AbortError') {
         feedback(timedOut ? tr('mgpt_timeout', '请求超时（{s} 秒），已取消。', { s: REQUEST_TIMEOUT_MS / 1000 }) : tr('mgpt_cancelled', '已取消请求。'), true);
       } else {
@@ -1330,27 +1442,45 @@
   }
 
   async function apply() {
+    if(state.applying || state.pending) return;
     const c = pageCanvas();
     if (!c || !state.result) return feedback(tr('mgpt_nothing_to_apply', '没有可应用的结果。'), true);
-    const isEdit = currentOperation() === 'edit';
-    const region = state.region;
+    const result=state.result;
+    const origin=state.resultContext || { canvas:c,pageGuid:currentPageGuid(),width:c.getWidth(),height:c.getHeight(),operation:currentOperation(),region:state.region };
+    const isEdit = origin.operation === 'edit';
+    const region = origin.region;
+    const session=origin.session || sessionSnapshot();
+    if(!sessionCurrent(session)) return feedback(tr('mgpt_selection_replaced','选区或操作已变化，旧请求结果未关联到当前选区。请重新生成。'),true);
     // One Fabric canvas serves every page: a result made for page 1 must never be pasted onto
     // page 2 because the user switched pages while it was generating. Keep the result.
-    if (isEdit && region && region.pageGuid && currentPageGuid() && currentPageGuid() !== region.pageGuid) {
+    const pageGuid=isEdit && region ? region.pageGuid : origin.pageGuid;
+    if (pageGuid && currentPageGuid() !== pageGuid) {
       return feedback(tr('mgpt_wrong_page', '这个结果是为第 {from} 页生成的，当前在第 {now} 页。请切回第 {from} 页再点“应用”（不用重新生成）。',
-        { from: pageNumber(region.pageGuid), now: pageNumber(currentPageGuid()) }), true);
+        { from: pageNumber(pageGuid), now: pageNumber(currentPageGuid()) }), true);
     }
     if (isEdit && !regionUnchanged(c, region)) {
       return feedback(tr('mgpt_region_changed_regen', '画布或选中区域已经改变，请重新框选并生成。'), true);
     }
+    const stillCurrent = () => {
+      if(pageCanvas() !== c || c !== origin.canvas || c.getWidth() !== origin.width || c.getHeight() !== origin.height ||
+        !sessionCurrent(session) ||
+        (pageGuid && currentPageGuid() !== pageGuid) || state.result !== result ||
+        (isEdit && (state.region !== region || !regionUnchanged(c,region))))
+        throw new Error(tr('mgpt_apply_changed','页面、选区或结果在处理期间变化，已停止应用并保留候选图。请切回原页检查后再应用。'));
+    };
+    const checked=(id, fallback=true)=>$g(id) ? !!$g(id).checked : fallback;
+    const settings={allowUpscale:checked('mangaGptAllowUpscale',false),feather:checked('mangaGptFeather'),match:checked('mangaGptMatchTone'),
+      alpha:checked('mangaGptKeepAlpha'),lines:checked('mangaGptKeepLines'),change:checked('mangaGptChangeOnly'),override:checked('mangaGptReviewOverride',false)};
+    state.applying=true;
     $g('mangaGptApply').disabled = true;
     try {
       let image = await new Promise((resolve, reject) => {
-        fabric.Image.fromURL(state.result, img => {
+        fabric.Image.fromURL(result, img => {
           if (!img || !img.width || !img.height) reject(new Error(tr('mgpt_decode_failed', '生成图片解码失败。')));
           else resolve(img);
         });
       });
+      stillCurrent();
       const targetWidth = isEdit ? region.width : image.width;
       const targetHeight = isEdit ? region.height : image.height;
       // Edit: take the selection's own rectangle back out of the letterboxed result and
@@ -1358,7 +1488,7 @@
       let crop = isEdit ? resultCropRect(image.width, image.height, region) :
         { x: 0, y: 0, w: image.width, h: image.height };
       if (isEdit && (crop.w + 0.5 < region.width || crop.h + 0.5 < region.height) &&
-          !$g('mangaGptAllowUpscale').checked) {
+          !settings.allowUpscale) {
         throw new Error(tr('mgpt_upscale_blocked',
           '生成图片中对应选区的有效像素 ({cw} × {ch}) 小于选区 ({w} × {h})。已阻止低清晰度放大，可重新生成、缩小选区或勾选允许放大。',
           { cw: Math.floor(crop.w), ch: Math.floor(crop.h), w: region.width, h: region.height }));
@@ -1368,20 +1498,26 @@
       let scale = isEdit ? targetWidth / crop.w :
         Math.min(1, c.getWidth() / targetWidth, c.getHeight() / targetHeight);
       if (isEdit) {
-        const featherOn = !$g('mangaGptFeather') || $g('mangaGptFeather').checked;
+        const review=candidateContextReview(region,image.getElement());
+        if(review.needsReview) {
+          const choice=$g('mangaGptReviewChoice'); if(choice) choice.hidden=false;
+          if(!settings.override) throw new Error(tr('mgpt_context_review',
+            '候选图的周围画面出现明显变化，可能重新构图。结果已保留，请对比原图；可重新生成，或勾选“已检查构图，仍应用此候选图”后应用。此检查不能保证人物位置或身份一致。'));
+        }
+        const featherOn = settings.feather;
         const feather = featherOn ? featherPlan(region, c.getWidth(), c.getHeight()) : null;
-        const matchOn = !$g('mangaGptMatchTone') || $g('mangaGptMatchTone').checked;
+        const matchOn = settings.match;
         let offset = null;
         try {
           offset = matchOn ? estimateDrift(region.sentImage, image.getElement(), region.plan, region.contextBox, 48) : null;
         } catch (error) {
           offset = null;
         }
-        const keepAlpha = !$g('mangaGptKeepAlpha') || $g('mangaGptKeepAlpha').checked;
+        const keepAlpha = settings.alpha;
         const cw = Math.max(1, Math.round(crop.w)), ch = Math.max(1, Math.round(crop.h));
         const alphaMask = keepAlpha ? await loadAlphaMask(region.image, cw, ch) : null;
         alphaRestored = !!alphaMask;
-        const keepLines = !$g('mangaGptKeepLines') || $g('mangaGptKeepLines').checked;
+        const keepLines = settings.lines;
         const lineMask = keepLines ? await loadPanelLineMask(region.image, cw, ch) : null;
         linesKept = !!lineMask;
         const lassoMask = region.lasso ? lassoAlphaMask(region.lasso, region.width, region.height, cw, ch) :
@@ -1389,11 +1525,12 @@
         const mask = combineAlpha(combineAlpha(alphaMask, lineMask), lassoMask);
         // seam match on every interior side (page edges have nothing to match against)
         const seamSides = featherPlan(region, c.getWidth(), c.getHeight());
-        const changeOn = !$g('mangaGptChangeOnly') || $g('mangaGptChangeOnly').checked;
+        const changeOn = settings.change;
         const seam = (matchOn || changeOn) ? { orig: await loadRegionPixels(region.image, cw, ch), sides: matchOn ? seamSides : {}, changeOnly: changeOn } : null;
         const baked = bakePatch(image.getElement(), crop, scale, feather, offset, mask, seam);
         const sourceCrop = { x: +crop.x.toFixed(2), y: +crop.y.toFixed(2), w: +crop.w.toFixed(2), h: +crop.h.toFixed(2),
           resultWidth: image.width, resultHeight: image.height, feather: feather ? feather.width : 0,
+          contextReview:review,
           toneOffset: offset || [0, 0, 0], globalShift: seam && seam.shift ? seam.shift.map(Math.round) : null, changedFraction: seam ? seam.changedFraction : null, keepAlpha: alphaRestored, keepLines: linesKept,
           seamMatch: seam && seam.diffs ? Object.fromEntries(Object.entries(seam.diffs).map(([k, v]) => {
             let m = 0; for (let q = 0; q < v.length; q++) m = Math.max(m, Math.abs(v[q])); return [k, Math.round(m)]; })) : null };
@@ -1417,6 +1554,7 @@
       });
       image.set('mangaGptSource', 'openai-compatible-image');
       image.set('name', isEdit ? 'GPT 局部改图' : 'GPT 生图');
+      stillCurrent();
       if (typeof changeDoNotSaveHistory === 'function') changeDoNotSaveHistory();
       try {
         c.add(image);
@@ -1433,15 +1571,19 @@
       }
       if (typeof saveStateByManual === 'function') saveStateByManual();
       state.result = '';
+      state.resultContext = null;
+      resetCandidateReview();
       state.region = null;
       if ($g('mangaGptExpand')) $g('mangaGptExpand').hidden = true;
       state.appliedCount++;
-      feedback(tr('mgpt_applied', '已添加独立图层：取回选区对应部分并等比例缩放（不拉伸、不裁头）。原图和画布尺寸未改变，可撤销。') +
+      feedback(tr('mgpt_applied', '已添加独立图层：按上传选区的预定位置裁回并等比例缩放。原图和画布尺寸未改变，可撤销；人物位置与构图仍需检查预览。') +
         (alphaRestored ? tr('mgpt_alpha_restored', '已按原选区的透明区域恢复透明。') : '') +
         (linesKept ? tr('mgpt_lines_kept', '已保留选区内原有的分格线/边框。') : ''));
     } catch (error) {
-      feedback(error.message || tr('mgpt_insert_failed', '无法插入图层。'), true);
-      $g('mangaGptApply').disabled = false;
+      if(sessionCurrent(session)) feedback(error.message || tr('mgpt_insert_failed', '无法插入图层。'), true);
+    } finally {
+      state.applying=false;
+      if(sessionCurrent(session)) $g('mangaGptApply').disabled=!state.result;
     }
   }
 
@@ -1538,7 +1680,7 @@
         opt('mangaGptContext', 'mgpt_s_context', '带上周围画面', 'mgpt_context', '附带选区周围画面作为上下文（接缝更自然；会多上传选区外的少量画面）', true),
         opt('mangaGptMatchTone', 'mgpt_s_match_tone', '颜色跟周围对齐', 'mgpt_match_tone', '按周围画面校正模型整体偏色（用上下文边带测量，最多 ±48）', true),
         opt('mangaGptFeather', 'mgpt_s_feather', '边缘柔化', 'mgpt_feather', '选区边缘柔化（只在选区内侧过渡，选区外像素不变）', true),
-        opt('mangaGptChangeOnly', 'mgpt_s_change_only', '只换改动的部分', 'mgpt_change_only', '只替换模型真正改动的部分（没改的地方保留原图像素，不会出现浅色方块或接缝）', true)]),
+        opt('mangaGptChangeOnly', 'mgpt_s_change_only', '只换改动的部分', 'mgpt_change_only', '按局部颜色、纹理和线条方向估计改动范围，保留匹配区域原图像素；细微改动请对比预览，必要时关闭此项。', true)]),
       group('mgpt_g_protect', '保护内容', [
         opt('mangaGptKeepAlpha', 'mgpt_s_keep_alpha', '保留透明区域', 'mgpt_keep_alpha', '保留原选区的透明区域（透明背景/镂空处不被模型画成实色）', true),
         opt('mangaGptKeepLines', 'mgpt_s_keep_lines', '保留分格线', 'mgpt_keep_lines', '保留选区内的分格线/边框直线（模型常把它们抹掉；想改线条时取消勾选）', true),
@@ -1552,6 +1694,8 @@
       '<img id="mangaGptPreview" class="manga-gpt-preview" alt="' + t('mgpt_preview_alt', '当前框选或 GPT 生成预览') + '">',
       '<button type="button" id="mangaGptCompare" class="manga-gpt-compare" hidden aria-pressed="false" title="' +
         t('mgpt_compare_tip', '在原图和生成结果之间切换，确认后再应用') + '">' + t('mgpt_compare_show_original', '对比原图') + '</button>',
+      '<label id="mangaGptReviewChoice" hidden><input id="mangaGptReviewOverride" type="checkbox">' +
+        t('mgpt_review_override','已检查构图，仍应用此候选图（周围画面变化可能影响接缝）') + '</label>',
       '<details><summary>' + t('mgpt_subtitle_summary', '原生字幕修改（无需 API）') + '</summary><label>' + t('mgpt_subtitle_label', '替换选中文字图层') +
         '<input id="mangaGptSubtitle" type="text" placeholder="' + t('mgpt_subtitle_ph', '输入新的字幕内容') + '"></label>',
       '<button type="button" id="mangaGptReplaceText">' + t('mgpt_replace_btn', '替换文字并记录撤销') + '</button></details>',
@@ -1603,6 +1747,7 @@
       $g('mangaGptModelPreset').value = modelPresetFor(event.target.value.trim());
     });
     $g('mangaGptMode').addEventListener('change', () => {
+      invalidateSession();
       if ($g('mangaGptMode').value !== 'edit') cancelSelection();
       state.result = '';
       $g('mangaGptApply').disabled = true;
@@ -1640,7 +1785,7 @@
   // ---- Beginner task wizard hooks. The task launcher owns all wizard text; this only switches modes.
   const KEEP_IDS = ['mangaGptPrompt', 'mangaGptReferences', 'mangaGptGenerate', 'mangaGptCancel', 'mangaGptApply',
     'mangaGptPreview', 'mangaGptCompare', 'mangaGptStatus', 'mangaGptExpand', 'mangaGptClose', 'mangaGptCollapse',
-    'mangaGptServiceSummary', 'mangaGptTaskHead', 'mangaGptReferencesPickRow'];
+    'mangaGptServiceSummary', 'mangaGptTaskHead', 'mangaGptReferencesPickRow', 'mangaGptReviewChoice'];
   function tagAdvanced(el) {
     const keeps = KEEP_IDS.some(id => el.id === id || el.querySelector('#' + id));
     if (!keeps) { el.classList.add('mgpt-adv'); return; }
@@ -1650,6 +1795,7 @@
   function openTask(task) {
     const panel = $g('mangaGptPanel');
     if (!panel) return false;
+    invalidateSession();
     cancelSelection();
     state.task = { id: task.id, preset: String(task.preset || '') };
     panel.querySelectorAll('.mgpt-adv').forEach(e => e.classList.remove('mgpt-adv'));
@@ -1672,6 +1818,7 @@
   }
   function exitTask() {
     const panel = $g('mangaGptPanel');
+    invalidateSession();
     state.task = null;
     if (!panel) return;
     panel.classList.remove('is-simple');
@@ -1688,6 +1835,6 @@
 
   window.MangaGPTRegionEditor = { openTask, exitTask, setSimple, wizardState, normalizeRegion, startSelection, cancelSelection, selectRegionForTextRemoval, selectRegionForPanel, selectPolygon, pageImage, prepareManualEdit, useCharacterCard, referenceSummary,
     letterboxPlan, resultCropRect, letteringInsertIndex, isLettering, contextRect, featherPlan, featherAlpha, seamDiffs, applySeamMatch, globalShift, ringConfirmed, changeMask, estimateDrift, aspectMismatch,
-    findCutBoxes, expandRegion, effectiveSize, bakePatch, panelLineAlpha, combineAlpha, tr,
+    findCutBoxes, expandRegion, effectiveSize, bakePatch, panelLineAlpha, combineAlpha, geometryReview, tr,
     GPT_MODEL_PRESETS, GPT_DEFAULT_MODEL, modelPresetFor };
 })();

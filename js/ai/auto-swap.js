@@ -57,10 +57,10 @@
   function figureMask(change, own, others, w, h, grow) {
     const g = dilate(own, w, h, grow);
     const o = others ? dilate(others, w, h, Math.max(2, Math.round(grow / 2))) : null;
-    const near = others ? dilate(own, w, h, grow * 3) : null;   // with other people in the crop, only accept changes near the target
+    const near = dilate(own, w, h, grow * 3);
     const out = new Uint8ClampedArray(w * h);
     for (let i = 0; i < out.length; i++) {
-      let v = g[i] ? 255 : (near && !near[i] ? 0 : (change ? change[i] : 255));
+      let v = g[i] ? 255 : (!near[i] ? 0 : (change ? change[i] : 0));
       if (o && o[i] && !own[i]) v = 0;
       out[i] = v;
     }
@@ -149,7 +149,38 @@
   }
 
   const KEEP_EXPRESSION = ' Keep the facial expression (eyes open or closed, mouth shape, smile, tears, blush) and the head tilt and gaze direction exactly as in this image; the reference only defines who the character is, not their expression.';
-  const api = { targetHint, swapCrop, figureMask, PROMPT_SWAP, KEEP_OUTFIT, KEEP_EXPRESSION, identityMatches, fitCrop, fitCropIn, clipToPanel, descriptor, similarity };
+  function readSwapSettings(doc, refs) {
+    const node = id => doc.getElementById(id);
+    const checked = id => !node(id) || node(id).checked;
+    const value = id => String((node(id) || {}).value || '').trim();
+    return { keepOutfit: checked('autoSwapKeep'), keepExpression: checked('autoSwapExpr'), changeOnly: checked('autoSwapChangeOnly'),
+      note: value('autoSwapNote'), references: (refs || []).slice(), service: { baseUrl: value('mangaGptUrl'),
+        model: value('mangaGptModel') || 'gpt-image-1', key: value('mangaGptKey').replace(/^Bearer\s+/i, '') } };
+  }
+  function sessionMatches(session, active, pageGuid) {
+    return !!session && session === active && (!session.pageGuid || session.pageGuid === pageGuid);
+  }
+  function backgroundPixels(orig, allowed) {
+    const pixels = new Uint8ClampedArray(orig);
+    if (allowed) for (let i = 0; i < allowed.length; i++) if (allowed[i]) pixels[i * 4 + 3] = 0;
+    return pixels;
+  }
+  async function readReferenceFiles(files, Reader) {
+    const list = Array.from(files || []);
+    if (list.length > 3) throw new Error('最多上传 3 张参考图。');
+    list.forEach(file => {
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) throw new Error('参考图仅支持 PNG、JPEG、WebP。');
+      if (file.size > 12 * 1024 * 1024) throw new Error('单张参考图不得超过 12MB。');
+    });
+    return Promise.all(list.map(file => new Promise((resolve, reject) => {
+      const reader = new Reader();
+      reader.onload = () => /^data:image\/(png|jpeg|webp);base64,/.test(reader.result || '') ? resolve(reader.result) : reject(new Error('读取的参考图格式无效。'));
+      reader.onerror = () => reject(new Error('读取参考图失败，请重新选择图片。'));
+      reader.onabort = () => reject(new Error('读取参考图已取消。'));
+      reader.readAsDataURL(file);
+    })));
+  }
+  const api = { readReferenceFiles, backgroundPixels, sessionMatches, readSwapSettings, targetHint, swapCrop, figureMask, PROMPT_SWAP, KEEP_OUTFIT, KEEP_EXPRESSION, identityMatches, fitCrop, fitCropIn, clipToPanel, descriptor, similarity };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
   if (typeof document === 'undefined') { root.AutoSwap = api; return; }
 
@@ -158,6 +189,8 @@
   const gpt = () => root.MangaGPTRegionEditor;
   const fc = () => (typeof canvas !== 'undefined' ? canvas : null);
   let S = null; // wizard session
+  const pageGuid = () => typeof getCanvasGUID === 'function' ? getCanvasGUID() : null;
+  const currentSession = s => sessionMatches(s, S, pageGuid());
 
   function el(tag, attrs, html) { const e = document.createElement(tag); Object.entries(attrs || {}).forEach(([k, v]) => e.setAttribute(k, v)); if (html != null) e.innerHTML = html; return e; }
   function loadImg(src) { return new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error('图片解码失败。')); i.src = src; }); }
@@ -165,30 +198,37 @@
   function status(t, err) { const s = $('autoSwapStatus'); if (s) { s.textContent = t; s.classList.toggle('is-error', !!err); s.classList.toggle('is-busy', !err && /…$/.test(t)); } }
   function post(url, body, signal) { return root.MangaModelRequest.post(url, body, { signal }); }
 
-  async function gptEdit(image, prompt, size, references, signal) {
-    const key = (($('mangaGptKey') || {}).value || '').trim().replace(/^Bearer\s+/i, '');
-    const payload = { baseUrl: (($('mangaGptUrl') || {}).value || '').trim(), model: (($('mangaGptModel') || {}).value || '').trim() || 'gpt-image-1',
+  async function gptEdit(image, prompt, size, references, signal, service) {
+    service = service || readSwapSettings(document, []).service;
+    const key = service.key;
+    const payload = { baseUrl: service.baseUrl, model: service.model,
       operation: 'edit', prompt, size, image, references: references || [] };
     const base = location.protocol === 'file:' ? 'http://127.0.0.1:8000' : location.origin;
     // own deadline on top of the user's 取消: a hung relay must never leave the wizard spinning forever
     const limit = root.__autoSwapTimeoutMs || 330000;
     const ctl = new AbortController(); let timedOut = false;
     const timer = setTimeout(() => { timedOut = true; ctl.abort(); }, limit);
-    if (signal) { if (signal.aborted) ctl.abort(); else signal.addEventListener('abort', () => ctl.abort(), { once: true }); }
+    const abort = () => ctl.abort();
+    if (signal) { if (signal.aborted) ctl.abort(); else signal.addEventListener('abort', abort, { once: true }); }
     let r;
+    const timeoutError = () => { const e = new Error('图像服务 ' + Math.round(limit / 1000) + ' 秒没有完整响应，结果未知。画布没有改动，请先检查服务端记录，再决定是否重试。'); e.name = 'TimeoutError'; return e; };
+    try {
     try {
       r = await fetch(base + '/gpt-image-proxy', { method: 'POST', signal: ctl.signal,
         headers: Object.assign({ 'Content-Type': 'application/json' }, key ? { Authorization: 'Bearer ' + key } : {}), body: JSON.stringify(payload) });
     } catch (e) {
-      if (timedOut) { const t = new Error('图像服务 ' + Math.round(limit / 1000) + ' 秒没有响应（中转站可能卡住了）。画布没有改动，请稍后点「重试」。'); t.name = 'TimeoutError'; throw t; }
+      if (timedOut) throw timeoutError();
       throw e;
-    } finally { clearTimeout(timer); }
+    }
     let j = null; try { j = await r.json(); } catch (_) { /* below */ }
+    if (timedOut) throw timeoutError();
+    if (ctl.signal.aborted) { const e = new Error('已取消，结果未知，请先检查服务端记录。'); e.name = 'AbortError'; throw e; }
     if (!r.ok || !j || !j.ok || !/^data:image\//.test(j.image || '')) {
       const msg = (j && j.error) || ('图像服务返回 HTTP ' + r.status);
       throw new Error(root.ServiceRequest && root.ServiceRequest.describe ? root.ServiceRequest.describe('gpt', { status: r.status, body: j }) || msg : msg);
     }
     return j.image;
+    } finally { clearTimeout(timer); if (signal) signal.removeEventListener('abort', abort); }
   }
 
   // page pixels (lettering hidden) once per session
@@ -225,29 +265,38 @@
     const orig = crop.getContext('2d').getImageData(0, 0, r.w, r.h).data;
     const inCrop = (opts.others || []).filter(o => o.id !== ch.id && o.box[2] > r.x && o.box[0] < r.x + r.w && o.box[3] > r.y && o.box[1] < r.y + r.h);
     const prompt = PROMPT_SWAP + targetHint(ch, inCrop, r) + (opts.keepExpression !== false ? KEEP_EXPRESSION : '') + (opts.keepOutfit ? KEEP_OUTFIT : '') + (opts.note ? '\n' + opts.note : '');
-    const url = await gptEdit(cropUrl, prompt, r.size, opts.references, signal);
+    const url = await gptEdit(cropUrl, prompt, r.size, opts.references, signal, opts.service);
     const img = await loadImg(url);
     const c = cv(r.w, r.h), g = c.getContext('2d');
     g.drawImage(img, 0, 0, r.w, r.h);                       // crop has the request's aspect: 1:1 mapping
     const d = g.getImageData(0, 0, r.w, r.h);
     const w = r.w, h = r.h, n = w * h;
+    const sub = (full) => { const m = new Uint8Array(w * h); for (let y = 0; y < h; y++) { const sy = r.y + y; if (sy < 0 || sy >= pg.H) continue; for (let x = 0; x < w; x++) { const sx = r.x + x; if (sx >= 0 && sx < pg.W) m[y * w + x] = full[sy * pg.W + sx]; } } return m; };
+    let own;
+    if (ch.mask) own = sub(await maskArray(ch, pg.W, pg.H));
+    else {
+      own = new Uint8Array(n);
+      const box = ch.userBox || ch.box;
+      for (let y = Math.max(0, Math.floor(box[1] - r.y)); y < Math.min(h, Math.ceil(box[3] - r.y)); y++)
+        for (let x = Math.max(0, Math.floor(box[0] - r.x)); x < Math.min(w, Math.ceil(box[2] - r.x)); x++) own[y * w + x] = 1;
+    }
+    if (!own.some(Boolean)) throw new Error('人物选区为空，请重新选中人物或手动框选。');
+    let others = null;
+    for (const oc of (opts.others || [])) { if (!oc.mask || oc.id === ch.id) continue; const om = sub(await maskArray(oc, pg.W, pg.H)); others = others || new Uint8Array(n); for (let i = 0; i < om.length; i++) if (om[i]) others[i] = 1; }
+    if (signal && signal.aborted) { const e = new Error('已取消。'); e.name = 'AbortError'; throw e; }
+    const span = Math.max(ch.box[2] - ch.box[0], ch.box[3] - ch.box[1]);
+    const grow = Math.max(8, Math.round(span * 0.06));
+    const allowed = dilate(own, w, h, grow * 3);
     // edges touching the panel border are not blended (the border must stay the original line)
     const sides = { left: r.x > panel[0] + 4, right: r.x + w < panel[2] - 4, top: r.y > panel[1] + 4, bottom: r.y + h < panel[3] - 4 };
     const info = { crop: [r.x, r.y, w, h], size: r.size };
-    const shift = ed.globalShift ? ed.globalShift(d.data, orig, w, h) : null;   // uniform haze over the whole crop
+    if (ed.geometryReview) info.review = ed.geometryReview(d.data, orig, w, h, allowed);
+    const shift = ed.globalShift ? ed.globalShift(d.data, backgroundPixels(orig, allowed), w, h) : null;
     if (shift) { for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) d.data[i * 4 + k] = Math.max(0, Math.min(255, d.data[i * 4 + k] + shift[k])); info.shift = shift.map(Math.round); }
     let change = null;
     if (opts.changeOnly !== false && ed.changeMask) { change = ed.changeMask(d.data, orig, w, h); info.changed = change ? +change.changedFraction.toFixed(3) : 1; }
     // never split the figure: the whole old silhouette is replaced together with what changed; others protected
-    const sub = (full) => { const m = new Uint8Array(w * h); for (let y = 0; y < h; y++) { const sy = r.y + y; if (sy < 0 || sy >= pg.H) continue; for (let x = 0; x < w; x++) { const sx = r.x + x; if (sx >= 0 && sx < pg.W) m[y * w + x] = full[sy * pg.W + sx]; } } return m; };
-    let figure = null;
-    if (ch.mask) {
-      const own = sub(await maskArray(ch, pg.W, pg.H));
-      let others = null;
-      for (const oc of (opts.others || [])) { if (!oc.mask || oc.id === ch.id) continue; const om = sub(await maskArray(oc, pg.W, pg.H)); others = others || new Uint8Array(w * h); for (let i = 0; i < om.length; i++) if (om[i]) others[i] = 1; }
-      const span = Math.max(ch.box[2] - ch.box[0], ch.box[3] - ch.box[1]);
-      figure = figureMask(change, own, others, w, h, Math.max(8, Math.round(span * 0.06)));
-    } else if (change) figure = change;
+    const figure = figureMask(change, own, others, w, h, grow);
     if (ed.seamDiffs && ed.applySeamMatch) { const diffs = ed.seamDiffs(d.data, orig, w, h, sides); info.seamSides = Object.keys(diffs).length; ed.applySeamMatch(d.data, w, h, diffs); }
     const fw = Math.max(6, Math.round(Math.min(w, h) * 0.04));
     const alpha = new Uint8ClampedArray(n);
@@ -258,14 +307,22 @@
     clipToPanel(alpha, r, panel);
     for (let i = 0; i < n; i++) d.data[i * 4 + 3] = alpha[i];
     g.putImageData(d, 0, 0);
-    return { crop: r, layer: c.toDataURL('image/png'), before: cropUrl, info };
+    return { crop: r, layer: c.toDataURL('image/png'), before: cropUrl, info, pageGuid: opts.pageGuid };
   }
 
   /** Adds the swapped crop as one layer (one undo step), below lettering. */
-  function applyResult(res, label) {
+  function applyResult(res, label, validTask) {
     const c = fc();
-    return new Promise(resolve => {
-      fabric.Image.fromURL(res.layer, obj => {
+    const pageGuid = typeof getCanvasGUID === 'function' ? getCanvasGUID() : null;
+    const samePage = () => (!res.pageGuid || res.pageGuid === pageGuid) &&
+      (!pageGuid || typeof getCanvasGUID !== 'function' || getCanvasGUID() === pageGuid);
+    return new Promise((resolve, reject) => {
+      if (validTask && !validTask()) return reject(new Error('任务已经变化，候选保留，没有改动画布。'));
+      if (!samePage()) return reject(new Error('页面已经切换，请回到生成时的页面再应用。'));
+      fabric.Image.fromURL(res.layer, (obj, failed) => {
+        if (!obj || failed) return reject(new Error('换角色图层解码失败，请重新检查候选。'));
+        if (validTask && !validTask()) return reject(new Error('任务已经变化，候选保留，没有改动画布。'));
+        if (!samePage()) return reject(new Error('页面已经切换，候选保留，没有改动画布。'));
         obj.set({ left: res.crop.x, top: res.crop.y, name: '换角色' + (label || ''), autoSwap: 'character' });
         c.add(obj);
         if (gpt().letteringInsertIndex) { const idx = gpt().letteringInsertIndex(c.getObjects(), obj); if (idx < c.getObjects().indexOf(obj)) obj.moveTo(idx); }
@@ -334,17 +391,21 @@
   }
 
   async function pickAt(px, py) {
+    if (!S || S.busy) return;
+    const s = S;
     let ch = hit(px, py);
     if (!ch && root.SamClickSelect) {
       // not on a detected character: use SAM click-select for this spot (manual override)
       status('这里没有自动找到的人物，正在按你点的位置选…');
       const r = await post('/manga-smart/sam-click', { imageId: 'autoswap-' + S.pg.url.length, image: S.pg.url, points: [[px, py, 1]] });
+      if (!currentSession(s)) return;
       if (r && r.ok && r.candidates && r.candidates.length) {
         const cand = r.candidates[r.candidates.length > 1 ? 1 : 0];
         ch = { id: 'click', box: cand.box, polygon: cand.polygon, mask: cand.mask, area: cand.area, panel: panelOf(cand.box) };
         const twin = S.chars.filter(c => c.panel === ch.panel).map(c => ({ c, iou: boxIou(c.box, ch.box) })).sort((a, b) => b.iou - a.iou)[0];
         if (twin && twin.iou > 0.4) ch.identityId = twin.c.id;   // same person as a detected one: reuse its identity
         await maskArray(ch, S.pg.W, S.pg.H);
+        if (!currentSession(s)) return;
         ch.descriptor = descriptor(S.pg.data, ch.full, S.pg.W * S.pg.H);
         S.chars.push(ch);
       } else { status((r && r.error) || '没能选中，换个位置点一下。', true); return; }
@@ -392,70 +453,106 @@
 
   function step(n) { if (S && S.markStep) S.markStep(n); }
   function updateButtons() {
+    ['autoSwapRef', 'autoSwapKeep', 'autoSwapExpr', 'autoSwapChangeOnly', 'autoSwapNote', 'autoSwapBigger', 'autoSwapSmaller'].forEach(id => { const control = $(id); if (control) control.disabled = !!(S && S.busy); });
     const go = $('autoSwapGo'); if (go) go.disabled = !(S && S.target && S.refs.length) || S.busy;
-    const ap = $('autoSwapApply'); if (ap) ap.disabled = !(S && S.result) || S.busy;
+    const review = !!(S && S.result && S.result.info && S.result.info.review && S.result.info.review.needsReview);
+    const acknowledgement = $('autoSwapReviewAck');
+    if (acknowledgement && acknowledgement.parentElement) acknowledgement.parentElement.hidden = !review;
+    const ap = $('autoSwapApply'); if (ap) ap.disabled = !(S && S.result) || S.busy || (review && !(acknowledgement && acknowledgement.checked));
     const all = $('autoSwapAll'); if (all) all.disabled = !(S && S.target && S.refs.length && S.matches && S.matches.length) || S.busy;
   }
 
   async function runTarget() {
     if (!S || !S.target || S.busy) return;
-    S.busy = true; S.result = null; updateButtons(); step(2);
-    S.ctrl = new AbortController();
+    const s = S, target = s.target;
+    if (!currentSession(s)) return status('页面已经切换，请回到原页或重新打开换角色任务后生成。', true);
+    s.busy = true; s.result = null; s.resultTarget = null; updateButtons(); step(2);
+    s.ctrl = new AbortController();
+    const options = Object.assign(readSwapSettings(document, s.refs), { pageGuid: s.pageGuid, panel: (s.panels || [])[target.panel], others: s.chars.filter(c => c.panel === target.panel) });
+    if ($('autoSwapReviewAck')) $('autoSwapReviewAck').checked = false;
     const t0 = Date.now();
     const msg = () => '正在生成：按参考图在原位置重画这个人物（通常 30–90 秒，已等 ' + Math.round((Date.now() - t0) / 1000) + ' 秒，可点「取消」）…';
     status(msg());
-    const tick = setInterval(() => { if (S && S.busy) status(msg()); }, 1000);
+    const tick = setInterval(() => { if (currentSession(s) && s.busy) status(msg()); }, 1000);
     try {
-      S.result = await swapOne(S.pg, S.target, { keepOutfit: !!($('autoSwapKeep') || {}).checked, keepExpression: !!($('autoSwapExpr') || {}).checked, changeOnly: !!($('autoSwapChangeOnly') || {}).checked, panel: (S.panels || [])[S.target.panel], others: S.chars.filter(c => c.panel === S.target.panel), references: S.refs, note: ($('autoSwapNote') || {}).value || '' }, S.ctrl.signal);
-      await showPreview(S.result);
+      const result = await swapOne(s.pg, target, options, s.ctrl.signal);
+      if (!currentSession(s) || s.ctrl.signal.aborted) return;
+      s.result = result; s.resultTarget = target;
+      await showPreview(result, s);
+      if (!currentSession(s)) return;
       if ($('autoSwapGo')) $('autoSwapGo').textContent = '生成';
       step(3);
-      status('预览好了：点「对比原图」看前后；满意就点「应用」（放在一个新图层上，Ctrl+Z 可撤销）。');
+      status(result.info && result.info.review && result.info.review.needsReview ? '候选的周围画面变化较大，可能重新构图。请对比原图；确认能接受后勾选下面的检查项再应用。' : '预览好了：点「对比原图」看前后；满意就点「应用」（放在一个新图层上，Ctrl+Z 可撤销）。');
     } catch (e) {
+      if (!currentSession(s)) return;
       const aborted = e && e.name === 'AbortError';
       status(aborted ? '已取消，没有改动画布。' : (e && e.name === 'TimeoutError' ? '' : '生成失败：') + ((e && e.message) || e), !aborted);
       if (!aborted && $('autoSwapGo')) $('autoSwapGo').textContent = '重试';
-    } finally { clearInterval(tick); if (S) { S.busy = false; updateButtons(); } }
+    } finally { clearInterval(tick); s.busy = false; if (S === s) updateButtons(); }
   }
 
-  async function showPreview(res) {
+  async function showPreview(res, session) {
     const prev = $('autoSwapPreview'); if (!prev) return;
     const c = cv(res.crop.w, res.crop.h), g = c.getContext('2d');
-    g.drawImage(await loadImg(res.before), 0, 0); g.drawImage(await loadImg(res.layer), 0, 0);
+    const before = await loadImg(res.before), after = await loadImg(res.layer);
+    if (session && !currentSession(session)) return;
+    g.drawImage(before, 0, 0); g.drawImage(after, 0, 0);
     res.afterUrl = c.toDataURL('image/png');
     prev.src = res.afterUrl; prev.hidden = false; prev.dataset.showing = 'after';
     $('autoSwapCompare').hidden = false; $('autoSwapCompare').textContent = '对比原图';
   }
 
   async function applyTarget() {
-    if (!S || !S.result) return;
-    await applyResult(S.result, '');
-    S.applied = (S.applied || 0) + 1;
-    S.doneIds.add(S.target.id);
-    status('已应用：图层「换角色」（Ctrl+Z 撤销）。' + (S.matches && S.matches.length ? '下面还有其他格里的同一角色，可以一键换掉。' : ''));
-    S.result = null; $('autoSwapPreview').hidden = true; $('autoSwapCompare').hidden = true; updateButtons(); step(4);
-    if (S.onApplied) S.onApplied();
+    if (!S || !S.result || S.busy) return;
+    const s = S, result = s.result, target = s.resultTarget || s.target;
+    if (!currentSession(s)) return status('页面已经切换，请回到生成时的页面再应用。', true);
+    if (result.info && result.info.review && result.info.review.needsReview && !($('autoSwapReviewAck') || {}).checked) return status('请先对比原图并确认候选的构图变化。', true);
+    s.ctrl = new AbortController(); s.busy = true; updateButtons();
+    try {
+      await applyResult(result, '', () => currentSession(s) && s.result === result && !s.ctrl.signal.aborted);
+      if (!currentSession(s)) return;
+      s.applied = (s.applied || 0) + 1;
+      s.doneIds.add(target.id);
+      status('已应用：图层「换角色」（Ctrl+Z 撤销）。' + (s.matches && s.matches.length ? '下面还有其他格里的同一角色，可以一键换掉。' : ''));
+      s.result = null; s.resultTarget = null; $('autoSwapPreview').hidden = true; $('autoSwapCompare').hidden = true; step(4);
+      if (s.onApplied) s.onApplied();
+    } catch (e) { if (S === s) status(e.message || '应用失败，候选仍然保留。', true); }
+    finally { s.busy = false; if (S === s) updateButtons(); }
   }
 
   async function applyAll() {
     if (!S || S.busy) return;
+    const s = S;
+    if (!currentSession(s)) return status('页面已经切换，请重新打开换角色任务。', true);
     const rows = Array.from(document.querySelectorAll('#autoSwapMatches .auto-swap-match'));
     const picked = rows.filter(r => r.querySelector('input').checked).map(r => S.chars.find(c => c.id === r.dataset.id)).filter(Boolean);
-    const todo = (S.result ? [] : [S.target]).filter(t => !S.doneIds.has(t.id)).concat(picked.filter(c => !S.doneIds.has(c.id)));
+    const todo = (s.result ? [] : [s.target]).filter(t => t && !s.doneIds.has(t.id)).concat(picked.filter(c => !s.doneIds.has(c.id)));
     if (!todo.length) { status('勾选的格子都已经换好了。'); return; }
-    S.busy = true; updateButtons(); S.ctrl = new AbortController();
-    let ok = 0, fail = 0;
-    if (S.result) { await applyResult(S.result, ''); S.doneIds.add(S.target.id); S.result = null; ok++; }
+    if (s.result && s.result.info && s.result.info.review && s.result.info.review.needsReview && !($('autoSwapReviewAck') || {}).checked) return status('当前候选需要先对比确认，请检查后再批量替换。', true);
+    s.busy = true; updateButtons(); s.ctrl = new AbortController();
+    const options = Object.assign(readSwapSettings(document, s.refs), { pageGuid: s.pageGuid });
+    let ok = 0, fail = 0, paused = false, error = '';
+    try {
+    if (s.result) { await applyResult(s.result, '', () => currentSession(s) && !s.ctrl.signal.aborted); if (!currentSession(s)) return; s.doneIds.add((s.resultTarget || s.target).id); s.result = null; s.resultTarget = null; ok++; }
     for (const [i, ch] of todo.entries()) {
+      if (!currentSession(s) || s.ctrl.signal.aborted) break;
       status('正在换第 ' + (i + 1) + ' / ' + todo.length + ' 个（第 ' + (ch.panel + 1) + ' 格）…');
       try {
-        const res = await swapOne(S.pg, ch, { keepOutfit: !!($('autoSwapKeepAll') || {}).checked, keepExpression: !!($('autoSwapExpr') || {}).checked, changeOnly: !!($('autoSwapChangeOnly') || {}).checked, panel: (S.panels || [])[ch.panel], others: S.chars.filter(c => c.panel === ch.panel), references: S.refs, note: ($('autoSwapNote') || {}).value || '' }, S.ctrl.signal);
-        await applyResult(res, ' 第' + (ch.panel + 1) + '格'); S.doneIds.add(ch.id); ok++;
-      } catch (e) { if (e && e.name === 'AbortError') break; fail++; }
+        const res = await swapOne(s.pg, ch, Object.assign({}, options, { panel: (s.panels || [])[ch.panel], others: s.chars.filter(c => c.panel === ch.panel) }), s.ctrl.signal);
+        if (!currentSession(s) || s.ctrl.signal.aborted) break;
+        if (res.info && res.info.review && res.info.review.needsReview) {
+          s.result = res; s.resultTarget = ch; if ($('autoSwapReviewAck')) $('autoSwapReviewAck').checked = false;
+          await showPreview(res, s); paused = true; break;
+        }
+        await applyResult(res, ' 第' + (ch.panel + 1) + '格', () => currentSession(s) && !s.ctrl.signal.aborted); if (!currentSession(s)) return; s.doneIds.add(ch.id); ok++;
+      } catch (e) { if (e && e.name === 'AbortError') break; fail++; error = e.message || String(e); break; }
     }
-    S.busy = false; updateButtons(); step(4);
-    status('已换好 ' + ok + ' 个' + (fail ? '，' + fail + ' 个失败（可再点一次重试）' : '') + '。每个都是独立图层，可单独撤销或删除。', !!fail);
-    if (S.onApplied) S.onApplied();
+    if (!currentSession(s)) return;
+    step(paused ? 3 : 4);
+    status('已换好 ' + ok + ' 个' + (paused ? '，批量已暂停：当前候选可能重新构图，请对比确认后再继续。' : fail ? '，已停止后续请求：' + error + '。请检查再决定是否重试。' : s.ctrl.signal.aborted ? '，后续请求已取消。' : '。每个都是独立图层，可单独撤销或删除。'), !!fail);
+    if (s.onApplied && ok) s.onApplied();
+    } catch (e) { if (currentSession(s)) status(e.message || '批量替换中断，候选仍保留。', true); }
+    finally { s.busy = false; if (S === s) updateButtons(); }
   }
 
   function stop() {
@@ -471,14 +568,14 @@
   async function start(body, hooks) {
     stop();
     hooks = hooks || {};
-    S = { pad: 0.18, chars: [], refs: [], target: null, busy: false, doneIds: new Set(), markStep: hooks.markStep, onApplied: hooks.onApplied };
+    S = { pageGuid: pageGuid(), pad: 0.18, chars: [], refs: [], target: null, busy: false, doneIds: new Set(), markStep: hooks.markStep, onApplied: hooks.onApplied };
     body.innerHTML = '';
     body.appendChild(el('p', { id: 'autoSwapStatus', class: 'auto-swap-status', role: 'status', 'aria-live': 'polite' }, '正在准备…'));
     const refRow = el('label', { class: 'auto-swap-row' }, '新角色参考图 <input type="file" id="autoSwapRef" accept="image/*" multiple>');
     body.appendChild(refRow);
     body.appendChild(el('textarea', { id: 'autoSwapNote', rows: '2', placeholder: '补充要求（可不填），例如：表情改成微笑' }));
     body.appendChild(el('label', { class: 'auto-swap-row ui-muted' }, '<input type="checkbox" id="autoSwapExpr" checked> 保留原表情和姿势（推荐）'));
-    body.appendChild(el('label', { class: 'auto-swap-row ui-muted' }, '<input type="checkbox" id="autoSwapKeep"> 保留原服装（只换脸、发型和发色）'));
+    body.appendChild(el('label', { class: 'auto-swap-row ui-muted' }, '<input type="checkbox" id="autoSwapKeep" checked> 保留原服装（只换脸、发型和发色；所有格使用同一设置）'));
     body.appendChild(el('label', { class: 'auto-swap-row ui-muted' }, '<input type="checkbox" id="autoSwapChangeOnly" checked> 只替换变化的部分（背景保持原图像素）'));
     const boxRow = el('div', { class: 'auto-swap-row', id: 'autoSwapBoxRow', hidden: '' });
     boxRow.innerHTML = '<span class="ui-muted">修改范围：</span><button type="button" class="ui-btn ui-btn-ghost" id="autoSwapBigger">框大一点</button><button type="button" class="ui-btn ui-btn-ghost" id="autoSwapSmaller">框小一点</button><span class="ui-muted">（也可在画布上拖一个框）</span>';
@@ -491,9 +588,10 @@
     const prevWrap = el('div', { class: 'auto-swap-preview' });
     prevWrap.innerHTML = '<img id="autoSwapPreview" alt="换角色预览" hidden><button type="button" class="ui-btn ui-btn-ghost" id="autoSwapCompare" hidden>对比原图</button>';
     body.appendChild(prevWrap);
+    body.appendChild(el('label', { class: 'auto-swap-row ui-muted', hidden: '' }, '<input type="checkbox" id="autoSwapReviewAck"> 我已对比原图，接受这个候选的构图变化'));
     const mb = el('div', { id: 'autoSwapMatchBox', hidden: '' });
     mb.innerHTML = '<p class="auto-swap-sub">其他格里的同一角色（自动找到的，可取消勾选）</p><div id="autoSwapMatches"></div>' +
-      '<label class="auto-swap-row ui-muted"><input type="checkbox" id="autoSwapKeepAll" checked> 保留原服装（推荐：其他格的衣服、道具不变）</label>' +
+      '<p class="ui-muted">其他格沿用上面的服装、表情和背景保护设置。</p>' +
       '<button type="button" class="ui-btn" id="autoSwapAll" disabled>一键换掉勾选的格子</button>';
     body.appendChild(mb);
     if (hooks.manual) {
@@ -502,16 +600,23 @@
       body.appendChild(man);
     }
     $('autoSwapRef').addEventListener('change', async e => {
-      const files = Array.from(e.target.files || []).slice(0, 3);
-      S.refs = await Promise.all(files.map(f => new Promise(ok => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.readAsDataURL(f); })));
-      if (S.refs.length && S.target) status('参考图已就绪（' + S.refs.length + ' 张）。点「生成」开始。');
-      updateButtons();
+      const s = S;
+      if (!s || s.busy) return;
+      const version = s.refVersion = (s.refVersion || 0) + 1;
+      try {
+        const refs = await readReferenceFiles(e.target.files, FileReader);
+        if (!currentSession(s) || s.refVersion !== version) return;
+        s.refs = refs;
+        if (s.refs.length && s.target) status('参考图已就绪（' + s.refs.length + ' 张）。点「生成」开始。');
+      } catch (error) { if (currentSession(s) && s.refVersion === version) { s.refs = []; status(error.message || '参考图读取失败。', true); } }
+      if (S === s) updateButtons();
     });
     $('autoSwapGo').addEventListener('click', runTarget);
-    const resize = k => { if (!S || !S.target) return; S.pad = Math.max(0, Math.min(0.6, S.pad + k)); S.target.cropBox = null; drawPick(); };
+    const resize = k => { if (!S || !S.target || S.busy) return; S.pad = Math.max(0, Math.min(0.6, S.pad + k)); S.target.cropBox = null; drawPick(); };
     $('autoSwapBigger').addEventListener('click', () => resize(0.08));
     $('autoSwapSmaller').addEventListener('click', () => resize(-0.08));
     $('autoSwapApply').addEventListener('click', applyTarget);
+    $('autoSwapReviewAck').addEventListener('change', updateButtons);
     $('autoSwapAll').addEventListener('click', applyAll);
     $('autoSwapCancel').addEventListener('click', () => { if (S && S.ctrl) S.ctrl.abort(); });
     $('autoSwapCompare').addEventListener('click', () => {
@@ -531,7 +636,7 @@
       const h = hit(px, py); if (h !== s.hover) { s.hover = h; drawPick(); }
     });
     const toPage = e => { const b = s.ov.view.getBoundingClientRect(); return [Math.round((e.clientX - b.left) / s.ov.sx), Math.round((e.clientY - b.top) / s.ov.sy)]; };
-    s.ov.view.addEventListener('pointerdown', e => { e.preventDefault(); s.drag = { start: toPage(e) }; s.ov.view.setPointerCapture && s.ov.view.setPointerCapture(e.pointerId); });
+    s.ov.view.addEventListener('pointerdown', e => { e.preventDefault(); if (s.busy || !currentSession(s)) return; s.drag = { start: toPage(e) }; s.ov.view.setPointerCapture && s.ov.view.setPointerCapture(e.pointerId); });
     s.ov.view.addEventListener('pointermove', e => {
       if (!s.drag) return;
       const [x, y] = toPage(e), [x0, y0] = s.drag.start;

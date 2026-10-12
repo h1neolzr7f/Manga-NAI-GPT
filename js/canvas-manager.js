@@ -79,6 +79,8 @@ return;
 canvasContinerScale=scale;
 container.style.maxWidth="none";
 container.style.maxHeight="none";
+container.style.minHeight="0";
+container.style.flexShrink="0";
 container.style.width=cw+"px";
 container.style.height=ch+"px";
 container.style.transformOrigin="top left";

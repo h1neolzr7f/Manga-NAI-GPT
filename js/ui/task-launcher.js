@@ -244,7 +244,7 @@ return body;
 // ---------- start / stop ----------
 // GPT tasks need a configured service; without one, 服务设置 opens with a short hint instead of a failing wizard.
 // (修瑕疵 can run on local LaMa; AI 生图 has its own token step.)
-var NEEDS_GPT={swap:1,page:1,custom:1};
+var NEEDS_GPT={swap:1,custom:1};
 function start(id){
 var t=task(id);if(!t)return;
 if(id==='page'&&window.NaiEngine&&NaiEngine.configured()){startNow(id);return;}
@@ -275,6 +275,7 @@ else startNai(t);
 timer=setInterval(tick,400);
 }
 function stop(showHome){
+if(pageJob){pageJob.cancel=true;if(pageJob.ctl)pageJob.ctl.abort();}
 if(window.PanelAuto)PanelAuto.close();
 if(timer){clearInterval(timer);timer=null;}
 var was=active;active=null;
@@ -451,9 +452,11 @@ body.innerHTML='<div class="svc-row" role="radiogroup" aria-label="格子数">'+
 '<div id="taskPagePanels"></div>'+
 '<div class="task-engines" id="taskPageEngines" role="radiogroup" aria-label="用哪个 AI 画"><span class="ui-muted">用</span>'+
 '<button type="button" class="ui-btn" role="radio" data-eng="gpt">GPT</button><button type="button" class="ui-btn" role="radio" data-eng="nai">NovelAI</button>'+
-'<label class="ui-muted" title="每一格用同一个种子，画风更统一"><input type="checkbox" id="taskPageSeedLock"> 锁定种子</label>'+
+'<label class="ui-muted" title="每格及后续页复用保存的系列种子；种子不能保证人物一致"><input type="checkbox" id="taskPageSeedLock"'+(pageSeedLocked()?' checked':'')+'> 复用系列种子</label>'+
+'<button type="button" class="ui-btn ui-btn-ghost" id="taskPageNewSeries" title="重置系列种子和承接人物，保留剧本与每格输入">新系列</button>'+
 '<span class="task-engine-cost" id="taskPageEngineCost"></span></div>'+
 '<p class="ui-muted" id="taskPageCost"></p>'+
+'<p class="ui-muted" id="taskPageReferences">每格「出场人物」可指定角色或选空镜。自动承接只按文字推断，请核对每格人物名单。角色档案的外观与标签会作为文字约束；当前整页 NovelAI 路径不发送角色参考图片，仍需逐格检查一致性。</p>'+
 '<div class="svc-row"><button type="button" class="ui-btn ui-btn-primary" id="taskPageGo" disabled>生成整页</button>'+
 '<button type="button" class="ui-btn" id="taskPageCancel" hidden>停止</button></div>'+
 '<p id="taskPageStatus" role="status" class="ui-muted"></p>';
@@ -467,17 +470,61 @@ $('taskPage4').parentNode.appendChild(b);
 b.addEventListener('click',function(){pageLayout=r;choosePanels(n);});
 }).catch(function(){});
 $('taskPageGo').addEventListener('click',runPage);
+$('taskPageNewSeries').addEventListener('click',newPageSeries);
+$('taskPageSeedLock').addEventListener('change',function(e){try{localStorage.setItem('mnai.page.seedLock',e.target.checked?'1':'0');}catch(error){/* session only */}});
 body.querySelectorAll('[data-eng]').forEach(function(b){b.addEventListener('click',function(){setPageEngine(b.dataset.eng,true);});});
 setPageEngine(window.NaiEngine?NaiEngine.preferred('page',!!($('mangaGptUrl')&&$('mangaGptUrl').value.trim())):'gpt',false);
 $('taskScriptSplit').addEventListener('click',function(){applyScript($('taskScript').value);});
 $('taskScriptNext').addEventListener('click',function(){fillScriptPage(scriptQueue.shift());});
 $('taskPageCancel').addEventListener('click',function(){if(pageJob)pageJob.cancel=true;if(pageJob&&pageJob.ctl)pageJob.ctl.abort();});
+if(window.CharacterLibrary&&CharacterLibrary.loadCards)CharacterLibrary.loadCards().then(function(){if($('taskWizardBody')===body)refreshCastChoices();}).catch(function(){pageStatus('角色档案加载失败，请重新打开任务后重试。',true);});
 }
-// 角色库 characters named in a scene that have NovelAI tags -> V4 character prompts, placed right-to-left (manga order)
-function libraryCharacters(scene){
+function pageSeedLocked(){try{return localStorage.getItem('mnai.page.seedLock')==='1';}catch(error){return false;}}
+var seriesSeed=null;
+function pageSeriesSeed(){
+if(seriesSeed==null){try{var saved=localStorage.getItem('mnai.page.seriesSeed');if(saved!==null&&/^\d+$/.test(saved)&&Number(saved)<=4294967295)seriesSeed=Number(saved);}catch(error){/* session only */}}
+if(seriesSeed==null){seriesSeed=Math.floor(Math.random()*4294967295);try{localStorage.setItem('mnai.page.seriesSeed',String(seriesSeed));}catch(error){/* session only */}}
+return seriesSeed;
+}
+function newPageSeries(){
+if(pageJob){toast('正在生成','请先完成或停止本页，再开始新系列。',true);return false;}
+seriesSeed=null;try{localStorage.removeItem('mnai.page.seriesSeed');localStorage.removeItem('mnai.page.cast');}catch(error){/* session only */}
+pageSeriesSeed();updateCastPreview();toast('已开始新系列','系列种子与承接人物已重置，剧本和每格输入已保留。');return true;
+}
+function sceneCast(scene,lib,previous){
+scene=String(scene||'');
+if(/空镜|空无一人|无人(?=[，。！？、\s]|$)|没有人物|没有人|只有(?:风景|背景)|no (?:people|characters)|empty (?:shot|station|room|scene)|(?:scenery|landscape) only/i.test(scene))return [];
+var absent=lib.filter(function(c){var name=String(c.name||'').replace(/[.*+?^${}()|[\]\\]/g,'\\$&');return name&&new RegExp('(?:没有|无|不含|不画|without |no )'+name+'|'+name+'(?:不在|缺席|不出现|不出场|离开画面| absent| offscreen)','i').test(scene);});
+var named=lib.filter(function(c){return c.name&&scene.indexOf(c.name)>=0&&absent.indexOf(c)<0;}).sort(function(a,b){return scene.indexOf(a.name)-scene.indexOf(b.name);});
+return (named.length?named:(previous||[]).filter(function(c){return absent.indexOf(c)<0;})).slice(0,4);
+}
+// Text anchors survive pronouns and name-free follow-up actions. Scene text controls
+// positions: reading order or library order must never imply character coordinates.
+function libraryCharacters(scene,lib,previous){
+lib=lib||(window.CharacterLibrary&&CharacterLibrary._state&&CharacterLibrary._state.cards)||[];
+return sceneCast(scene,lib,previous).map(function(c){return {prompt:NaiEngineCore.joinTags(c.identity&&c.identity.tags,c.traits)};}).filter(function(c){return c.prompt;});
+}
+function castSelections(){
+var roles=Array.from(document.querySelectorAll('#taskPagePanels [data-cast-role]'));
+var result={};document.querySelectorAll('#taskPagePanels [data-cast-mode]').forEach(function(select){var i=select.dataset.castMode;result[i]={mode:select.value,ids:roles.filter(function(x){return x.checked&&x.dataset.castPanel===i;}).map(function(x){return x.dataset.castRole;})};});return result;
+}
+function pageCasts(scenes,lib,selection){
+var previous=[];try{var ids=JSON.parse(localStorage.getItem('mnai.page.cast')||'[]');previous=lib.filter(function(c){return ids.indexOf(c.id)>=0;});}catch(error){/* no prior cast */}
+return scenes.map(function(scene,i){var chosen=selection[i]||{mode:'auto'};previous=chosen.mode==='none'?[]:chosen.mode==='manual'?lib.filter(function(c){return chosen.ids.indexOf(c.id)>=0;}):sceneCast(scene,lib,previous);return previous;});
+}
+function updateCastPreview(){
 var lib=window.CharacterLibrary&&CharacterLibrary._state&&CharacterLibrary._state.cards||[];
-var hit=lib.filter(function(c){return c.identity&&c.identity.tags&&c.name&&scene.indexOf(c.name)>=0;}).slice(0,4);
-return hit.map(function(c,k){var x=hit.length===1?0.5:0.9-k*(0.8/(hit.length-1));return {prompt:c.identity.tags,center:NaiEngineCore.gridCenter(x,0.5)};});
+var scenes=Array.from(document.querySelectorAll('#taskPagePanels [data-scene]')).map(function(x){return x.value;});
+var casts=pageCasts(scenes,lib,castSelections());
+document.querySelectorAll('#taskPagePanels [data-cast-summary]').forEach(function(out){var cast=casts[Number(out.dataset.castSummary)]||[];out.textContent='本格人物：'+(cast.length?cast.map(function(c){return c.name;}).join('、'):'空镜 / 未推断出人物');});
+}
+function refreshCastChoices(){
+var lib=window.CharacterLibrary&&CharacterLibrary._state&&CharacterLibrary._state.cards||[];
+document.querySelectorAll('#taskPagePanels [data-cast-choices]').forEach(function(box){
+var selected=Array.from(box.querySelectorAll('input')).filter(function(x){return x.checked;}).map(function(x){return x.dataset.castRole;});box.innerHTML='';
+lib.forEach(function(c){var label=el('label',{class:'ui-muted'}),input=el('input',{type:'checkbox','data-cast-panel':box.dataset.castChoices,'data-cast-role':c.id});input.checked=selected.indexOf(c.id)>=0;label.appendChild(input);var text=el('span');text.textContent=c.name;label.appendChild(text);box.appendChild(label);
+input.addEventListener('change',function(){var select=document.querySelector('#taskPagePanels [data-cast-mode="'+box.dataset.castChoices+'"]');if(select)select.value='manual';updateCastPreview();});});
+});updateCastPreview();
 }
 var pageEngine='gpt';
 var GPT_STYLE='黑白日式漫画，清晰线稿，网点阴影，安全健康内容',NAI_STYLE='monochrome, greyscale, manga, screentone, clean lineart';
@@ -512,6 +559,7 @@ function fillScriptPage(pg){
 if(!pg)return;
 pageLayout=null;choosePanels(pg.panels.length);
 pg.panels.forEach(function(p,i){var w=ScriptPageCore.toWizard(p);var a=document.querySelector('#taskPagePanels [data-scene="'+i+'"]'),b=document.querySelector('#taskPagePanels [data-line="'+i+'"]');if(a)a.value=w.scene;if(b)b.value=w.line;});
+updateCastPreview();
 var nx=$('taskScriptNext');if(nx){nx.hidden=!scriptQueue.length;nx.textContent='下一页剧本（还剩 '+scriptQueue.length+' 页）';}
 }
 function choosePanels(n){
@@ -522,9 +570,13 @@ for(var i=0;i<n;i++){
 var f=el('fieldset',{class:'task-page-panel'});
 f.innerHTML='<legend>第 '+(i+1)+' 格</legend>'+
 '<textarea class="ui-textarea" rows="2" data-nai-prompt="one manga panel" data-scene="'+i+'" placeholder="画面，例如：清晨，少女在车站等车"></textarea>'+
-'<input class="ui-textarea" type="text" data-line="'+i+'" placeholder="对白（可不填；多句用 / 分开）">';
+'<input class="ui-textarea" type="text" data-line="'+i+'" placeholder="对白（可不填；多句用 / 分开）">'+
+'<label class="ui-field"><span>出场人物</span><select class="ui-input" data-cast-mode="'+i+'"><option value="auto">自动承接（核对下方名单）</option><option value="none">空镜 / 无人</option><option value="manual">指定人物（勾选下方角色）</option></select></label><div class="svc-row" data-cast-choices="'+i+'"></div><p class="ui-muted" data-cast-summary="'+i+'"></p>';
 box.appendChild(f);
 }
+box.querySelectorAll('[data-scene]').forEach(function(input){input.addEventListener('input',updateCastPreview);});
+box.querySelectorAll('[data-cast-mode]').forEach(function(select){select.addEventListener('change',updateCastPreview);});
+refreshCastChoices();
 $('taskPageGo').disabled=false;
 updatePageCost();
 markStep(1);
@@ -550,73 +602,99 @@ return p;
 }
 function loadFabricImage(url){return new Promise(function(res,rej){fabric.Image.fromURL(url,function(img){if(img&&img.width)res(img);else rej(new Error('图片读取失败。'));});});}
 async function runPage(){
-if(pageJob)return;
+if(pageJob||exporting)return;
 var scenes=Array.prototype.map.call(document.querySelectorAll('#taskPagePanels [data-scene]'),function(x){return x.value.trim();});
 var lines=Array.prototype.map.call(document.querySelectorAll('#taskPagePanels [data-line]'),function(x){return x.value.trim();});
 if(!scenes.length)return pageStatus('先选 3 格或 4 格。',true);
 var empty=scenes.indexOf('');
 if(empty>=0)return pageStatus('第 '+(empty+1)+' 格还没写画面。',true);
 var style=($('taskPageStyle').value||'').trim();
-if(pageEngine==='nai'&&!(window.NaiEngine&&NaiEngine.configured())){pageStatus('NovelAI 还没配置：已打开「服务设置」，填好 Token 后再点「生成整页」。',true);if(window.ServiceSettings)ServiceSettings.ensureReady('novelai');return;}
+var selection=castSelections();
+var engine=pageEngine;
+if(engine==='nai'&&!(window.NaiEngine&&NaiEngine.configured())){pageStatus('NovelAI 还没配置：已打开「服务设置」，填好 Token 后再点「生成整页」。',true);if(window.ServiceSettings)ServiceSettings.ensureReady('novelai');return;}
+var goBtn=$('taskPageGo'),cancelBtn=$('taskPageCancel'),statusNode=$('taskPageStatus');
+var job={cancel:false,ctl:null,canvas:canvas,guid:typeof getCanvasGUID==='function'?getCanvasGUID():null};pageJob=job;
+function samePage(){return canvas===job.canvas&&(typeof getCanvasGUID!=='function'||getCanvasGUID()===job.guid);}
+function sameTarget(){return samePage()&&(!job.panels||job.panels.every(function(p){return canvas.getObjects().indexOf(p)>=0;}));}
+function current(){return !job.cancel&&pageJob===job&&sameTarget();}
+function status(text,err){if($('taskPageStatus')===statusNode)pageStatus(text,err);}
+var key=(($('mangaGptKey')||{}).value||'').trim().replace(/^Bearer\s+/i,'');
+var gptUrl=(($('mangaGptUrl')||{}).value||'').trim(),gptModel=(($('mangaGptModel')||{}).value||'').trim();
+var settings=engine==='nai'?{model:NaiEngine.modelId(),ucPreset:Number((($('novelaiUcPreset')||{}).value)||0),quality:!$('novelaiQualityToggle')||$('novelaiQualityToggle').checked,safeMode:NaiEngine.safeMode(),preservePositiveStyle:true}:{};
+var lockSeed=$('taskPageSeedLock')&&$('taskPageSeedLock').checked?pageSeriesSeed():null;
+var layout=pageLayout?JSON.parse(JSON.stringify(pageLayout)):null;
 // say 'checking' synchronously so a stale '整页完成' never stands for this click while settings are checked
-var goBtn=$('taskPageGo');pageStatus('正在检查服务设置…');if(goBtn)goBtn.disabled=true;
-var gptOk=pageEngine!=='gpt'||!window.ServiceSettings||await ServiceSettings.ready('gpt');if(goBtn)goBtn.disabled=false;
-if(!gptOk){pageStatus('GPT 还没配置：已打开「服务设置」。也可以点上面的「NovelAI」改用 NovelAI。',true);ServiceSettings.ensureReady('gpt');return;}
-var lockSeed=$('taskPageSeedLock')&&$('taskPageSeedLock').checked?Math.floor(Math.random()*4294967295):null;
-pageJob={cancel:false,ctl:null};
-$('taskPageGo').disabled=true;$('taskPageCancel').hidden=false;
-markStep(2);
+status('正在检查服务设置…');if(goBtn)goBtn.disabled=true;if(cancelBtn)cancelBtn.hidden=false;
 try{
+var gptOk=engine!=='gpt'||!window.ServiceSettings||await ServiceSettings.ready('gpt');
+if(!current())return;
+if(!gptOk){status('GPT 还没配置：已打开「服务设置」。也可以点上面的「NovelAI」改用 NovelAI。',true);ServiceSettings.ensureReady('gpt');return;}
+var lib=window.CharacterLibrary&&CharacterLibrary.loadCards?await CharacterLibrary.loadCards():[];
+if(!current())return;
+lib=(lib||[]).map(function(c){return {id:c.id,name:c.name,traits:c.traits,identity:{tags:c.identity&&c.identity.tags}};});
+var casts=pageCasts(scenes,lib,selection),previous=casts[casts.length-1]||[];
+var characters=casts.map(function(cast){return libraryCharacters('',lib,cast);});
+markStep(2);
 var W=canvas.getWidth()/(canvas.getZoom()||1),H=canvas.getHeight()/(canvas.getZoom()||1);
 if(!(W>200&&H>200)){W=1200;H=1700;}
 if(canvas.getObjects().length&&typeof loadBookSize==='function'){
-pageStatus('正在新建一页…');
+status('正在新建一页…');
 await loadBookSize(1200,1700,false,true);
+job.canvas=canvas;job.guid=typeof getCanvasGUID==='function'?getCanvasGUID():null;
+if(!current())return;
 W=1200;H=1700;
 }else if(!canvas.getObjects().length&&typeof resizeCanvasToObject==='function'){W=1200;H=1700;resizeCanvasToObject(W,H);}
-var rects=pageLayout&&pageLayout.panels.length===scenes.length?
-pageLayout.panels.map(function(q){var kx=W/pageLayout.W,ky=H/pageLayout.H;return {left:Math.round(q.x*kx),top:Math.round(q.y*ky),width:Math.round(q.w*kx),height:Math.round(q.h*ky)};}):
+var rects=layout&&layout.panels.length===scenes.length?
+layout.panels.map(function(q){var kx=W/layout.W,ky=H/layout.H;return {left:Math.round(q.x*kx),top:Math.round(q.y*ky),width:Math.round(q.w*kx),height:Math.round(q.h*ky)};}):
 layoutRects(scenes.length,W,H);
 rects=readingSorted(rects);
 // the whole generated page is ONE history step: one Ctrl+Z takes it all back
-if(typeof changeDoNotSaveHistory==='function'){changeDoNotSaveHistory();pageJob.historyPaused=true;}
+if(typeof changeDoNotSaveHistory==='function'){changeDoNotSaveHistory();job.historyPaused=true;}
 var panels=rects.map(function(r,i){var p=makePanel(r,i+1);canvas.add(p);return p;});
+job.panels=panels;
 canvas.renderAll();
-var key=(($('mangaGptKey')||{}).value||'').trim().replace(/^Bearer\s+/i,'');
 var done=0,failed=[];
 for(var i=0;i<rects.length;i++){
-if(pageJob.cancel)break;
-pageStatus('正在画第 '+(i+1)+' / '+rects.length+' 格…');
-pageJob.ctl=new AbortController();
+if(!current())break;
+status('正在画第 '+(i+1)+' / '+rects.length+' 格…');
+job.ctl=new AbortController();
 try{
-var data=pageEngine==='nai'?await NaiEngine.run({prompt:NaiEngineCore.joinTags(style,scenes[i]),characters:libraryCharacters(scenes[i]),width:rects[i].width,height:rects[i].height,seed:lockSeed==null?undefined:lockSeed},pageJob.ctl.signal,pageStatus):
-await ServiceRequest.request('gpt','/gpt-image-proxy',{signal:pageJob.ctl.signal,timeoutMs:300000,headers:key?{Authorization:'Bearer '+key}:{},
-body:{operation:'generate',baseUrl:$('mangaGptUrl').value.trim(),model:$('mangaGptModel').value.trim(),size:sizeFor(rects[i]),
-prompt:pagePrompt(style,scenes[i])}});
+var naiPrompt=NaiEngineCore.joinTags(style,scenes[i]);
+if(engine==='nai'&&!NaiEngineCore.features(settings.model).characters)naiPrompt=NaiEngineCore.joinTags(naiPrompt,characters[i].map(function(c){return c.prompt;}).join(', '));
+var data=engine==='nai'?await NaiEngine.run(Object.assign({},settings,{prompt:naiPrompt,characters:characters[i],width:rects[i].width,height:rects[i].height,seed:lockSeed==null?undefined:lockSeed}),job.ctl.signal,status):
+await ServiceRequest.request('gpt','/gpt-image-proxy',{signal:job.ctl.signal,timeoutMs:300000,headers:key?{Authorization:'Bearer '+key}:{},
+body:{operation:'generate',baseUrl:gptUrl,model:gptModel,size:sizeFor(rects[i]),
+prompt:pagePrompt(style,scenes[i])+(characters[i].length?'\n本格人物须保持这些外观与服装特征：'+characters[i].map(function(c){return c.prompt;}).join('；'):'')}});
+if(!current())break;
 var img=await loadFabricImage(data.image);
+if(!current())break;
 img.name='第'+(i+1)+'格画面';if(data.seed!=null){img.naiSeed=data.seed;img.tempSeed=data.seed;img.tempPrompt=NaiEngineCore.joinTags(style,scenes[i]);}
 putImageInFrame(img,rects[i].left+rects[i].width/2,rects[i].top+rects[i].height/2,true,false,true,panels[i]);
 done++;
-}catch(error){failed.push(i+1);var em=error.userMessage||error.message||'';pageStatus('第 '+(i+1)+' 格没画成：'+(pageEngine==='gpt'&&window.NaiEngine&&NaiEngine.isRefusal(em)?'这个 GPT 服务按它自己的内容规则拒绝了这一格（不是本编辑器的限制）。可以点上面的「NovelAI」改用 NovelAI 再生成。':em),true);if(pageEngine==='gpt'&&window.NaiEngine&&NaiEngine.isRefusal(em))pageJob.refused=true;if(error.status===401||error.network||(pageEngine==='nai'&&error.name!=='AbortError'))break;}
+}catch(error){if(error.name==='AbortError')job.cancel=true;if(!current())break;failed.push(i+1);var em=error.userMessage||error.message||'';status('第 '+(i+1)+' 格没画成：'+(engine==='gpt'&&window.NaiEngine&&NaiEngine.isRefusal(em)?'这个 GPT 服务按它自己的内容规则拒绝了这一格（不是本编辑器的限制）。可以点上面的「NovelAI」改用 NovelAI 再生成。':em),true);if(engine==='gpt'&&window.NaiEngine&&NaiEngine.isRefusal(em))job.refused=true;if(error.status===401||error.network||engine==='nai')break;}
 canvas.renderAll();
 }
-if(lines.some(Boolean)&&!pageJob.cancel&&window.BalloonLayout){
-pageStatus('正在排对白气泡（避开人脸，按阅读顺序）…');
-try{var bl=await BalloonLayout.layoutPage(rects,lines);window.__lastBalloonLayout=bl;}
-catch(error){pageStatus('对白气泡没排好：'+(error.message||error),true);}
+if(!sameTarget())return;
+if(lines.some(Boolean)&&current()&&window.BalloonLayout){
+status('正在排对白气泡（避开人脸，按阅读顺序）…');
+try{var info=await BalloonLayout.analyze();if(!current())return;var bl=await BalloonLayout.layoutPage(rects,lines,info);window.__lastBalloonLayout=bl;}
+catch(error){status('对白气泡没排好：'+(error.message||error),true);}
 }
+if(!sameTarget())return;
 if(typeof updateLayerPanel==='function')updateLayerPanel();
-if(pageJob.historyPaused&&typeof changeDoSaveHistory==='function'){changeDoSaveHistory();pageJob.historyPaused=false;}
+if(job.historyPaused&&typeof changeDoSaveHistory==='function'){changeDoSaveHistory();job.historyPaused=false;}
 if(typeof saveStateByManual==='function')saveStateByManual();
 // register/refresh this page in the page bar now (otherwise it only appears once another page is made)
 if(typeof btmSaveProjectFile==='function'){try{await btmSaveProjectFile(null,false);}catch(e){/* thumbnail is best-effort */}}
-if(pageJob.cancel)pageStatus('已停止：画好 '+done+' 格。');
-else if(failed.length)pageStatus('画好 '+done+' 格；第 '+failed.join('、')+' 格没成功，'+(pageJob.refused?'GPT 服务按它自己的内容规则拒绝了（不是本编辑器的限制），可以点上面的「NovelAI」改用 NovelAI 再生成。':'可以用「改一块」→「自由修改」重画那一格。'),true);
-else{collapseForm();pageStatus('整页完成：'+done+' 格画面和对白气泡都是独立图层，可直接拖动或修改（Ctrl+Z 可撤销）。');markStep(3,true);}
+if(!sameTarget())return;
+if(job.cancel)status('已停止：画好 '+done+' 格。');
+else if(failed.length)status('画好 '+done+' 格；第 '+failed.join('、')+' 格没成功，'+(job.refused?'GPT 服务按它自己的内容规则拒绝了（不是本编辑器的限制），可以点上面的「NovelAI」改用 NovelAI 再生成。':'可以用「改一块」→「自由修改」重画那一格。'),true);
+else{try{localStorage.setItem('mnai.page.cast',JSON.stringify(previous.map(function(c){return c.id;})));}catch(error){/* session only */}collapseForm();status('整页完成：'+done+' 格画面和对白气泡都是独立图层，可直接拖动或修改（Ctrl+Z 可撤销）。');markStep(3,true);}
+}catch(error){if(!job.cancel)status('整页生成失败：'+(error.message||error),true);
 }finally{
-if(pageJob&&pageJob.historyPaused&&typeof changeDoSaveHistory==='function'){changeDoSaveHistory();if(typeof saveStateByManual==='function')saveStateByManual();}
-pageJob=null;
-if($('taskPageGo')){$('taskPageGo').disabled=false;$('taskPageCancel').hidden=true;}
+if(job.historyPaused&&typeof changeDoSaveHistory==='function'){changeDoSaveHistory();if(samePage()&&typeof saveStateByManual==='function')saveStateByManual();}
+if(pageJob===job)pageJob=null;
+if(goBtn)goBtn.disabled=false;if(cancelBtn)cancelBtn.hidden=true;
 }
 }
 
@@ -657,6 +735,7 @@ function dataUrlBytes(u){var b=atob(String(u).split(',')[1]||'');var a=new Uint8
 var exporting=false;
 async function exportAll(){
 if(exporting)return null;
+if(pageJob){toast('正在画一页','请先完成或停止生成，再导出页面。',true);return null;}
 if(typeof btmProjectsMap==='undefined'||typeof JSZip==='undefined'){toast('导出全部','页面还没加载完，请稍等再试。',true);return null;}
 if(!hasPage()&&!btmProjectsMap.size){toast('没有可导出的页面','先导入图片或用「画一页漫画」做一页。',true);return null;}
 exporting=true;var btn=$('taskExportAll');if(btn)btn.disabled=true;
@@ -667,8 +746,7 @@ var ids=pageOrder(),zip=new JSZip(),n=0;
 for(var i=0;i<ids.length;i++){
 if(ids.length>1||ids[i]!==back)await chengeCanvasByGuid(ids[i],false);
 if(typeof removeGrid==='function')removeGrid();
-var link=await ImageUtil.getCropAndDownloadLink('png');
-if(typeof restoreGridAfterExport==='function')restoreGridAfterExport();
+var link;try{link=await ImageUtil.getCropAndDownloadLink('png');}finally{if(typeof restoreGridAfterExport==='function')restoreGridAfterExport();}
 zip.file('page-'+String(i+1).padStart(2,'0')+'.png',dataUrlBytes(link.href));n++;
 }
 var lz4=await lz4Compressor.mergeLz4Blobs(Array.from(btmProjectsMap.values()).map(function(d){return d.blob;}));
@@ -680,7 +758,7 @@ setTimeout(function(){URL.revokeObjectURL(a.href);},5000);
 toast('已导出 '+n+' 页','zip 里是每页 PNG 和项目文件（用「文件 › 打开项目」可继续编辑）。');
 return {pages:n,bytes:blob.size};
 }catch(e){toast('导出失败',(e&&e.message)||'生成导出文件时出错，请重试。',true);return null;}
-finally{exporting=false;if(btn)btn.disabled=false;}
+finally{try{if(back&&btmProjectsMap.has(back)&&getCanvasGUID()!==back)await chengeCanvasByGuid(back,false);}catch(error){toast('恢复页面失败',error.message||String(error),true);}exporting=false;if(btn)btn.disabled=false;}
 }
 
 function registerHiddenTasks(){

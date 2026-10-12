@@ -89,10 +89,10 @@ return true;
 function selectWholePage(){
 var current=canvas();
 var factory=root.NaiComicExtraRendererFactory;
-if(!current||!factory)return false;
+if(!current)return false;
 var active=typeof current.getActiveObject==='function'?current.getActiveObject():null;
 var pageId=active&&active.simulatorPageId;
-if(!pageId&&factory.resolvePage){
+if(!pageId&&factory&&factory.resolvePage){
 var resolved=factory.resolvePage(active,current);
 pageId=resolved&&resolved.simulatorPageId;
 }
@@ -102,7 +102,16 @@ for(var i=objects.length-1;i>=0;i--){
 if(objects[i]&&objects[i].simulatorPageId){pageId=objects[i].simulatorPageId;break;}
 }
 }
-return selectPageById(pageId);
+if(pageId&&factory&&typeof factory.selectPage==='function')return selectPageById(pageId);
+var layers=typeof current.getObjects==='function'?current.getObjects().filter(function(item){return item&&!isCanvasInitPlaceholder(item)&&item.visible!==false&&item.selectable!==false;}):[];
+if(!layers.length)return false;
+if(layers.length>1&&(!root.fabric||!root.fabric.ActiveSelection))return false;
+exitDrawing();
+if(typeof current.discardActiveObject==='function')current.discardActiveObject();
+current.setActiveObject(layers.length===1?layers[0]:new root.fabric.ActiveSelection(layers,{canvas:current}));
+if(typeof current.requestRenderAll==='function')current.requestRenderAll();
+flashHelp('已选中整页可编辑图层。拖一下就能一起移动。');
+return true;
 }
 
 function isCanvasInitPlaceholder(item){

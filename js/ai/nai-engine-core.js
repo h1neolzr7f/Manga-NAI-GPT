@@ -62,7 +62,11 @@
     const size = sizeFor(opts.width || 1024, opts.height || 1024);
     const uc = UC_PRESETS[opts.ucPreset == null ? 0 : opts.ucPreset] || UC_PRESETS[0];
     const prompt = opts.quality === false ? String(opts.prompt || '').trim() : joinTags(opts.prompt, QUALITY_TAGS);
-    const negative = joinTags(uc.text, opts.negative, opts.safeMode ? 'nsfw' : '');
+    // Page generation opts in to retaining its explicit manga style. Only preset defaults
+    // are reconciled; a user's own negative prompt is never silently changed.
+    const styleTags = opts.preservePositiveStyle ? String(opts.prompt || '').split(',').map(t => t.trim().toLowerCase()) : [];
+    const presetText = uc.text.split(',').map(t => t.trim()).filter(t => !(['screentone', 'halftone'].includes(t) && styleTags.includes(t))).join(', ');
+    const negative = joinTags(presetText, opts.negative, opts.safeMode ? 'nsfw' : '');
     const chars = (opts.characters || []).filter(c => c && String(c.prompt || '').trim()).slice(0, 6);
     const useCoords = chars.some(c => c.center);
     const seed = Number.isFinite(opts.seed) && opts.seed >= 0 ? Math.floor(opts.seed) : Math.floor(Math.random() * 4294967295);

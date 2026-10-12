@@ -423,17 +423,32 @@ async function run() {
   record('tone matching removes model colour drift measured on the context ring',
     tone.raw.applied && tone.matched.applied && tone.raw.inside > 20 && tone.matched.inside < tone.raw.inside / 2 &&
     tone.matched.offset.every(v => v <= -20) && tone.matched.outside === 0, tone);
-  // Recomposed result (mirrored + tinted): ring does not match, so no global tint is applied.
+  // Recomposed protected context must remain a reviewable candidate until explicitly approved.
   mock.flip = true;
   await page.locator('#mangaGptMatchTone').setChecked(true);
   await dragSelect(page, [300, 900], [900, 1200]);
   const flipRes = await generateAndApply(page);
+  const retained = await page.evaluate(() => ({
+    result: MangaGPTRegionEditor.wizardState().result,
+    preview: document.querySelector('#mangaGptPreview').src,
+    overrideVisible: !document.querySelector('#mangaGptReviewChoice').hidden,
+    overrideChecked: document.querySelector('#mangaGptReviewOverride').checked
+  }));
+  record('mirrored surroundings block application and keep a reviewable candidate',
+    !flipRes.applied && /周围画面出现明显变化/.test(flipRes.status) && retained.result &&
+    retained.preview.startsWith('data:image/') && retained.overrideVisible && !retained.overrideChecked,
+    { ...flipRes, ...retained, preview: retained.preview.startsWith('data:image/') });
+  await page.locator('#mangaGptReviewOverride').setChecked(true);
+  const beforeOverride = await page.evaluate(() => canvas.getObjects().length);
+  await page.locator('#mangaGptApply').click();
+  await page.waitForFunction(n => canvas.getObjects().length === n + 1, beforeOverride, { timeout: 60000 });
   const flipInfo = await patchInfo(page);
   mock.flip = false;
   await page.evaluate(() => undo());
   await page.waitForTimeout(800);
-  record('tone matching is skipped when the model recomposed the surroundings',
-    flipRes.applied && flipInfo.crop.toneOffset.every(v => v === 0), { offset: flipInfo.crop.toneOffset });
+  record('reviewed override permits the candidate without incorrect global tint',
+    flipInfo && flipInfo.crop.toneOffset.every(v => v === 0) && flipInfo.crop.contextReview.needsReview,
+    { offset: flipInfo && flipInfo.crop.toneOffset, review: flipInfo && flipInfo.crop.contextReview });
   mock.tint = 0;
   record('feathered edge reduces seam from colour drift, outside untouched',
     seams.hard.applied && seams.feather.applied && seams.feather.seam < seams.hard.seam / 4 &&

@@ -1,0 +1,38 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Canvas view footprint regression</title>
+<link rel="stylesheet" href="../css/visual-studio.css">
+<style>
+body{background:#202020;color:white;font:14px sans-serif;margin:20px}
+.fixture{height:700px;display:flex;flex-direction:column;margin-bottom:8px}
+.view{flex:1;min-height:0;overflow:auto;background:#444}
+.page{height:1000px;width:200px;background:white}
+</style>
+<h1>Canvas toolbar view regression</h1>
+<pre id="testResults">Running…</pre>
+<div id="fixtures"></div>
+<script>
+(async function(){
+const results=[];
+try{
+const source=await (await fetch('../index.html')).text();
+const toolbar=new DOMParser().parseFromString(source,'text/html').getElementById('naiToolOptionsBar');
+for(const width of [1138,780,340]){
+const shell=document.createElement('div');shell.className='fixture';shell.style.width=width+'px';
+const bar=toolbar.cloneNode(true);
+bar.querySelector('#naiToolOptionsControls').innerHTML='<button>框选</button><button>裁剪</button><button>笔刷</button><button>橡皮</button><button>刀</button>';
+const view=document.createElement('div');view.className='view';view.innerHTML='<div class="page"></div>';
+shell.append(bar,view);document.getElementById('fixtures').append(shell);
+view.scrollTop=128;
+const before=view.getBoundingClientRect(),strip=bar.querySelector('#naiPropStrip');
+strip.hidden=false;
+const selected=view.getBoundingClientRect();
+strip.hidden=true;
+const cleared=view.getBoundingClientRect();
+const pass=Math.abs(selected.top-before.top)<0.5&&Math.abs(selected.height-before.height)<0.5&&Math.abs(cleared.top-before.top)<0.5&&view.scrollTop===128&&bar.getBoundingClientRect().height<=50;
+results.push({width,pass,topDelta:selected.top-before.top,heightDelta:selected.height-before.height,toolbarHeight:bar.getBoundingClientRect().height,scrollTop:view.scrollTop});
+}
+document.getElementById('testResults').textContent=JSON.stringify({pass:results.every(r=>r.pass),results},null,2);
+}catch(error){document.getElementById('testResults').textContent='ERROR: '+error.message;}
+})();
+</script>

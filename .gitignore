@@ -187,6 +187,9 @@ local_tools/*.log
 # Local test artifacts (Playwright screenshots / traces)
 artifacts/
 
+# Generated local verification fixtures
+work/
+
 # ---- secrets / local config (never commit) ----
 .env.*
 !.env.example

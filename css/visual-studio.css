@@ -1,9 +1,16 @@
 .nai-tool-options-bar{
 display:flex;
 align-items:center;
-flex-wrap:wrap;
+flex-wrap:nowrap;
 gap:8px;
-min-height:34px;
+height:44px;
+min-height:44px;
+max-height:44px;
+flex:0 0 44px;
+box-sizing:border-box;
+overflow-x:auto;
+overflow-y:hidden;
+scrollbar-width:thin;
 padding:4px 10px;
 background:rgba(15,23,42,.72);
 border-bottom:1px solid rgba(148,163,184,.18);
@@ -11,9 +18,12 @@ color:#e2e8f0;
 font-size:12px;
 line-height:1.35;
 }
+.nai-tool-options-bar::-webkit-scrollbar{height:6px;}
+.nai-tool-options-bar::-webkit-scrollbar-track{background:rgba(15,23,42,.35);}
+.nai-tool-options-bar::-webkit-scrollbar-thumb{background:rgba(148,163,184,.5);border-radius:4px;}
 .nai-tool-options-main{
-flex:1 1 auto;
-min-width:0;
+flex:1 0 180px;
+min-width:180px;
 white-space:nowrap;
 overflow:hidden;
 text-overflow:ellipsis;
@@ -21,10 +31,10 @@ opacity:.95;
 }
 .nai-tool-options-controls{
 display:flex;
-flex-wrap:wrap;
+flex-wrap:nowrap;
 gap:6px;
 align-items:center;
-flex:0 1 auto;
+flex:0 0 auto;
 }
 .nai-tool-options-controls button,
 .nai-tool-options-controls label{
@@ -315,10 +325,10 @@ border-color:#38bdf8;
 }
 .nai-prop-strip{
 display:flex;
-flex-wrap:wrap;
+flex-wrap:nowrap;
 align-items:center;
 gap:8px;
-flex:0 1 auto;
+flex:0 0 auto;
 }
 .nai-prop-strip[hidden]{display:none !important;}
 .nai-prop-strip label{

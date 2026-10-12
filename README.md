@@ -19,7 +19,7 @@ Manga-NAI-GPT 是基于 [Manga Editor Desu](https://github.com/new-sankaku/manga
 
 ## 功能
 
-当前版本 **1.6**：首页 6 个任务，外加角色库、自动对白气泡、Ctrl+K 命令面板和带缩略图的历史、PSD 导入导出。1.6 起「改一块」「画一页」也可以用 NovelAI 画（支持 V5），生成前显示要花多少 Anlas。详见 [CHANGELOG](CHANGELOG.md)。
+当前版本 **1.6.1（本机修复版）**：首页 6 个任务，外加角色库、自动对白气泡、Ctrl+K 命令面板和带缩略图的历史、PSD 导入导出。1.6 起「改一块」「画一页」也可以用 NovelAI 画（支持 V5），生成前显示要花多少 Anlas。详见 [CHANGELOG](CHANGELOG.md)。
 
 | 任务 | 做什么 | 需要 |
 |---|---|---|
@@ -99,7 +99,7 @@ Manga-NAI-GPT 是基于 [Manga Editor Desu](https://github.com/new-sankaku/manga
 - **换角色在复杂多人画格里不稳定**：偶尔会改到同格另一个人或比例不自然，请先看「对比原图」再应用。
 - **自动找格子需要白色格间留白**：无边框、满版出血、黑底分格要手动框选。
 - **本机 AI 只用 CPU**：首次人物识别 20–60 秒，内存 < 8 GB 的电脑会偏慢。
-- **Windows 尚未在真实电脑上完整验证**：每次提交 CI 都会在 `windows-latest` 上真正运行「一键启动.bat」（从带空格和中文的路径启动，检查页面和本机接口），但还没在真人电脑上逐项试过。见 [docs/dev/WINDOWS_READINESS.md](docs/dev/WINDOWS_READINESS.md)。
+- **Windows 本机基础链路已验证**：本修复版已在 Windows 实机验证启动、导入、画布缩放、任务入口和响应式工具栏；完整图像推理、本机 OCR/LaMa 模型及不同 Windows 环境仍需各自验证。参见本机修复的回归记录与 [WINDOWS_READINESS](docs/dev/WINDOWS_READINESS.md)。
 - 「改一块 → 换成…」已用真实 gpt-image-2.5 验证（3 张候选约 35 秒）：涂到的地方换得自然、格框不受影响；但**只改涂到的地方**，物体如果超出涂抹范围，露在外面的部分会保持原样（例如雨伞只有涂到的一截变红）。要换整个物体请把它整个涂满。黑白页上换成彩色物体时，涂抹范围里的其他东西也可能被轻微上色。角色库自动带参考的真实效果还没有在 1.5 上重新验证。
 - NovelAI 选 V5 时，「改一块」的局部重绘暂时用 V4.5 重绘模型（V5 重绘接口还没验证）。「换角色」还只能用 GPT。
 - 彩色页导出 PSD 约 16–18 MB（无损）；黑白页约 6 MB。

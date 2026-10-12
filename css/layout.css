@@ -19,7 +19,7 @@
  overflow: auto;
  display: var(--display-flex);
  align-items: flex-start;
- justify-content: var(--justify-content-center);
+ justify-content: safe center;
 }
 
 .canvas-container {

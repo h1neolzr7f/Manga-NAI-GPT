@@ -18,21 +18,30 @@ if(textarea[PATCHED_FLAG])return;
 textarea[PATCHED_FLAG]=true;
 var originalFocus=textarea.focus;
 textarea.focus=function(options){
-var opts=options&&typeof options==="object"?options:{preventScroll:true};
+var opts=Object.assign({},options&&typeof options==="object"?options:{});
 if(opts.preventScroll===undefined)opts.preventScroll=true;
-var scroller=document.scrollingElement||document.documentElement||document.body;
-var left=scroller?scroller.scrollLeft:null;
-var top=scroller?scroller.scrollTop:null;
+var positions=[];
+function remember(scroller){
+if(scroller&&!positions.some(function(item){return item.node===scroller;})){
+positions.push({node:scroller,left:scroller.scrollLeft,top:scroller.scrollTop});
+}
+}
+var ancestor=this.parentElement;
+while(ancestor){remember(ancestor);ancestor=ancestor.parentElement;}
+remember(document.scrollingElement||document.documentElement||document.body);
 var result;
+try{
 try{
 result=originalFocus.call(this,opts);
 }catch(error){
 result=originalFocus.call(this);
 }
+}finally{
 // preventScroll を黙って無視する実装への保険。動いた時だけ戻す。
-if(scroller&&left!==null&&(scroller.scrollLeft!==left||scroller.scrollTop!==top)){
-scroller.scrollLeft=left;
-scroller.scrollTop=top;
+positions.forEach(function(item){
+if(item.node.scrollLeft!==item.left)item.node.scrollLeft=item.left;
+if(item.node.scrollTop!==item.top)item.node.scrollTop=item.top;
+});
 }
 return result;
 };

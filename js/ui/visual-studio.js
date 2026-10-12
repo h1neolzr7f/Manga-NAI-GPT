@@ -464,6 +464,12 @@ if(typeof document==='undefined'||document.documentElement.getAttribute('data-na
 document.documentElement.setAttribute('data-nai-visual','1');
 var controls=$('naiToolOptionsControls');
 if(controls)controls.addEventListener('click',onOptionsClick);
+var optionsBar=$('naiToolOptionsBar');
+if(optionsBar){
+optionsBar.tabIndex=0;
+optionsBar.setAttribute('role','toolbar');
+optionsBar.setAttribute('aria-label','画布工具与图层属性（可横向滚动）');
+}
 bindPropStrip();
 [
 'toggleVisibility','selectMoveTool','selectEraserTool','selectMarqueeTool','selectSidebarBrush',
