@@ -40,7 +40,7 @@
 | `ToneNoiseButton` | index.html:1884 |  |
 | `ToneRainButton` | index.html:1892 |  |
 | `ToneSnowButton` | index.html:1888 |  |
-| `a` | index.html:63 | index.html:72, js/ai/manga-character-bible-ui.js:151, js/ai/manga-page-structure-ui.js:338, js/ai/panel-pipeline-review.js:151, js/assets/asset-pack.js:8, js/core/compression/lz4.js:207, js/core/util/image-util.js:658, js/dashboard/dashboard-ui.js:968, js/local-tools/background-removal-client.js:494, js/project-management.js:43, js/sidebar/pen/pen-tools.js:638, js/simulator/chat-controller.js:295, js/simulator/longshot-exporter.js:29, js/simulator/simulator-controller.js:100, js/simulator/story-composer-controller.js:264, js/svg/manga-panels-image-vertical.js:3, js/ui/imagePromptHelper/image-prompt-helper.js:119, js/ui/psd-io.js:101, js/ui/task-launcher.js:756, js/ui/third/ag-psd/ag-psd.js:7332, scripts/auto-swap-session-test.cjs:16, scripts/auto-swap-test.cjs:38, scripts/history-labels-test.cjs:6, scripts/manga-bubble-detector-test.cjs:42, scripts/model-progress-test.cjs:8, scripts/nai-engine-core-test.cjs:43, scripts/novelai-readable-error-test.cjs:35, scripts/service-request-test.cjs:41, scripts/simulator-timeline-smoke-test.cjs:7, scripts/task-page-continuity-test.cjs:29 |
+| `a` | index.html:63 | index.html:72, js/ai/manga-character-bible-ui.js:151, js/ai/manga-page-structure-ui.js:338, js/ai/panel-pipeline-review.js:151, js/assets/asset-pack.js:8, js/core/compression/lz4.js:207, js/core/util/image-util.js:658, js/dashboard/dashboard-ui.js:968, js/local-tools/background-removal-client.js:494, js/project-management.js:43, js/sidebar/pen/pen-tools.js:638, js/simulator/chat-controller.js:295, js/simulator/longshot-exporter.js:29, js/simulator/simulator-controller.js:100, js/simulator/story-composer-controller.js:264, js/svg/manga-panels-image-vertical.js:3, js/ui/imagePromptHelper/image-prompt-helper.js:119, js/ui/psd-io.js:101, js/ui/task-launcher.js:756, js/ui/third/ag-psd/ag-psd.js:7332, scripts/audit/round6-simulator-audit-repro.cjs:41, scripts/auto-swap-session-test.cjs:16, scripts/auto-swap-test.cjs:38, scripts/history-labels-test.cjs:6, scripts/manga-bubble-detector-test.cjs:42, scripts/model-progress-test.cjs:8, scripts/nai-engine-core-test.cjs:43, scripts/novelai-readable-error-test.cjs:35, scripts/service-request-test.cjs:41, scripts/simulator-timeline-smoke-test.cjs:7, scripts/task-page-continuity-test.cjs:29 |
 | `add` | index.html:788 | js/ai/manga-lama-inpaint-ui.js:9, js/ai/prompt-assist-core.js:119, js/ai/prompt-assist.js:200, js/core/svg/google-icon-names.js:12, js/layer/blend/blend.js:3, js/ui/third/base-translation/base-de.js:147, js/ui/third/base-translation/base-en.js:152, js/ui/third/base-translation/base-es.js:147, js/ui/third/base-translation/base-fr.js:147, js/ui/third/base-translation/base-ja.js:152, js/ui/third/base-translation/base-ko.js:147, js/ui/third/base-translation/base-ru.js:147, js/ui/third/base-translation/base-zh.js:153, scripts/prompt-assist-core-test.cjs:31, scripts/tone-target-apply-test.cjs:14 |
 | `addHeart` | index.html:892 | js/ui/visual-studio.js:478 |
 | `addHexagon` | index.html:884 | js/ui/visual-studio.js:478 |
@@ -57,7 +57,7 @@
 | `apiHeartbeatCheckbox` | index.html:309 | js/ai/ai-management.js:83, js/ai/ai-settings.js:418, js/project-management.js:248 |
 | `apiSettingsUrlHelpe` | index.html:2172 |  |
 | `applyFlexGenSizeBtn` | index.html:1001 | js/sidebar/panel/panel-template.js:229 |
-| `asset-library-area` | index.html:1370 | js/sidebar/sidebar.js:84, js/ui/visual-studio.js:338 |
+| `asset-library-area` | index.html:1370 | js/sidebar/sidebar.js:84, js/ui/visual-studio.js:338, scripts/audit/round6-ui-audit-repro.cjs:70 |
 | `assetLibraryExportButton` | index.html:1380 | js/assets/asset-library-controller.js:270 |
 | `assetLibraryGroups` | index.html:1384 | js/assets/asset-library-controller.js:240 |
 | `assetLibraryImportButton` | index.html:1381 | js/assets/asset-library-controller.js:272 |
@@ -72,7 +72,7 @@
 | `assetLibrarySearch` | index.html:1398 | js/assets/asset-library-controller.js:86 |
 | `assetLibraryStatus` | index.html:1400 | js/assets/asset-library-controller.js:34 |
 | `assetLibraryTags` | index.html:1399 | js/assets/asset-library-controller.js:87 |
-| `auto-generate-area` | index.html:914 | js/sidebar/sidebar.js:81, js/ui/task-launcher.js:131 |
+| `auto-generate-area` | index.html:914 | js/sidebar/sidebar.js:81, js/ui/task-launcher.js:131, scripts/audit/round6-ui-audit-repro.cjs:70 |
 | `autoSaveCheckbox` | index.html:291 | js/core/auto-save.js:233, js/project-management.js:249 |
 | `autoSaveInterval` | index.html:294 | js/core/auto-save.js:239, js/project-management.js:250 |
 | `backgroundRemovalAction` | index.html:1322 | js/core/settings.js:94, js/local-tools/background-removal-client.js:70 |
@@ -126,13 +126,13 @@
 | `canvasEmptyHintTemplate` | index.html:2139 |  |
 | `clearMode` | index.html:2064 | js/ui/beginner-guide.js:49, js/ui/third/base-translation/base-de.js:262, js/ui/third/base-translation/base-en.js:268, js/ui/third/base-translation/base-es.js:262, js/ui/third/base-translation/base-fr.js:262, js/ui/third/base-translation/base-ja.js:267, js/ui/third/base-translation/base-ko.js:262, js/ui/third/base-translation/base-ru.js:262, js/ui/third/base-translation/base-zh.js:268, js/ui/third/tippy.js:90, js/ui/util/mode-manager.js:359 |
 | `cloudButton` | index.html:1707 |  |
-| `control-area` | index.html:1913 | js/sidebar/sidebar.js:94 |
+| `control-area` | index.html:1913 | js/sidebar/sidebar.js:94, scripts/audit/round6-ui-audit-repro.cjs:70 |
 | `control-preview-area` | index.html:1915 |  |
 | `controls` | index.html:2164 | js/project-management.js:674, js/shortcut.js:75, js/sidebar/panel/panel-manager.js:640, js/ui/beginner-guide.js:364 |
 | `customPanelSizeX` | index.html:749 | js/project-management.js:253, js/sidebar/panel/panel-template.js:163, js/ui/third/base-translation/base-de.js:332, js/ui/third/base-translation/base-en.js:338, js/ui/third/base-translation/base-es.js:331, js/ui/third/base-translation/base-fr.js:332, js/ui/third/base-translation/base-ja.js:337, js/ui/third/base-translation/base-ko.js:332, js/ui/third/base-translation/base-ru.js:332, js/ui/third/base-translation/base-zh.js:344 |
 | `customPanelSizeY` | index.html:754 | js/project-management.js:254, js/sidebar/panel/panel-template.js:164, js/ui/third/base-translation/base-de.js:333, js/ui/third/base-translation/base-en.js:339, js/ui/third/base-translation/base-es.js:332, js/ui/third/base-translation/base-fr.js:333, js/ui/third/base-translation/base-ja.js:338, js/ui/third/base-translation/base-ko.js:333, js/ui/third/base-translation/base-ru.js:333, js/ui/third/base-translation/base-zh.js:345 |
 | `cutChangeRate` | index.html:987 | js/project-management.js:290, js/sidebar/panel/knife/knife-split-engine.js:73, js/ui/third/base-translation/base-de.js:117, js/ui/third/base-translation/base-en.js:122, js/ui/third/base-translation/base-es.js:117, js/ui/third/base-translation/base-fr.js:117, js/ui/third/base-translation/base-ja.js:121, js/ui/third/base-translation/base-ko.js:117, js/ui/third/base-translation/base-ru.js:117, js/ui/third/base-translation/base-zh.js:123 |
-| `cutout-area` | index.html:1286 | js/layer/layer-button.js:30, js/local-tools/background-removal-client.js:519, js/sidebar/sidebar.js:90, js/ui/canvas-object-menu.js:554, js/ui/task-launcher.js:131, js/ui/visual-studio.js:335 |
+| `cutout-area` | index.html:1286 | js/layer/layer-button.js:30, js/local-tools/background-removal-client.js:519, js/sidebar/sidebar.js:90, js/ui/canvas-object-menu.js:554, js/ui/task-launcher.js:131, js/ui/visual-studio.js:335, scripts/audit/round6-ui-audit-repro.cjs:70 |
 | `cutoutHealthButton` | index.html:1358 | js/local-tools/background-removal-client.js:478 |
 | `cutoutOriginalPreview` | index.html:1363 | js/local-tools/background-removal-client.js:191 |
 | `cutoutPresetDeleteButton` | index.html:1301 | js/local-tools/background-removal-client.js:488 |
@@ -261,10 +261,10 @@
 | `left-control` | index.html:1944 | js/ui/control/common-control-management.js:3 |
 | `mLandscapeButton` | index.html:941 |  |
 | `mPortraitButton` | index.html:938 |  |
-| `manga-effect-area` | index.html:1747 | js/sidebar/sidebar.js:92, js/ui/visual-studio.js:326 |
+| `manga-effect-area` | index.html:1747 | js/sidebar/sidebar.js:92, js/ui/visual-studio.js:326, scripts/audit/round6-ui-audit-repro.cjs:70 |
 | `manga-effect-buttons` | index.html:1750 |  |
 | `manga-effect-settings` | index.html:1795 | js/sidebar/effect/effect-manager.js:117, js/ui/glfx-ui.js:198 |
-| `manga-tone-area` | index.html:1876 | js/sidebar/sidebar.js:91, js/ui/task-launcher.js:131, js/ui/visual-studio.js:324, scripts/full-feature-e2e.cjs:272 |
+| `manga-tone-area` | index.html:1876 | js/sidebar/sidebar.js:91, js/ui/task-launcher.js:131, js/ui/visual-studio.js:324, scripts/audit/round6-ui-audit-repro.cjs:70, scripts/full-feature-e2e.cjs:272 |
 | `manga-tone-buttons` | index.html:1879 |  |
 | `manga-tone-settings` | index.html:1906 | js/sidebar/tone/tone-manager.js:164 |
 | `mangaImageCanvas` | index.html:2125 | js/assets/asset-library-controller.js:195, js/core/settings.js:10 |
@@ -396,7 +396,7 @@
 | `novelaiUseLocalProxy` | index.html:2324 | js/ai/ai-settings.js:196, js/ai/provider/novelai-provider.js:30, js/project-management.js:210, js/ui/service-settings.js:209, scripts/nai-real-acceptance.cjs:104 |
 | `onePanelGenerateNumber` | index.html:1115 | js/ai/prompt/auto/auto-generation.js:4, js/project-management.js:291, js/ui/third/base-translation/base-ja.js:37, js/ui/third/i18next.js:74 |
 | `opacity-control` | index.html:1953 | js/ui/control/common-control-management.js:3 |
-| `other-controls-mini` | index.html:2234 | js/ui/ai/auto-prompt-ui.js:83 |
+| `other-controls-mini` | index.html:2234 | js/ui/ai/auto-prompt-ui.js:83, scripts/audit/round6-prompt-routing-audit-repro.cjs:12 |
 | `otherControlsPanel` | index.html:2231 |  |
 | `outputBitDepth` | index.html:439 | js/canvas-manager.js:256, js/core/util/image-util.js:618, js/project-management.js:205, js/ui/third/base-translation/base-de.js:405, js/ui/third/base-translation/base-en.js:485, js/ui/third/base-translation/base-es.js:478, js/ui/third/base-translation/base-fr.js:480, js/ui/third/base-translation/base-ja.js:410, js/ui/third/base-translation/base-ko.js:480, js/ui/third/base-translation/base-ru.js:479, js/ui/third/base-translation/base-zh.js:492, scripts/image-export-smoke-test.cjs:368 |
 | `outputBitDepthHint` | index.html:445 | js/canvas-manager.js:264, js/ui/third/base-translation/base-de.js:409, js/ui/third/base-translation/base-en.js:489, js/ui/third/base-translation/base-es.js:482, js/ui/third/base-translation/base-fr.js:484, js/ui/third/base-translation/base-ja.js:414, js/ui/third/base-translation/base-ko.js:484, js/ui/third/base-translation/base-ru.js:483, js/ui/third/base-translation/base-zh.js:496, scripts/image-export-smoke-test.cjs:368 |
@@ -424,7 +424,7 @@
 | `pagePaperPreset` | index.html:808 | js/sidebar/page/page-studio.js:505 |
 | `pagePaperReveal` | index.html:816 | js/sidebar/page/page-studio.js:548 |
 | `pagePaperSwatches` | index.html:805 | js/sidebar/page/page-studio.js:575 |
-| `panel-manager-area` | index.html:728 | js/sidebar/sidebar.js:80, js/ui/beginner-guide.js:187, js/ui/visual-studio.js:328 |
+| `panel-manager-area` | index.html:728 | js/sidebar/sidebar.js:80, js/ui/beginner-guide.js:187, js/ui/visual-studio.js:328, scripts/audit/round6-ui-audit-repro.cjs:70 |
 | `panel-manager-items` | index.html:730 |  |
 | `panelFillColor` | index.html:780 | js/project-management.js:256, js/sidebar/page/page-studio.js:456, js/sidebar/panel/panel-manager.js:527, js/simulator/story-to-manga.js:89 |
 | `panelLayoutModeRandom` | index.html:954 |  |
@@ -445,8 +445,8 @@
 | `prompt-A` | index.html:2197 | js/ai/ui/ai-ui-util.js:3 |
 | `prompt-E` | index.html:2211 | js/ai/ui/ai-ui-util.js:4 |
 | `prompt-F` | index.html:2222 | js/ai/ui/ai-ui-util.js:5 |
-| `prompt-manager-area` | index.html:1412 | js/sidebar/sidebar.js:82, js/ui/task-launcher.js:131 |
-| `ps-tools-area` | index.html:1808 | js/ui/task-launcher.js:131, js/ui/visual-studio.js:332 |
+| `prompt-manager-area` | index.html:1412 | js/sidebar/sidebar.js:82, js/ui/task-launcher.js:131, scripts/audit/round6-ui-audit-repro.cjs:70 |
+| `ps-tools-area` | index.html:1808 | js/ui/task-launcher.js:131, js/ui/visual-studio.js:332, scripts/audit/round6-ui-audit-repro.cjs:70 |
 | `pwa-install-button` | index.html:585 | js/core/service/worker-register.js:85 |
 | `redo` | index.html:2156 | html/Shortcut/shortcut.html:66, js/core/command-history.js:141, js/core/svg/google-icon-names.js:12, js/ui/task-launcher.js:85, js/ui/third/base-translation/base-de.js:316, js/ui/third/base-translation/base-en.js:322, js/ui/third/base-translation/base-es.js:315, js/ui/third/base-translation/base-fr.js:316, js/ui/third/base-translation/base-ja.js:321, js/ui/third/base-translation/base-ko.js:316, js/ui/third/base-translation/base-ru.js:316, js/ui/third/base-translation/base-zh.js:328, js/ui/third/tippy.js:92 |
 | `resetFlexGenSizeBtn` | index.html:1002 | js/sidebar/panel/panel-template.js:237 |
@@ -488,7 +488,7 @@
 | `sfxPaletteList` | index.html:1666 | js/sidebar/text/sfx-palette.js:107, js/ui/visual-studio.js:93 |
 | `sfxPaletteStyle` | index.html:1669 | js/sidebar/text/sfx-palette.js:127 |
 | `shadowButton` | index.html:1683 |  |
-| `shape-area` | index.html:1979 | js/sidebar/sidebar.js:93, js/ui/task-launcher.js:131, js/ui/visual-ps-tools.js:162, js/ui/visual-studio.js:330, scripts/full-feature-e2e.cjs:194, scripts/ux-screenshots.cjs:35 |
+| `shape-area` | index.html:1979 | js/sidebar/sidebar.js:93, js/ui/task-launcher.js:131, js/ui/visual-ps-tools.js:162, js/ui/visual-studio.js:330, scripts/audit/round6-ui-audit-repro.cjs:70, scripts/full-feature-e2e.cjs:194, scripts/ux-screenshots.cjs:35 |
 | `shape-preview-area` | index.html:1981 |  |
 | `shortcutGrid` | index.html:2267 | js/shortcut.js:319 |
 | `shortcutModal` | index.html:2259 | js/shortcut.js:360 |
@@ -536,7 +536,7 @@
 | `simStudioWebLoad` | index.html:3038 | js/simulator/simulator-studio.js:1057 |
 | `simStudioWebTemplate` | index.html:3016 | js/simulator/simulator-studio.js:445 |
 | `simStudioWork` | index.html:2990 | js/simulator/simulator-studio.js:829 |
-| `simulator-chat-area` | index.html:1140 | js/sidebar/sidebar.js:83, js/ui/beginner-guide.js:206, js/ui/task-launcher.js:131 |
+| `simulator-chat-area` | index.html:1140 | js/sidebar/sidebar.js:83, js/ui/beginner-guide.js:206, js/ui/task-launcher.js:131, scripts/audit/round6-ui-audit-repro.cjs:70 |
 | `simulator-extra-section` | index.html:1249 |  |
 | `simulator-playback-section` | index.html:1188 |  |
 | `simulatorChatAddMessageButton` | index.html:1232 | js/simulator/chat-controller.js:334 |
@@ -574,7 +574,7 @@
 | `skewX-control` | index.html:1947 | js/ui/control/common-control-management.js:3 |
 | `skewY-control` | index.html:1950 | js/ui/control/common-control-management.js:3 |
 | `sp-manga-toastContainer` | index.html:2255 | js/ui/toast.js:14, scripts/nai-real-acceptance.cjs:112, scripts/novice-task-e2e.cjs:411 |
-| `speech-bubble-area` | index.html:1443 | js/sidebar/sidebar.js:85, js/sidebar/speechBubble/speech-bubble-effect.js:304, js/ui/visual-studio.js:317, scripts/full-feature-e2e.cjs:168 |
+| `speech-bubble-area` | index.html:1443 | js/sidebar/sidebar.js:85, js/sidebar/speechBubble/speech-bubble-effect.js:304, js/ui/visual-studio.js:317, scripts/audit/round6-ui-audit-repro.cjs:70, scripts/full-feature-e2e.cjs:168 |
 | `speech-bubble-area1` | index.html:1449 | js/sidebar/sidebar.js:48, js/sidebar/speechBubble/speech-bubble-effect.js:304 |
 | `speech-bubble-area2` | index.html:1494 | js/sidebar/sidebar.js:49 |
 | `speech-bubble-preview` | index.html:1488 | js/sidebar/panel/panel-manager.js:401, js/sidebar/speechBubble/speech-bubble-effect.js:138, js/ui/visual-studio.js:92 |
@@ -601,7 +601,7 @@
 | `storyComposerTemplate` | index.html:1168 | js/simulator/simulator-studio.js:951, js/simulator/story-composer-controller.js:95 |
 | `storyComposerTitle` | index.html:1154 | js/simulator/story-composer-controller.js:110 |
 | `storyComposerTypes` | index.html:1157 | js/simulator/story-composer-controller.js:272 |
-| `svg-container-template` | index.html:703 | js/sidebar/panel/panel-manager.js:389, js/sidebar/sidebar.js:4, js/sidebar/speechBubble/speech-bubble-effect.js:294, js/ui/beginner-guide.js:195, js/ui/task-launcher.js:147, js/ui/visual-studio.js:315, scripts/novice-task-e2e.cjs:1222 |
+| `svg-container-template` | index.html:703 | js/sidebar/panel/panel-manager.js:389, js/sidebar/sidebar.js:4, js/sidebar/speechBubble/speech-bubble-effect.js:294, js/ui/beginner-guide.js:195, js/ui/task-launcher.js:147, js/ui/visual-studio.js:315, scripts/audit/round6-ui-audit-repro.cjs:70, scripts/novice-task-e2e.cjs:1222 |
 | `svg-preview-area-landscape` | index.html:724 | js/sidebar/sidebar.js:106, js/sidebar/speechBubble/speech-bubble-effect.js:137, js/ui/visual-studio.js:91 |
 | `svg-preview-area-vertical` | index.html:723 | js/sidebar/sidebar.js:105, js/sidebar/speechBubble/speech-bubble-effect.js:136, js/ui/visual-studio.js:90 |
 | `svgDownload` | index.html:267 | js/project-management.js:716, scripts/full-feature-e2e.cjs:260 |
@@ -619,8 +619,8 @@
 | `table-header` | html/functionList.html:42 | html/functionList.html:293 |
 | `template-orientation-toggle` | index.html:707 | js/sidebar/sidebar.js:104, js/sidebar/speechBubble/speech-bubble-effect.js:295 |
 | `testResults` | scripts/canvas-view-drift-test.html:12 | scripts/canvas-fit-drift-fixture.cjs:10, scripts/canvas-view-drift-test.html:35 |
-| `text-area` | index.html:1586 | js/sidebar/sidebar.js:87, js/ui/visual-studio.js:319, scripts/full-feature-e2e.cjs:175 |
-| `text-area2` | index.html:1660 | js/sidebar/sidebar.js:88, js/ui/visual-studio.js:322 |
+| `text-area` | index.html:1586 | js/sidebar/sidebar.js:87, js/ui/visual-studio.js:319, scripts/audit/round6-ui-audit-repro.cjs:70, scripts/full-feature-e2e.cjs:175 |
+| `text-area2` | index.html:1660 | js/sidebar/sidebar.js:88, js/ui/visual-studio.js:322, scripts/audit/round6-ui-audit-repro.cjs:70 |
 | `text-area2-settings` | index.html:1739 | js/sidebar/text/text-2-manager.js:127 |
 | `text-preview-area` | index.html:1588 |  |
 | `textBgColorPicker` | index.html:1628 | js/project-management.js:302, js/sidebar/text/text-effect.js:121, js/sidebar/text/vertical-text.js:19 |
@@ -631,7 +631,7 @@
 | `toggleAiPanelButton` | index.html:2083 | js/ui/beginner-guide.js:421 |
 | `toggleGridButton` | index.html:464 | js/panel/grid.js:104, scripts/novice-task-e2e.cjs:804 |
 | `toneList` | html/Minual/screen-tone.html:61 |  |
-| `tool-area` | index.html:1826 | js/sidebar/pen/pen-tools.js:664, js/sidebar/sidebar.js:64, js/ui/util/event-delegator.js:62, js/ui/visual-studio.js:340 |
+| `tool-area` | index.html:1826 | js/sidebar/pen/pen-tools.js:664, js/sidebar/sidebar.js:64, js/ui/util/event-delegator.js:62, js/ui/visual-studio.js:340, scripts/audit/round6-ui-audit-repro.cjs:70 |
 | `tool-settings` | index.html:1868 | js/sidebar/pen/pen-tools.js:115 |
 | `top-control` | index.html:1941 | js/ui/control/common-control-management.js:3 |
 | `undo` | index.html:2155 | html/Shortcut/shortcut.html:65, js/core/svg/google-icon-names.js:12, js/ui/task-launcher.js:84, js/ui/third/base-translation/base-de.js:315, js/ui/third/base-translation/base-en.js:321, js/ui/third/base-translation/base-es.js:314, js/ui/third/base-translation/base-fr.js:315, js/ui/third/base-translation/base-ja.js:320, js/ui/third/base-translation/base-ko.js:315, js/ui/third/base-translation/base-ru.js:315, js/ui/third/base-translation/base-zh.js:327, js/ui/third/tippy.js:91 |
@@ -1142,6 +1142,9 @@
 - scripts/ai-fill-e2e.cjs : `edit`, `fixtures`, `mangaGptUrl`
 - scripts/audit/expanded_frontend_repro.cjs : `novelaiApiKey`
 - scripts/audit/round5-canvas-audit-repro.cjs : `knifePanelSpaceSize`
+- scripts/audit/round6-prompt-routing-audit-repro.cjs : `other-controls-mini`
+- scripts/audit/round6-simulator-audit-repro.cjs : `a`
+- scripts/audit/round6-ui-audit-repro.cjs : `asset-library-area`, `auto-generate-area`, `control-area`, `cutout-area`, `manga-effect-area`, `manga-tone-area`, `panel-manager-area`, `prompt-manager-area`, `ps-tools-area`, `shape-area`, `simulator-chat-area`, `speech-bubble-area`, `svg-container-template`, `text-area`, `text-area2`, `tool-area`
 - scripts/auto-swap-real.cjs : `autoSwapMatches .auto-swap-match`, `autoSwapStatus`, `fixtures`, `mangaGptKey`, `mangaGptModel`, `mangaGptUrl`, `taskBar`
 - scripts/auto-swap-session-test.cjs : `a`
 - scripts/auto-swap-test.cjs : `a`

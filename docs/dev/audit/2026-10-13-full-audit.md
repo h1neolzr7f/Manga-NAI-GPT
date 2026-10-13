@@ -1022,3 +1022,317 @@ putImageInFrame内部add后，updateFCFabricCanvas又add同一对象。生产函
 5. 补83–85干净Windows/CPU依赖/端口与路径验收，修64/88/91低优先级存储与参数问题。
 
 这个顺序不替代用户具体要求；诊断脚本需要在修复后改成正向回归。没有把33个新条目合成一个未经实机验收的大改动。
+
+
+# 第六轮：剩余模块、文字输入与模拟器往返
+
+本轮开始main为1b9b9e7，产品仍ca9572d；新增92–120共29项，累计120项编号。主审已执行新fixture；字体多条保存/卸载失败合并一项，两个图片模板缺显示合并一项，重复锁问题与雪/旧笔刷补证不再新增编号。验证边界随条目保留。
+
+### 92 — 漫画导入标记未序列化，历史恢复后占位/参考功能失效（P2）
+
+位置：[js/core/settings.js:77](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/settings.js#L77)；[js/ai/manga-importer.js:1663](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/manga-importer.js#L1663)。
+
+生产commonProperties及捆绑Fabric.toObject遗漏mangaImportReference/TemplateLayer/Placeholder/PanelIndex/SourceBox/Tags。恢复后原占位无法被“下一个角色占位”选中，隐藏参考层不再隐藏底图和占位。原记录对照正确；已执行历史恢复，未跑真实ZIP文件与浏览器导入。
+
+修复方向：持久化导入对象合同，重开/撤销都恢复身份与源信息。
+
+复现：[round6-import-state-audit-repro.cjs](../../../scripts/audit/round6-import-state-audit-repro.cjs)。
+
+### 93 — 自动分格缓存只用图片字符串长度，改图后沿用旧坐标/旧图片（P2）
+
+位置：[js/ai/panel-auto.js:79](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/panel-auto.js#L79)。
+
+两张64×64同长度真实PNG，黑色方块分别x=3/24。生产get第二次返回同一旧结果、旧image及x=3；清cache对照检测当前x=24。key仅页面GUID、首图尺寸及src.length；不像76抽样哈希，这里连完整页面内容都未参与。
+
+修复方向：缓存绑定全页像素版本/完整摘要，画布编辑时失效。
+
+复现：[round6-panel-cache-audit-repro.cjs](../../../scripts/audit/round6-panel-cache-audit-repro.cjs)。
+
+### 94 — 退出工具模式清掉用户的图层移动锁（P2）
+
+位置：[js/ui/util/mode-manager.js:376](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/util/mode-manager.js#L376)；[js/layer/layer-button.js:75](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/layer/layer-button.js#L75)。
+
+点气泡→选择模式，原selectable=false图层变true；原刀模式和用户锁按钮调用链也取得afterUserLock=false/afterKnifeExit=true。clearAll统一设所有普通对象selectable=true，没有保存原锁。
+
+修复方向：临时工具禁选和用户移动锁分开，退出恢复原状态。
+
+复现：[round6-mode-lock-audit-repro.cjs](../../../scripts/audit/round6-mode-lock-audit-repro.cjs)。
+
+### 95 — 竖排Delete/替换/Undo输入被忽略，部分IME取消也不同步（P2，生产输入函数及捆绑退出编辑）
+
+位置：[js/sidebar/text/vertical-textbox.js:130](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/sidebar/text/vertical-textbox.js#L130)。
+
+deleteContentForward/deleteWordForward/historyUndo/insertReplacementText后textarea=甲丙，对象仍甲乙丙；实际Fabric exitEditing移除textarea但不补同步。Backspace对照有效。多字预编辑“你好”取消后deleteCompositionText也被白名单挡住，对象保留甲你好丙。原生键盘/IME事件未实机生成。
+
+修复方向：所有改变textarea正文的input先同步文本，再单独处理样式与composition。
+
+复现：[round6-vertical-focus-audit-repro.cjs](../../../scripts/audit/round6-vertical-focus-audit-repro.cjs)。
+
+### 96 — 竖排构造修改共享键表，污染已有普通RTL文字（P2）
+
+位置：[js/sidebar/text/vertical-textbox.js:20](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/sidebar/text/vertical-textbox.js#L20)。
+
+Object.assign直接改继承keysMapRtl。已有横排RTL ArrowLeft构造竖排前走moveCursorRight，构造后走moveCursorDown，捆绑onKeyDown已验证。普通LTR不使用此表，不说所有横排都受影响。
+
+修复方向：先克隆键表再修改，保留基类与已有对象键映射。
+
+复现：[round6-vertical-focus-audit-repro.cjs](../../../scripts/audit/round6-vertical-focus-audit-repro.cjs)。
+
+### 97 — 字体持久化失败不传回操作层，输入被清、列表被删（P2）
+
+位置：[js/db/user-font-repository.js:12](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/db/user-font-repository.js#L12)；[js/core/font/font-manager-core.js:395](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/font/font-manager-core.js#L395)。
+
+repository返回false被注册/卸载忽略：上传/本机/web均resolve、durable=0、错误toast=0，本机输入清空。删除失败却移除选择器，持久记录仍1，刷新后复活。有DB日志，没有声称显示成功toast。FontFace/存储/stylesheet为桩，无真实网络。
+
+修复方向：持久化成功后才清输入/改列表，失败保留原状态并反馈；统一检查返回结果。
+
+复现：[round6-font-audit-repro.cjs](../../../scripts/audit/round6-font-audit-repro.cjs)。
+
+### 98 — emoji前缀下IME高亮混用UTF-16与grapheme索引（P2/P3，真实Canvas像素）
+
+位置：[js/sidebar/text/vertical-textbox.js:394](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/sidebar/text/vertical-textbox.js#L394)。
+
+“😀中文”textarea范围[2,3]选“中”，生产renderSelection却高亮“文”，y25 alpha0、y45 alpha255。使用捆绑光标索引和真实Canvas；仅验竖排，不声称正文丢失。Fabric基类亦有同类取索引方式，横排未实测。
+
+修复方向：composition选区先转grapheme索引，和普通选区统一。
+
+复现：[round6-vertical-focus-audit-repro.cjs](../../../scripts/audit/round6-vertical-focus-audit-repro.cjs)。
+
+### 99 — 仪表盘依赖首次失败后重试永久等待（P2）
+
+位置：[js/dashboard/dashboard-ui.js:79](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/dashboard/dashboard-ui.js#L79)。
+
+第一次init收到chart.js error；失败节点保留。第二次init只给旧节点挂新load/error监听，不发新请求，Promise仍pending、节点数仍2。DOM事件fixture，没有真实浏览器断网回放。
+
+修复方向：标记/移除失败节点，重试创建新节点，并显示可恢复错误。
+
+复现：[round6-foundation-audit-repro.cjs](../../../scripts/audit/round6-foundation-audit-repro.cjs)。
+
+### 100 — 并行完成生成，仪表盘多类统计丢更新（P3）
+
+位置：[js/dashboard/performance-storage.js:44](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/dashboard/performance-storage.js#L44)；[js/dashboard/prompt-frequency-storage.js:30](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/dashboard/prompt-frequency-storage.js#L30)；[js/dashboard/dashboard-ui.js:1026](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/dashboard/dashboard-ui.js#L1026)。
+
+两次recordGeneration(100/200ms)并行，生产读改写最终count=1、totalTime=200、min=200；tag/model/session也各1，本应2/300/100。localforage使用独立克隆和异步读桩。未证明图像数据因此丢失。
+
+修复方向：统计更新串行化或使用事务式原子增量，多标签页也共享协调。
+
+复现：[round6-foundation-audit-repro.cjs](../../../scripts/audit/round6-foundation-audit-repro.cjs)。
+
+### 101 — 本地日期键按UTC解析，西半球周统计错周（P3，指定时区）
+
+位置：[js/dashboard/performance-storage.js:149](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/dashboard/performance-storage.js#L149)；[js/dashboard/performance-storage.js:503](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/dashboard/performance-storage.js#L503)。
+
+TZ=America/Los_Angeles时2026-10-12周一记录归到2026-10-05；周日当天daily=1但weekly=0。new Date(YYYY-MM-DD)后按本地日期计算混用时区。中国时区不是该案例。
+
+修复方向：按本地年月日构造日期，统一周起止与日键。
+
+复现：[round6-foundation-audit-repro.cjs](../../../scripts/audit/round6-foundation-audit-repro.cjs)。
+
+### 102 — 历史最长连续天数只有当时查看仪表盘才被记住（P3）
+
+位置：[js/dashboard/performance-storage.js:307](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/dashboard/performance-storage.js#L307)。
+
+保留10月1–7连续7天，10月11首次getStreak返回current=0/longest=0。今天/昨天无记录直接返回缓存，未扫描历史；记录生成也未维护最长值，徽章读到同样错误值。
+
+修复方向：从持久日统计计算历史最长，或每次记录正确维护。
+
+复现：[round6-foundation-audit-repro.cjs](../../../scripts/audit/round6-foundation-audit-repro.cjs)。
+
+### 103 — 正向/负向提示词替换规则交叉应用（P2）
+
+位置：[js/ui/prompt-manager.js:37](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/prompt-manager.js#L37)。
+
+只填写Old/New Prompt的blue→red，生产replace把正向和negative中的blue hair都改red hair并saveState=1。六组规则混在同数组，分别字段没有隔离。
+
+修复方向：正向三组仅改正向，负向三组仅改负向；跳过空旧词。
+
+复现：[round6-prompt-routing-audit-repro.cjs](../../../scripts/audit/round6-prompt-routing-audit-repro.cjs)。
+
+### 104 — 提示词替换把合法权重标签当正则，破坏整句（P2）
+
+位置：[js/ui/prompt-manager.js:48](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/prompt-manager.js#L48)。
+
+替换字面[smile]为grin：先literal includes，后new RegExp变字符类，使“smile, [smile], simple”大量逐字变grin。本应“smile, grin, simple”。不同于88补全丢关闭标记。
+
+修复方向：默认字面替换，转义正则/替换串特殊含义，保留其余标签。
+
+复现：[round6-prompt-routing-audit-repro.cjs](../../../scripts/audit/round6-prompt-routing-audit-repro.cjs)。
+
+### 105 — 导演迟到响应覆盖新编辑，并回显到另一对象（P2）
+
+位置：[js/ai/prompt/novelai-composition-director.js:1146](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/prompt/novelai-composition-director.js#L1146)；[js/ui/ai/auto-prompt-ui.js:35](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/ai/auto-prompt-ui.js#L35)。
+
+A等待时用户新输入被旧结果覆盖；同页切选B，A结果回显到B框，随后输入会写进B字段。生产writer等待后无编辑版本检查，UI按全局DOM更新没有当前对象检查。模型返回为延迟桩。
+
+修复方向：捕获对象与提示词版本，冲突进入候选；回显前复查当前对象/会话。
+
+复现：[round6-prompt-routing-audit-repro.cjs](../../../scripts/audit/round6-prompt-routing-audit-repro.cjs)。
+
+### 106 — 取消保存导演草稿，writer仍无条件生成草稿（P3）
+
+位置：[js/ai/prompt/novelai-composition-director.js:1152](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/prompt/novelai-composition-director.js#L1152)；[js/ui/ai/auto-prompt-ui.js:63](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/ai/auto-prompt-ui.js#L63)。
+
+复选storeDraftsChecked=false，生产writer仍创建naiDirectorDraft；UI有条件保存已晚于writer。该字段在commonProperties内，但本项仅验内存，无完整工程重开。
+
+修复方向：由同一层决定是否存草稿，明确关闭后旧草稿处理。
+
+复现：[round6-prompt-routing-audit-repro.cjs](../../../scripts/audit/round6-prompt-routing-audit-repro.cjs)。
+
+### 107 — 自由气泡自动合并删除已审定对白，替换成默认台词（P1）
+
+位置：[js/sidebar/speechBubble/speech-bubble-freehand.js:271](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/sidebar/speechBubble/speech-bubble-freehand.js#L271)；[js/fabric/fabric-management.js:634](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/fabric/fabric-management.js#L634)。
+
+原对白“经过审定的甲对白”和新形状相交：实际JSTS union、merge删除旧路径、object:removed级联删除原文字框/正文；生产create/metrics重建后的唯一正文为“台词”，没有迁移。Fabric对象/网格/字体为外壳，浏览器拖画/undo未验。
+
+修复方向：几何合并前保存并迁移对白/文字关联；失败保持旧气泡和正文，必要时人工决定合并排版。
+
+复现：[round6-editor-candidates-repro.cjs](../../../scripts/audit/round6-editor-candidates-repro.cjs)。
+
+### 108 — 页面程序化效果/网格在共享画布上clearRect擦掉下层像素（P2，真实Canvas像素）
+
+位置：[js/sidebar/page/page-studio.js:121](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/sidebar/page/page-studio.js#L121)；[js/sidebar/page/page-studio.js:254](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/sidebar/page/page-studio.js#L254)。
+
+objectCaching=false的_render把离屏清理直接用于共享ctx。捆绑Fabric.drawObject→原_render后下层红[255,0,0,255]、纸色[247,244,238,255]均变透明[0,0,0,0]。下层对象仍在，只确认显示/输出像素被擦。
+
+修复方向：共享ctx对象绘制不清底，离屏初始化清理和对象绘制分开。
+
+复现：[round6-ui-audit-repro.cjs](../../../scripts/audit/round6-ui-audit-repro.cjs)。
+
+### 109 — 自定义底页解码期间切页，删除新页底图并应用旧结果（P2）
+
+位置：[js/sidebar/page/page-studio.js:367](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/sidebar/page/page-studio.js#L367)；[js/sidebar/page/page-studio.js:419](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/sidebar/page/page-studio.js#L419)。
+
+A文件加载期间复用canvas载入B；fromURL回调按B尺寸缩放，findByType删除B原底页，新增自定义底图并保存B历史。A原底页没变。独立底页入口，与18/56同族。
+
+修复方向：文件选择就捕获页面/版本，读取和解码后复查，跨页结果留待原页应用。
+
+复现：[round6-ui-audit-repro.cjs](../../../scripts/audit/round6-ui-audit-repro.cjs)。
+
+### 110 — 图片单独一页的右键I2I被分镜预检拦截（P2）
+
+位置：[js/ui/beginner-guide.js:368](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/beginner-guide.js#L368)；[js/ui/canvas-object-menu.js:570](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/canvas-object-menu.js#L570)。
+
+有效Token且选中图片、页面无分镜时，右键生成提示“还没有分镜格”，confirm=0/I2I=0。仅增加一格对照I2I=1。通用preflight错误把页分镜要求用于选图I2I。
+
+修复方向：按操作分别验证：I2I检查选中图，逐格生成才要求分镜。
+
+复现：[round6-ui-audit-repro.cjs](../../../scripts/audit/round6-ui-audit-repro.cjs)。
+
+### 111 — 旧服务模型测试迟到，覆盖新服务模型并存盘（P2）
+
+位置：[js/ui/service-settings.js:96](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/service-settings.js#L96)；[js/ui/service-settings.js:54](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/service-settings.js#L54)。
+
+A请求等待时用户切B及gpt-image-2；A响应回来把当前模型改gpt-image-1，再保存B地址+A模型，并提示已连接。响应全桩。不同于11聊天模型强制DeepSeek，属于图像服务配置版本竞态。
+
+修复方向：绑定测试配置版本，旧响应不得改新配置或冒充新服务连接成功。
+
+复现：[round6-ui-audit-repro.cjs](../../../scripts/audit/round6-ui-audit-repro.cjs)。
+
+### 112 — 画具侧栏未加入关闭列表，切文本后两个面板同开（P3，DOM状态）
+
+位置：[js/sidebar/sidebar.js:78](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/sidebar/sidebar.js#L78)。
+
+先打开ps-tools-area画具，再打开text-area文本，两个display均block。toggleVisibility列表遗漏画具。未做实际双面板布局/手机回放。
+
+修复方向：统一真实侧栏集合，切换时关闭其他面板。
+
+复现：[round6-ui-audit-repro.cjs](../../../scripts/audit/round6-ui-audit-repro.cjs)。
+
+### 113 — 三个聊天布局把全部消息叠在左上（P1/P2，完整捆绑Fabric）
+
+位置：[js/simulator/chat-renderer.js:241](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/chat-renderer.js#L241)；[js/simulator/chat-renderer.js:292](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/chat-renderer.js#L292)；[js/simulator/chat-renderer.js:330](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/chat-renderer.js#L330)。
+
+generic/story-log/discord两条消息group都强制left=0/top=0，覆盖Fabric根据对象全页坐标求出的位置。实际两行世界top均约0（浮点误差5.68e-14），递增y被抹掉。DOM为外壳，字体变换来自完整Fabric+NAPI。
+
+修复方向：保留group计算位置，或统一行内局部坐标并显式设置行位置。
+
+复现：[round6-simulator-audit-repro.cjs](../../../scripts/audit/round6-simulator-audit-repro.cjs)。
+
+### 114 — 部分模拟器接受图片字段，却只显示文本/占位（P2）
+
+位置：[js/simulator/chat-renderer.js:322](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/chat-renderer.js#L322)；[js/simulator/renderers/social-feed-renderer.js:8](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/renderers/social-feed-renderer.js#L8)。
+
+Discord图片消息imageObjects=0/loads=0，bubble同源对照1；social JSON保留URL却只生成856×420灰色矩形，imageObjects=0。两入口同属承诺字段未实现渲染，合成一项并分别验收。
+
+修复方向：实际加载图片、保持比例，共用图片消息组件并提示失败。
+
+复现：[round6-simulator-audit-repro.cjs](../../../scripts/audit/round6-simulator-audit-repro.cjs)。
+
+### 115 — 上传头像放在不透明默认圆形下面，被完全遮挡（P2，真实PNG）
+
+位置：[js/simulator/chat-renderer.js:71](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/chat-renderer.js#L71)。
+
+先建不透明fallback圆和首字母，再unshift成功图片到底层。红64×64头像中心实际RGBA=[15,23,42,255]，image索引0/圆1。
+
+修复方向：成功加载后移除fallback或调整层级/裁切。
+
+复现：[round6-simulator-audit-repro.cjs](../../../scripts/audit/round6-simulator-audit-repro.cjs)。
+
+### 116 — 模拟器画布直接改字，回读旧场景再应用会覆盖新字（P1/P2）
+
+位置：[js/simulator/page-edit-controller.js:46](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/page-edit-controller.js#L46)；[js/simulator/extra-renderer-factory.js:99](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/extra-renderer-factory.js#L99)；[js/simulator/site-ui-parts.js:306](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/site-ui-parts.js#L306)。
+
+实际Fabric文字OLD VIEWS改NEW VIEWS，公开readSelected仍OLD VIEWS；公开place重新应用后NEW消失。直接编辑未同步创建时复制的scene JSON，回读/播放仍用旧数据。
+
+修复方向：稳定字段ID映射到文字对象，编辑事件更新统一scene，回读使用最新状态。
+
+复现：[round6-simulator-audit-repro.cjs](../../../scripts/audit/round6-simulator-audit-repro.cjs)。
+
+### 117 — Studio表单回读未修改也丢隐藏字段（P2）
+
+位置：[js/simulator/simulator-studio.js:557](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/simulator-studio.js#L557)；[js/simulator/simulator-studio.js:740](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/simulator-studio.js#L740)。
+
+预览/插入用normalize({})和可见表单重建scene：VN hero变character_a、背景#123456变#172033、active index1变0，speakerId/effect/theme消失。
+
+修复方向：保留完整载入scene，表单仅patch相应字段，保留节点身份与附加信息。
+
+复现：[round6-simulator-audit-repro.cjs](../../../scripts/audit/round6-simulator-audit-repro.cjs)。
+
+### 118 — Studio姓名字段与论坛/手机renderer不一致（P2）
+
+位置：[js/simulator/simulator-studio.js:167](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/simulator-studio.js#L167)；[js/simulator/renderers/forum-renderer.js:8](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/renderers/forum-renderer.js#L8)；[js/simulator/renderers/phone-renderer.js:24](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/renderers/phone-renderer.js#L24)。
+
+parseNamed写name，forum读author/phone读sender。表单ALICE：HELLO实际渲染论坛“1楼 匿名：HELLO”、手机“HELLO”，姓名丢掉。与117结构往返同族但不同字段合同。
+
+修复方向：统一命名合同或按模板显式适配姓名字段。
+
+复现：[round6-simulator-audit-repro.cjs](../../../scripts/audit/round6-simulator-audit-repro.cjs)。
+
+### 119 — 视觉小说过滤背景后仍用原节点索引，播放错对白（P2）
+
+位置：[js/simulator/story-adapters.js:72](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/story-adapters.js#L72)；[js/simulator/story-adapters.js:105](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/story-adapters.js#L105)。
+
+nodes=background/LINE A/LINE B、index=1原本应LINE A；adapter滤background后renderer按旧index实际显示LINE B。
+
+修复方向：按稳定node ID转换dialogue索引，背景事件与对白游标分开。
+
+复现：[round6-simulator-audit-repro.cjs](../../../scripts/audit/round6-simulator-audit-repro.cjs)。
+
+### 120 — 剧情打开Studio扁平化，独白变对白且选项丢失（P2）
+
+位置：[js/simulator/simulator-studio.js:403](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/simulator-studio.js#L403)。
+
+storyToScript只保留名字:content，无content的choice被过滤；重新parse后speech/aside/choice变speech/speech，choice=0，分支target也丢失。与20六格截断不同，正文类型/分支合同被破坏。
+
+修复方向：保留完整story模型；文本编辑显式表示aside/choice及targets，禁止静默扁平化。
+
+复现：[round6-simulator-audit-repro.cjs](../../../scripts/audit/round6-simulator-audit-repro.cjs)。
+
+## 原编号补证、辅助合同与未确认范围
+
+- 89雪网点：固定random=.5、100px目标/300px buffer+scale3，单雪点中心(450,450)完全无alpha；不超采样对照中心(50,50)可见，归89。
+- 79旧Crayon/Ink/Marker：真实捆绑Fabric5.2.1、两次移动/原enhanceBrush PNG提交均正常；扩大100→200后各自仍100px buffer、外侧笔迹alpha0，归79。
+- 38特效字重建：原wild updateAll/addSvg丢scale3/2、angle30、opacity.4、multiply、clip及旧层序，只保留left/top，新图移到文字上方，归38。
+- 噪点End清isDrawingTone而非isDrawingToneNoise：待解码重开时update返回，旧回调后又加旧图；未模拟解码失败，不能说永久不可用。Spray在实际Fabric5.2.1缺Tint构造器，但未发现当前UI入口，不计可达新bug。
+- ArrayBufferUtils把TypedArray子视图返回整个backing buffer：[9,1,2,8].subarray(1,3)得到整数组；PNG encoder的ArrayBuffer分支拒绝有效PNG，同字节Uint8Array正常。两个辅助合同错误已执行，当前常规UI用字符串/data URL，没有证明正常保存/导出会损坏，因此不列用户数据缺陷编号。
+- IME Escape会触发FocusTrap关闭回调，runtime字体卸载后FontFace/CSS仍留；已执行行为，但原生IME正文结果/浏览器同名字体优先级与产品卸载语义尚未验证，暂作候选。
+- 教程先跳隐藏目标、后尝试展开More，默认隐藏的页面教学可能被跳过；Tagify正则输入可能报错但实际初始化调用未找到，保持静态候选。
+- GPT代理正常对照保留自定义模型user-model-exact与1024x1536尺寸；主图+3参考的multipart有4个image[]并正常回PNG。多图上游响应只选首图，但UI逐张请求，未证明正常用户多图丢结果，不新增问题。
+
+## 执行与交接
+
+- 本轮12个新可运行脚本由主审执行通过，包含11个缺陷诊断/补证脚本与1个GPT正常合同对照；还有既有基础扫描工具，三者exit=0的含义不能混淆。
+- 模拟器使用完整捆绑Fabric和NAPI字体度量/真实PNG；8种默认renderer均完成构建与序列化对照（对象数13/8/7/6/6/29/30/34）。DOM是外壳，textBaseline=alphabetical按浏览器等价忽略为alphabetic，不替代完整浏览器。
+- 更新[覆盖清单](2026-10-13-coverage.md)中本轮已读路径，仍只基础扫描的文件继续明确标出；没有把源代码阅读当所有分支都经过验收。
+- 修复顺序先107/116正文丢失、95输入丢弃、92导入身份，再105/109/111迟到覆盖及108共享ctx擦底；其余布局/字段/字体/指标问题分批建立正向回归。
+- 产品代码未修改，PR5仍未合并，full acceptance flow7根因仍未定位。真实浏览器/IME/字体/IndexedDB、多设备、Windows、WebGL/Pixi、真实模型/上游API和153页工程尚未完成，不声称穷尽所有bug。

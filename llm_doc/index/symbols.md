@@ -4,7 +4,7 @@
 
 - 抽出対象: `root.X=` / `window.X=` / `globalThis.X=`、行頭の `function X` / `var X` / `let X` / `const X`
 - 抽出範囲: js / cjs / mjs と、html のインライン `<script>`（行番号は元ファイル基準）
-- 合計 11725 件 / ユニーク名 6344 件
+- 合計 11825 件 / ユニーク名 6366 件
 
 ## シンボル → 定義
 
@@ -1160,6 +1160,7 @@
 | `assert` | var | scripts/audit/expanded_frontend_repro.cjs:1 |
 | `assert` | var | scripts/audit/round5-assets-audit-repro.cjs:5 |
 | `assert` | var | scripts/audit/round5-queue-cancel-audit-repro.cjs:7 |
+| `assert` | var | scripts/audit/round6-foundation-audit-repro.cjs:1 |
 | `assert` | var | scripts/auto-swap-drift-test.cjs:1 |
 | `assert` | var | scripts/auto-swap-session-test.cjs:1 |
 | `assert` | var | scripts/auto-swap-test.cjs:2 |
@@ -1245,6 +1246,7 @@
 | `avatarItems` | var | js/simulator/chat-renderer.js:275 |
 | `avatarItems` | var | js/simulator/chat-renderer.js:323 |
 | `avatarParticipant` | var | js/simulator/chat-renderer.js:231 |
+| `avatarScene` | var | scripts/audit/round6-simulator-audit-repro.cjs:35 |
 | `avatarX` | var | js/simulator/chat-renderer.js:228 |
 | `averageChunks` | var | scripts/png-bit-depth-smoke-test.cjs:215 |
 | `averageOffset` | var | js/core/util/png-bit-depth.js:461 |
@@ -1669,6 +1671,7 @@
 | `br` | var | js/ui/visual-studio.js:256 |
 | `breakLines` | function | js/ui/util/cjk-break.js:8 |
 | `bridge` | var | scripts/audit/round5-export-audit-repro.cjs:7 |
+| `bridge` | var | scripts/audit/round6-vertical-focus-audit-repro.cjs:4 |
 | `brightness` | var | js/core/util/html-canvas-util.js:63 |
 | `brightness` | var | js/ui/control/glfx-control.js:162 |
 | `brush` | var | js/sidebar/pen/pen-tools.js:301 |
@@ -1849,6 +1852,8 @@
 | `c` | var | scripts/ai-fill-core-test.cjs:9 |
 | `c` | var | scripts/audit/ancillary-audit-repro.cjs:21 |
 | `c` | var | scripts/audit/round5-export-audit-repro.cjs:16 |
+| `c` | var | scripts/audit/round6-simulator-audit-repro.cjs:27 |
+| `c` | var | scripts/audit/round6-vertical-focus-audit-repro.cjs:30 |
 | `c` | var | scripts/auto-swap-test.cjs:9 |
 | `c` | var | scripts/gpt-region-editor-smoke-test.cjs:26 |
 | `c` | var | scripts/nai-engine-core-test.cjs:21 |
@@ -1919,6 +1924,7 @@
 | `canvas` | function | js/ui/visual-ps-tools.js:65 |
 | `canvas` | function | js/ui/visual-studio.js:35 |
 | `canvas` | function | scripts/audit/round5-export-audit-repro.cjs:11 |
+| `canvas` | function | scripts/audit/round6-ui-audit-repro.cjs:16 |
 | `canvasBackground` | var | js/core/util/image-util.js:624 |
 | `canvasColor` | var | js/sidebar/pen/custom-brush.js:9 |
 | `canvasContinerScale` | var | js/canvas-manager.js:657 |
@@ -1930,6 +1936,7 @@
 | `canvasEl` | var | js/ui/canvas-object-menu.js:63 |
 | `canvasEl` | var | scripts/layout-smoke-test.cjs:69 |
 | `canvasElement` | var | js/sidebar/panel/panel-manager.js:19 |
+| `canvasElement` | function | scripts/audit/round6-legacy-brush-repro.cjs:7 |
 | `canvasFit` | var | js/ui/canvas-object-menu.js:169 |
 | `canvasGuid` | var | js/ai/provider/novelai-provider.js:475 |
 | `canvasGuid` | var | js/ai/provider/novelai-provider.js:543 |
@@ -2510,6 +2517,7 @@
 | `context` | var | js/ui/control/glfx-control.js:367 |
 | `context` | var | scripts/asset-library-smoke-test.cjs:8 |
 | `context` | var | scripts/audit/round5-sam-audit-repro.cjs:10 |
+| `context` | function | scripts/audit/round6-foundation-audit-repro.cjs:5 |
 | `context` | var | scripts/custom-brush-smoke-test.cjs:8 |
 | `context` | var | scripts/cutout-presets-smoke-test.cjs:8 |
 | `context` | var | scripts/fabric-text-focus-smoke-test.cjs:37 |
@@ -2527,6 +2535,7 @@
 | `context` | var | scripts/simulator-timeline-smoke-test.cjs:4 |
 | `context` | var | scripts/story-engine-smoke-test.cjs:7 |
 | `contrast` | var | js/ui/control/glfx-control.js:163 |
+| `control` | var | scripts/audit/round6-vertical-focus-audit-repro.cjs:20 |
 | `controlElementsTone` | var | js/sidebar/tone/tone.js:7 |
 | `controlPoints` | var | js/sidebar/speechBubble/speech-bubble-freehand.js:29 |
 | `controlX` | var | js/sidebar/pen/original-brush.js:52 |
@@ -2584,6 +2593,7 @@
 | `count` | var | js/ui/imagePromptHelper/image-prompt-helper.js:334 |
 | `count` | var | js/ui/imagePromptHelper/image-prompt-helper.js:342 |
 | `count` | var | js/ui/imagePromptHelper/image-prompt-helper.js:372 |
+| `count` | function | scripts/audit/round6-legacy-brush-repro.cjs:10 |
 | `count` | var | scripts/full-feature-e2e.cjs:71 |
 | `count` | var | scripts/generate-original-starter-svgs.cjs:312 |
 | `count` | var | scripts/remove-spaces.cjs:61 |
@@ -2931,6 +2941,7 @@
 | `cursor` | var | js/simulator/simulator-studio.js:156 |
 | `cursor` | var | js/ui/util/mode-manager.js:173 |
 | `cursorEl` | function | js/ui/visual-studio.js:124 |
+| `custom` | function | scripts/audit/round6-editor-candidates-repro.cjs:12 |
 | `custom` | var | scripts/page-studio-smoke-test.cjs:88 |
 | `customBackground` | var | scripts/png-bit-depth-smoke-test.cjs:260 |
 | `customBrushTipDataUrl` | var | js/sidebar/pen/pen-tools.js:487 |
@@ -2951,6 +2962,7 @@
 | `cuts` | var | js/panel/random-cut.js:20 |
 | `cuts` | var | js/panel/random-cut.js:49 |
 | `cv` | var | scripts/audit/image-edit-audit-repro.cjs:5 |
+| `cv` | function | scripts/audit/round6-simulator-audit-repro.cjs:18 |
 | `cw` | var | js/canvas-manager.js:65 |
 | `cw` | var | js/ui/visual-studio.js:258 |
 | `cx` | var | js/ai/manga-importer.js:159 |
@@ -3126,8 +3138,10 @@
 | `defaults` | var | js/simulator/renderers/visual-novel-renderer.js:5 |
 | `defaults` | function | js/simulator/site-ui-parts.js:102 |
 | `defaults` | var | js/simulator/story-engine.js:88 |
+| `defaults` | var | scripts/audit/round6-simulator-audit-repro.cjs:49 |
 | `deferred` | var | scripts/audit/expanded_frontend_repro.cjs:7 |
 | `deferred` | function | scripts/audit/round5-queue-cancel-audit-repro.cjs:10 |
+| `deferred` | function | scripts/audit/round6-prompt-routing-audit-repro.cjs:9 |
 | `deferred` | function | scripts/auto-swap-session-test.cjs:6 |
 | `deferred` | function | scripts/task-page-continuity-test.cjs:9 |
 | `defined` | var | scripts/gen-project-index.cjs:202 |
@@ -3295,6 +3309,7 @@
 | `doCutout` | var | js/ui/util/mode-change.js:94 |
 | `doResize` | function | js/ui/imagePromptHelper/prompt-helper.js:184 |
 | `doc` | var | js/sidebar/speechBubble/speech-bubble-text.js:10 |
+| `document` | var | scripts/audit/round6-simulator-audit-repro.cjs:8 |
 | `dom` | var | scripts/gen-project-index.cjs:649 |
 | `done` | var | js/ai/ai-settings.js:345 |
 | `done` | var | js/ui/task-launcher.js:656 |
@@ -3359,6 +3374,7 @@
 | `drawHeart` | function | js/sidebar/tone/tone.js:118 |
 | `drawHeight` | var | js/layer/layer-management.js:439 |
 | `drawLine` | function | js/sidebar/panel/knife/knife-line-renderer.js:60 |
+| `drawObject` | var | scripts/audit/round6-ui-audit-repro.cjs:19 |
 | `drawPage` | function | scripts/manga-page-structure-test.cjs:13 |
 | `drawPaper` | function | js/sidebar/page/page-studio.js:71 |
 | `drawSnowflake` | function | js/sidebar/tone/snow-tone.js:71 |
@@ -3459,6 +3475,7 @@
 | `editButton` | var | js/sidebar/panel/panel-manager.js:422 |
 | `editButton` | var | js/ui/util/mode-manager.js:347 |
 | `editing` | var | js/ui/beginner-guide.js:270 |
+| `editing` | function | scripts/audit/round6-vertical-focus-audit-repro.cjs:15 |
 | `editor` | var | js/layer/blend/blend.js:553 |
 | `editor` | var | js/layer/blend/blend.js:568 |
 | `editor` | var | js/layer/blend/blend.js:589 |
@@ -3576,6 +3593,7 @@
 | `elements` | var | js/ui/util/focus-trap.js:46 |
 | `elements` | var | scripts/gpt-region-editor-smoke-test.cjs:59 |
 | `elementsT2` | var | js/sidebar/text/text-2-manager.js:33 |
+| `emit` | function | scripts/audit/round6-ui-audit-repro.cjs:10 |
 | `emoji` | var | js/core/logger.js:66 |
 | `empty` | var | js/simulator/story-composer-controller.js:64 |
 | `empty` | var | js/ui/task-launcher.js:609 |
@@ -3666,6 +3684,11 @@
 | `env` | function | scripts/audit/round5-export-audit-repro.cjs:12 |
 | `env` | function | scripts/audit/round5-sidebar-audit-repro.cjs:8 |
 | `env` | function | scripts/audit/round5-text-ui-audit-repro.cjs:9 |
+| `env` | function | scripts/audit/round6-editor-candidates-repro.cjs:9 |
+| `env` | function | scripts/audit/round6-font-audit-repro.cjs:3 |
+| `env` | function | scripts/audit/round6-legacy-brush-repro.cjs:8 |
+| `env` | function | scripts/audit/round6-ui-audit-repro.cjs:12 |
+| `env` | function | scripts/audit/round6-vertical-focus-audit-repro.cjs:6 |
 | `envelope` | var | js/sidebar/speechBubble/speech-bubble-freehand.js:241 |
 | `environment` | var | js/ai/prompt/novelai-composition-director.js:505 |
 | `environment` | function | scripts/history-panel-regression-test.cjs:8 |
@@ -3702,6 +3725,7 @@
 | `estimateError` | var | scripts/image-export-smoke-test.cjs:279 |
 | `estimateExportSize` | var | js/core/util/image-util.js:844 |
 | `estimated` | var | scripts/image-export-smoke-test.cjs:273 |
+| `event` | var | scripts/audit/round6-vertical-focus-audit-repro.cjs:16 |
 | `eventLogger` | var | js/core/logger.js:169 |
 | `eventName` | var | js/ai/ai-settings.js:199 |
 | `events` | var | js/fabric/fabric-management.js:196 |
@@ -3811,6 +3835,7 @@
 | `f` | var | js/ui/task-launcher.js:570 |
 | `f` | var | scripts/nai-status-format-test.cjs:6 |
 | `fab` | var | scripts/audit/round5-export-audit-repro.cjs:5 |
+| `fab` | var | scripts/audit/round6-import-state-audit-repro.cjs:13 |
 | `fabSrc` | var | scripts/audit/psd-zip-audit-repro.cjs:23 |
 | `fabric` | var | js/simulator/chat-renderer.js:41 |
 | `fabric` | var | js/simulator/chat-renderer.js:62 |
@@ -3823,6 +3848,7 @@
 | `fabricCanvas` | var | js/ui/control/glfx-control.js:69 |
 | `fabricIdx` | var | scripts/fabric-text-focus-smoke-test.cjs:139 |
 | `fabricImage` | function | scripts/audit/round4-cutout-audit-repro.cjs:9 |
+| `fabricMethod` | function | scripts/audit/round6-ui-audit-repro.cjs:18 |
 | `fabricObject` | var | js/sidebar/panel/panel-manager.js:613 |
 | `fabricToCanvas` | var | scripts/audit/psd-zip-audit-repro.cjs:28 |
 | `face` | var | scripts/balloon-layout-core-test.cjs:19 |
@@ -4079,6 +4105,7 @@
 | `fixed` | var | js/panel/random-cut.js:60 |
 | `fixed` | var | js/sidebar/speechBubble/speech-bubble-freehand.js:217 |
 | `fixedtables` | var | js/ui/third/ag-psd/ag-psd.js:18489 |
+| `fixture` | var | scripts/audit/round6-panel-cache-audit-repro.cjs:6 |
 | `fixture` | var | scripts/canvas-fit-drift-fixture.cjs:7 |
 | `flag` | var | js/project-management.js:164 |
 | `flagEl` | var | js/ui/third/i18next.js:6011 |
@@ -4132,6 +4159,7 @@
 | `fn` | var | scripts/check-translations.cjs:43 |
 | `fn` | var | scripts/check-translations.cjs:71 |
 | `focus` | function | scripts/audit/round5-sidebar-audit-repro.cjs:17 |
+| `focusCtx` | var | scripts/audit/round6-vertical-focus-audit-repro.cjs:33 |
 | `focusLine` | var | js/sidebar/tone/focusline.js:53 |
 | `focusLineEnd` | function | js/sidebar/tone/focusline.js:40 |
 | `focusLineStart` | function | js/sidebar/tone/focusline.js:9 |
@@ -4178,6 +4206,7 @@
 | `form` | var | js/local-tools/local-tools-client.js:72 |
 | `form` | var | js/local-tools/local-tools-client.js:79 |
 | `form` | var | js/local-tools/local-tools-client.js:87 |
+| `form` | var | scripts/audit/round6-simulator-audit-repro.cjs:42 |
 | `format` | var | js/canvas-manager.js:579 |
 | `format` | var | js/core/util/image-util.js:95 |
 | `format` | var | js/core/util/image-util.js:675 |
@@ -4272,6 +4301,16 @@
 | `fs` | var | scripts/audit/round5-sam-audit-repro.cjs:2 |
 | `fs` | var | scripts/audit/round5-sidebar-audit-repro.cjs:2 |
 | `fs` | var | scripts/audit/round5-text-ui-audit-repro.cjs:3 |
+| `fs` | var | scripts/audit/round6-editor-candidates-repro.cjs:2 |
+| `fs` | var | scripts/audit/round6-font-audit-repro.cjs:1 |
+| `fs` | var | scripts/audit/round6-import-state-audit-repro.cjs:2 |
+| `fs` | var | scripts/audit/round6-legacy-brush-repro.cjs:2 |
+| `fs` | var | scripts/audit/round6-mode-lock-audit-repro.cjs:2 |
+| `fs` | var | scripts/audit/round6-panel-cache-audit-repro.cjs:2 |
+| `fs` | var | scripts/audit/round6-prompt-routing-audit-repro.cjs:2 |
+| `fs` | var | scripts/audit/round6-simulator-audit-repro.cjs:2 |
+| `fs` | var | scripts/audit/round6-ui-audit-repro.cjs:4 |
+| `fs` | var | scripts/audit/round6-vertical-focus-audit-repro.cjs:1 |
 | `fs` | var | scripts/auto-swap-drift-test.cjs:2 |
 | `fs` | var | scripts/auto-swap-real.cjs:6 |
 | `fs` | var | scripts/auto-swap-session-test.cjs:2 |
@@ -4357,6 +4396,7 @@
 | `fullText` | var | js/layer/layer-management.js:215 |
 | `fullTrace` | var | js/core/logger.js:43 |
 | `func` | function | scripts/audit/round5-sidebar-audit-repro.cjs:7 |
+| `func` | function | scripts/audit/round6-editor-candidates-repro.cjs:7 |
 | `funcSpan` | var | js/shortcut.js:344 |
 | `functionName` | var | js/core/logger.js:24 |
 | `functionName` | var | js/core/logger.js:49 |
@@ -4373,6 +4413,7 @@
 | `g` | var | js/ui/util/cjk-break.js:9 |
 | `g` | var | js/ui/visual-ps-tools.js:192 |
 | `g` | var | scripts/audit/psd-zip-audit-repro.cjs:26 |
+| `g` | var | scripts/audit/round6-simulator-audit-repro.cjs:30 |
 | `gaInput` | var | scripts/png-bit-depth-smoke-test.cjs:302 |
 | `gaResult` | var | scripts/png-bit-depth-smoke-test.cjs:304 |
 | `gaSource` | var | scripts/png-bit-depth-smoke-test.cjs:303 |
@@ -4769,6 +4810,7 @@
 | `h` | var | js/ui/task-launcher.js:283 |
 | `h` | function | js/ui/visual-studio.js:168 |
 | `h` | var | js/ui/visual-studio.js:276 |
+| `h` | var | scripts/audit/round6-vertical-focus-audit-repro.cjs:17 |
 | `hRandomCount` | var | js/panel/random-cut.js:11 |
 | `hSize` | var | js/ai/manga-importer.js:792 |
 | `hSize` | var | js/ai/manga-importer.js:838 |
@@ -4919,6 +4961,7 @@
 | `heights` | var | js/core/util/image-analyzer-util.js:56 |
 | `help` | var | js/ui/beginner-guide.js:61 |
 | `helper` | var | scripts/audit/round4-project-load-audit-repro.cjs:4 |
+| `helper` | var | scripts/audit/round6-import-state-audit-repro.cjs:19 |
 | `helper` | var | scripts/offline-icon-fonts-test.cjs:21 |
 | `helpers_1` | var | js/ui/third/ag-psd/ag-psd.js:372 |
 | `helpers_1` | var | js/ui/third/ag-psd/ag-psd.js:3952 |
@@ -5194,6 +5237,7 @@
 | `imageResources_1` | var | js/ui/third/ag-psd/ag-psd.js:9564 |
 | `imageResources_1` | var | js/ui/third/ag-psd/ag-psd.js:10953 |
 | `imageRow` | var | js/simulator/chat-controller.js:149 |
+| `imageScene` | var | scripts/audit/round6-simulator-audit-repro.cjs:29 |
 | `imageSize` | function | js/local-tools/background-removal-client.js:197 |
 | `imageToPngDataUrl` | function | js/local-tools/background-removal-client.js:206 |
 | `imageUrl` | var | js/layer/layer-management.js:472 |
@@ -5201,6 +5245,8 @@
 | `imageWrapper` | var | js/ui/bottom-bar.js:81 |
 | `images` | var | js/ui/service-settings.js:103 |
 | `images` | var | js/ui/task-launcher.js:398 |
+| `images` | function | scripts/audit/round6-simulator-audit-repro.cjs:20 |
+| `ime` | var | scripts/audit/round6-vertical-focus-audit-repro.cjs:22 |
 | `img` | var | js/ai/manga-importer.js:59 |
 | `img` | var | js/ai/provider/novelai-provider.js:548 |
 | `img` | var | js/assets/boot-guard.js:15 |
@@ -5874,6 +5920,7 @@
 | `layer` | var | js/layer/layer-management.js:31 |
 | `layer` | var | js/layer/layer-management.js:191 |
 | `layer` | var | js/ui/task-launcher.js:212 |
+| `layer` | var | scripts/audit/round6-panel-cache-audit-repro.cjs:8 |
 | `layerBounds` | var | js/ai/prompt/novelai-composition-director.js:472 |
 | `layerCanvas` | var | js/layer/layer-management.js:446 |
 | `layerContent` | var | js/layer/layer-management.js:128 |
@@ -6111,6 +6158,7 @@
 | `load` | function | scripts/asset-library-smoke-test.cjs:4 |
 | `load` | var | scripts/audit/ancillary-audit-repro.cjs:4 |
 | `load` | function | scripts/audit/round3-process-audit-repro.cjs:3 |
+| `load` | function | scripts/audit/round6-simulator-audit-repro.cjs:12 |
 | `load` | function | scripts/image2-interface-smoke-test.cjs:3 |
 | `load` | function | scripts/manga-model-request-test.cjs:5 |
 | `load` | function | scripts/page-studio-smoke-test.cjs:61 |
@@ -6170,6 +6218,7 @@
 | `loading` | var | js/sidebar/panel/panel-template.js:7 |
 | `loading` | var | js/sidebar/speechBubble/speech-bubble-effect.js:203 |
 | `loading` | var | js/sidebar/speechBubble/speech-bubble-effect.js:227 |
+| `loads` | var | scripts/audit/round6-simulator-audit-repro.cjs:28 |
 | `loc` | var | js/sidebar/text/vertical-textbox.js:557 |
 | `loc` | var | js/ui/visual-ps-tools.js:319 |
 | `loc` | var | js/ui/visual-ps-tools.js:366 |
@@ -6182,8 +6231,10 @@
 | `localStateStack` | var | js/ai/queue/generation-task-manager.js:163 |
 | `localToImage` | function | js/ui/visual-ps-tools.js:302 |
 | `lockSeed` | var | js/ui/task-launcher.js:624 |
+| `locked` | var | scripts/audit/round6-mode-lock-audit-repro.cjs:4 |
 | `lockedClass` | var | js/dashboard/dashboard-ui.js:953 |
 | `log` | var | scripts/audit/editor-audit-repro.cjs:3 |
+| `log` | var | scripts/audit/round6-foundation-audit-repro.cjs:4 |
 | `log` | var | scripts/comic-dogfood.cjs:15 |
 | `log` | function | scripts/gpt-real-api-acceptance.cjs:111 |
 | `logError` | function | js/simulator/simulator-studio.js:98 |
@@ -6454,6 +6505,7 @@
 | `menuLocalActions` | var | js/ui/canvas-object-menu.js:37 |
 | `menuPadding` | var | js/ui/canvas-object-menu.js:62 |
 | `menuRect` | var | js/core/font/font-dropdown.js:168 |
+| `merge` | function | scripts/audit/round6-editor-candidates-repro.cjs:13 |
 | `mergeApiPlan` | function | js/ai/prompt/novelai-composition-director.js:896 |
 | `mergeBoxes` | function | js/ai/manga-importer.js:376 |
 | `mergeLz4Blob` | var | js/project-management.js:38 |
@@ -6502,6 +6554,8 @@
 | `meta` | var | scripts/ai-fill-core-test.cjs:27 |
 | `metadata` | var | js/core/auto-save.js:119 |
 | `method` | function | scripts/audit/round5-export-audit-repro.cjs:6 |
+| `method` | function | scripts/audit/round6-import-state-audit-repro.cjs:5 |
+| `method` | function | scripts/audit/round6-vertical-focus-audit-repro.cjs:5 |
 | `methodName` | var | js/core/logger.js:103 |
 | `metrics` | var | js/sidebar/panel/panel-manager.js:740 |
 | `mgr` | var | js/ui/beginner-guide.js:155 |
@@ -6756,6 +6810,8 @@
 | `natW` | var | js/ui/visual-ps-tools.js:306 |
 | `native` | var | scripts/audit/round4-cutout-audit-repro.cjs:5 |
 | `native` | var | scripts/audit/round5-canvas-audit-repro.cjs:4 |
+| `native` | var | scripts/audit/round6-legacy-brush-repro.cjs:4 |
+| `native` | var | scripts/audit/round6-ui-audit-repro.cjs:6 |
 | `nb` | var | js/ui/service-settings.js:210 |
 | `near` | var | js/ai/manga-importer.js:1025 |
 | `near` | function | scripts/gpt-browser-acceptance.cjs:175 |
@@ -6904,6 +6960,7 @@
 | `node` | var | js/simulator/simulator-studio.js:310 |
 | `node` | var | js/simulator/story-adapters.js:70 |
 | `node` | function | scripts/audit/round5-text-ui-audit-repro.cjs:6 |
+| `node` | function | scripts/audit/round6-ui-audit-repro.cjs:11 |
 | `nodeContent` | function | js/simulator/story-adapters.js:18 |
 | `nodeList` | var | js/ui/tutorial.js:399 |
 | `nodeType` | var | js/simulator/story-composer-controller.js:6 |
@@ -6913,6 +6970,7 @@
 | `nodes` | var | js/simulator/story-engine.js:90 |
 | `nodes` | var | js/simulator/story-engine.js:204 |
 | `noise` | var | js/sidebar/tone/tone-noise.js:72 |
+| `noise` | function | scripts/audit/round6-editor-candidates-repro.cjs:11 |
 | `noiseData` | var | js/sidebar/tone/tone-noise.js:126 |
 | `noiseMax` | var | js/sidebar/tone/tone-noise.js:124 |
 | `noiseMin` | var | js/sidebar/tone/tone-noise.js:123 |
@@ -7054,6 +7112,7 @@
 | `obj` | var | js/ui/visual-studio.js:223 |
 | `obj` | var | js/ui/visual-studio.js:254 |
 | `obj` | var | js/ui/visual-studio.js:273 |
+| `obj` | function | scripts/audit/round6-editor-candidates-repro.cjs:8 |
 | `objBottom` | var | js/sidebar/speechBubble/speech-bubble-freehand.js:254 |
 | `objLeft` | var | js/sidebar/speechBubble/speech-bubble-freehand.js:251 |
 | `objOffsetX` | var | js/sidebar/panel/knife/knife-split-engine.js:496 |
@@ -7076,6 +7135,7 @@
 | `object` | var | js/simulator/story-composer-controller.js:173 |
 | `object` | var | js/simulator/story-to-manga.js:161 |
 | `object` | function | scripts/audit/psd-zip-audit-repro.cjs:29 |
+| `object` | function | scripts/audit/round6-import-state-audit-repro.cjs:21 |
 | `object` | var | scripts/manga-smart-text-test.cjs:43 |
 | `objectControls` | var | js/sidebar/text/vertical-textbox.js:5 |
 | `objectHeight` | var | js/core/util/image-util.js:162 |
@@ -7104,6 +7164,7 @@
 | `objects` | var | js/simulator/longshot-exporter.js:14 |
 | `objects` | var | js/ui/beginner-guide.js:100 |
 | `objects` | var | scripts/audit/ancillary-audit-repro.cjs:26 |
+| `objects` | var | scripts/audit/round6-mode-lock-audit-repro.cjs:5 |
 | `objectsEqual` | function | js/ui/third/ag-psd/ag-psd.js:11909 |
 | `objescts` | var | js/core/util/fabric-util.js:696 |
 | `objescts` | var | js/core/util/fabric-util.js:706 |
@@ -7282,6 +7343,7 @@
 | `original` | var | js/sidebar/page/page-studio.js:259 |
 | `original` | var | scripts/audit/ancillary-audit-repro.cjs:25 |
 | `original` | function | scripts/audit/round4-project-load-audit-repro.cjs:11 |
+| `original` | var | scripts/audit/round6-simulator-audit-repro.cjs:48 |
 | `original` | var | scripts/manga-text-ink-mask-test.cjs:33 |
 | `originalBox` | var | js/sidebar/panel/knife/knife-split-engine.js:470 |
 | `originalClipPath` | var | js/core/util/html-canvas-util.js:76 |
@@ -7441,6 +7503,7 @@
 | `page` | var | js/project-management.js:370 |
 | `page` | var | js/ui/beginner-guide.js:42 |
 | `page` | function | scripts/audit/round5-canvas-audit-repro.cjs:8 |
+| `page` | function | scripts/audit/round6-legacy-brush-repro.cjs:9 |
 | `page` | function | scripts/gpt-panel-line-protect-test.cjs:13 |
 | `page` | var | scripts/gpt-region-editor-smoke-test.cjs:72 |
 | `page` | var | scripts/manga-page-structure-test.cjs:10 |
@@ -7836,6 +7899,7 @@
 | `picker` | var | js/core/settings.js:150 |
 | `pid` | var | js/ai/ai-management.js:53 |
 | `pingCheck` | var | js/ai/ai-management.js:83 |
+| `pixel` | function | scripts/audit/round6-ui-audit-repro.cjs:22 |
 | `pixelBudget` | var | js/sidebar/panel/panel-template.js:186 |
 | `pixelRatio` | var | js/core/util/image-util.js:121 |
 | `pixels` | var | js/ai/manga-importer.js:1608 |
@@ -7906,6 +7970,7 @@
 | `pm` | var | scripts/import-image-keeps-page-test.cjs:8 |
 | `png` | var | scripts/ai-fill-core-test.cjs:25 |
 | `png` | var | scripts/audit/expanded_frontend_repro.cjs:5 |
+| `png` | var | scripts/audit/round6-panel-cache-audit-repro.cjs:7 |
 | `png` | var | scripts/manga-character-bible-test.cjs:7 |
 | `pngChunk` | function | scripts/image-export-integration-test.cjs:22 |
 | `pngPixel` | function | scripts/audit/round5-assets-audit-repro.cjs:43 |
@@ -7976,6 +8041,7 @@
 | `polygonTemp` | var | js/sidebar/panel/knife/knife-split-engine.js:168 |
 | `polygonizer` | var | js/sidebar/panel/knife/knife-split-engine.js:161 |
 | `polygons` | var | js/sidebar/panel/knife/knife-split-engine.js:164 |
+| `populate` | var | scripts/audit/round6-import-state-audit-repro.cjs:14 |
 | `populateImageList` | function | js/layer/blend/blend.js:413 |
 | `populateLandscapePanels` | function | js/sidebar/speechBubble/speech-bubble-effect.js:217 |
 | `populatePanelLayoutTemplateSelect` | function | js/panel/layout-templates.js:345 |
@@ -8337,6 +8403,12 @@
 | `read` | function | scripts/audit/round5-queue-cancel-audit-repro.cjs:9 |
 | `read` | var | scripts/audit/round5-sam-audit-repro.cjs:7 |
 | `read` | var | scripts/audit/round5-sidebar-audit-repro.cjs:5 |
+| `read` | var | scripts/audit/round6-editor-candidates-repro.cjs:5 |
+| `read` | var | scripts/audit/round6-foundation-audit-repro.cjs:3 |
+| `read` | var | scripts/audit/round6-import-state-audit-repro.cjs:4 |
+| `read` | var | scripts/audit/round6-legacy-brush-repro.cjs:6 |
+| `read` | var | scripts/audit/round6-prompt-routing-audit-repro.cjs:4 |
+| `read` | var | scripts/audit/round6-ui-audit-repro.cjs:8 |
 | `read` | var | scripts/beginner-ux-guards-test.cjs:6 |
 | `read` | function | scripts/manga-import-smoke-test.cjs:11 |
 | `read` | var | scripts/release-packaging-test.cjs:6 |
@@ -8632,6 +8704,7 @@
 | `render` | function | js/assets/asset-library-controller.js:83 |
 | `render` | function | js/sidebar/tone/focusline.js:138 |
 | `render` | function | js/simulator/site-ui-parts.js:146 |
+| `render` | function | scripts/audit/round6-ui-audit-repro.cjs:21 |
 | `renderAiTaskIndicators` | function | js/ai/queue/spinner.js:57 |
 | `renderAll` | function | js/ai/prompt/auto/character-card-manager.js:416 |
 | `renderAt` | function | js/simulator/playback-controller.js:52 |
@@ -8690,6 +8763,7 @@
 | `replaceImageFromCanvas` | function | js/ui/visual-ps-tools.js:279 |
 | `replaceImageObject` | function | js/sidebar/panel/panel-manager.js:102 |
 | `replacePageId` | var | js/simulator/extra-renderer-factory.js:413 |
+| `replacementHarness` | function | scripts/audit/round6-prompt-routing-audit-repro.cjs:5 |
 | `replies` | var | js/simulator/story-adapters.js:143 |
 | `reply` | var | scripts/audit/ancillary-audit-repro.cjs:16 |
 | `repo` | var | scripts/audit/ancillary-audit-repro.cjs:2 |
@@ -8705,6 +8779,16 @@
 | `repo` | var | scripts/audit/round5-sam-audit-repro.cjs:3 |
 | `repo` | var | scripts/audit/round5-sidebar-audit-repro.cjs:3 |
 | `repo` | var | scripts/audit/round5-text-ui-audit-repro.cjs:4 |
+| `repo` | var | scripts/audit/round6-editor-candidates-repro.cjs:3 |
+| `repo` | var | scripts/audit/round6-font-audit-repro.cjs:2 |
+| `repo` | var | scripts/audit/round6-import-state-audit-repro.cjs:3 |
+| `repo` | var | scripts/audit/round6-legacy-brush-repro.cjs:3 |
+| `repo` | var | scripts/audit/round6-mode-lock-audit-repro.cjs:3 |
+| `repo` | var | scripts/audit/round6-panel-cache-audit-repro.cjs:3 |
+| `repo` | var | scripts/audit/round6-prompt-routing-audit-repro.cjs:3 |
+| `repo` | var | scripts/audit/round6-simulator-audit-repro.cjs:3 |
+| `repo` | var | scripts/audit/round6-ui-audit-repro.cjs:5 |
+| `repo` | var | scripts/audit/round6-vertical-focus-audit-repro.cjs:2 |
 | `report` | var | scripts/remove-dead-functions.cjs:11 |
 | `request` | var | js/assets/asset-blob-store.js:10 |
 | `request` | var | js/assets/asset-blob-store.js:34 |
@@ -8924,6 +9008,7 @@
 | `root` | var | js/ui/service-settings.js:10 |
 | `root` | var | scripts/audit/expanded_frontend_repro.cjs:4 |
 | `root` | var | scripts/audit/round3-process-audit-repro.cjs:2 |
+| `root` | var | scripts/audit/round6-foundation-audit-repro.cjs:2 |
 | `root` | var | scripts/beginner-ux-guards-test.cjs:5 |
 | `root` | var | scripts/canvas-fit-drift-fixture.cjs:4 |
 | `root` | var | scripts/custom-brush-smoke-test.cjs:6 |
@@ -9022,6 +9107,8 @@
 | `run` | var | js/local-tools/background-removal-client.js:480 |
 | `run` | function | scripts/audit/round5-canvas-audit-repro.cjs:10 |
 | `run` | function | scripts/audit/round5-sidebar-audit-repro.cjs:6 |
+| `run` | function | scripts/audit/round6-editor-candidates-repro.cjs:6 |
+| `run` | function | scripts/audit/round6-ui-audit-repro.cjs:9 |
 | `run` | function | scripts/beginner-ux-guards-test.cjs:12 |
 | `run` | function | scripts/check-translations.cjs:99 |
 | `run` | function | scripts/project-load-open-page-test.cjs:8 |
@@ -9057,6 +9144,7 @@
 | `safeStorage` | function | js/assets/asset-store.js:6 |
 | `safeText` | function | js/assets/image2-job-store.js:7 |
 | `sam` | var | scripts/audit/round5-sam-audit-repro.cjs:14 |
+| `samFixture` | var | scripts/audit/round6-panel-cache-audit-repro.cjs:5 |
 | `samSource` | var | scripts/audit/round5-sam-audit-repro.cjs:8 |
 | `same` | function | js/ui/visual-ps-tools.js:331 |
 | `samePage` | function | js/ui/task-launcher.js:617 |
@@ -9253,6 +9341,7 @@
 | `scene` | var | js/simulator/site-ui-parts.js:309 |
 | `scene` | var | js/simulator/story-composer-controller.js:207 |
 | `scene` | var | js/simulator/story-composer-controller.js:245 |
+| `scene` | var | scripts/audit/round6-simulator-audit-repro.cjs:24 |
 | `scene` | var | scripts/layout-smoke-test.cjs:49 |
 | `scene` | var | scripts/simulator-chat-smoke-test.cjs:33 |
 | `sceneCast` | function | js/ui/task-launcher.js:494 |
@@ -9689,6 +9778,7 @@
 | `snap` | var | js/ui/visual-ps-tools.js:358 |
 | `snapToGrid` | function | js/panel/grid.js:124 |
 | `snapshotSession` | function | js/simulator/simulator-studio.js:417 |
+| `snow` | function | scripts/audit/round6-editor-candidates-repro.cjs:10 |
 | `snowToneBackBlurLength` | var | js/sidebar/tone/snow-tone.js:44 |
 | `snowToneBackBlurLengthValue` | var | js/sidebar/tone/snow-tone.js:127 |
 | `snowToneBackColor` | var | js/sidebar/tone/snow-tone.js:46 |
@@ -9701,6 +9791,7 @@
 | `snowToneSnowAngle` | var | js/sidebar/tone/snow-tone.js:47 |
 | `snowToneSnowDensity` | var | js/sidebar/tone/snow-tone.js:40 |
 | `snowToneStart` | function | js/sidebar/tone/snow-tone.js:7 |
+| `social` | var | scripts/audit/round6-simulator-audit-repro.cjs:33 |
 | `social` | var | scripts/story-engine-smoke-test.cjs:89 |
 | `solid` | function | scripts/audit/psd-zip-audit-repro.cjs:19 |
 | `solid` | function | scripts/psd-e2e.cjs:27 |
@@ -10009,6 +10100,7 @@
 | `story` | var | js/simulator/simulator-studio.js:767 |
 | `story` | var | js/simulator/simulator-studio.js:990 |
 | `story` | var | js/simulator/story-composer-controller.js:4 |
+| `story` | var | scripts/audit/round6-simulator-audit-repro.cjs:46 |
 | `story` | var | scripts/story-engine-smoke-test.cjs:36 |
 | `storyFromPanel` | function | js/ai/director/scene-plan-service.js:26 |
 | `storyTemplate` | var | js/simulator/simulator-studio.js:951 |
@@ -10652,6 +10744,7 @@
 | `textbox` | var | js/sidebar/speechBubble/speech-bubble-text.js:316 |
 | `textbox` | var | js/sidebar/text/text-effect.js:172 |
 | `textboxProto` | var | scripts/fabric-text-focus-smoke-test.cjs:47 |
+| `texts` | function | scripts/audit/round6-simulator-audit-repro.cjs:19 |
 | `texture` | var | js/layer/blend/blend.js:185 |
 | `theme` | var | js/simulator/chat-controller.js:183 |
 | `theme` | var | js/simulator/chat-controller.js:308 |
@@ -10769,6 +10862,7 @@
 | `toHex` | function | js/ui/visual-studio.js:160 |
 | `toImageBoard` | function | js/simulator/story-adapters.js:259 |
 | `toLivestream` | function | js/simulator/story-adapters.js:198 |
+| `toObject` | var | scripts/audit/round6-import-state-audit-repro.cjs:15 |
 | `toPhone` | function | js/simulator/story-adapters.js:162 |
 | `toRecord` | function | js/assets/original-starter-pack.js:59 |
 | `toRecord` | function | js/assets/site-ui-pack.js:38 |
@@ -10994,6 +11088,7 @@
 | `typedArraySupport` | function | js/ui/third/ag-psd/ag-psd.js:12686 |
 | `u` | var | js/ui/service-settings.js:147 |
 | `ucs2Write` | function | js/ui/third/ag-psd/ag-psd.js:13488 |
+| `uiHarness` | function | scripts/audit/round6-prompt-routing-audit-repro.cjs:10 |
 | `uiLogger` | var | js/core/logger.js:175 |
 | `uint8` | var | js/core/debug.js:139 |
 | `uint8Array` | var | js/core/compression/lz4.js:87 |
@@ -11394,6 +11489,7 @@
 | `vm` | var | scripts/simulator-timeline-smoke-test.cjs:2 |
 | `vm` | var | scripts/story-engine-smoke-test.cjs:4 |
 | `vm` | var | scripts/task-page-continuity-test.cjs:4 |
+| `vn` | var | scripts/audit/round6-simulator-audit-repro.cjs:41 |
 | `vn` | var | scripts/story-engine-smoke-test.cjs:59 |
 | `w` | var | js/ai/manga-importer.js:1784 |
 | `w` | var | js/canvas-manager.js:55 |
@@ -11535,6 +11631,7 @@
 | `work` | var | js/simulator/simulator-studio.js:829 |
 | `workflow` | var | scripts/release-packaging-test.cjs:7 |
 | `workflowLogger` | var | js/core/logger.js:168 |
+| `worldTop` | function | scripts/audit/round6-simulator-audit-repro.cjs:21 |
 | `wrap` | var | js/assets/boot-guard.js:26 |
 | `wrap` | var | js/ui/service-settings.js:166 |
 | `wrapFn` | function | js/ui/visual-studio.js:433 |
@@ -11646,6 +11743,9 @@
 | `x` | var | js/ui/task-launcher.js:382 |
 | `x` | var | js/ui/visual-ps-tools.js:320 |
 | `x` | var | scripts/audit/image-edit-audit-repro.cjs:3 |
+| `x` | var | scripts/audit/round6-mode-lock-audit-repro.cjs:6 |
+| `x` | var | scripts/audit/round6-panel-cache-audit-repro.cjs:9 |
+| `x` | var | scripts/audit/round6-simulator-audit-repro.cjs:11 |
 | `x0` | var | js/sidebar/panel/knife/knife-geometry.js:245 |
 | `x1` | var | js/ai/manga-importer.js:212 |
 | `x1` | var | js/ai/manga-importer.js:490 |

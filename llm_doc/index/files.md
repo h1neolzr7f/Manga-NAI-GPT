@@ -337,6 +337,18 @@
 | scripts/audit/round5-sidebar-audit-repro.cjs | 28 | Read-only sidebar follow-up audit. Run: node round5-sidebar-audit-repro.cjs [repo] |
 | scripts/audit/round5-startup-audit-repro.py | 48 |  |
 | scripts/audit/round5-text-ui-audit-repro.cjs | 65 | Scratch-only read-only audit. VM exports references to unchanged production functions. |
+| scripts/audit/round6-editor-candidates-repro.cjs | 16 | Read-only production audit. Run: node round6-editor-candidates-repro.cjs [repo] |
+| scripts/audit/round6-font-audit-repro.cjs | 19 |  |
+| scripts/audit/round6-foundation-audit-repro.cjs | 48 |  |
+| scripts/audit/round6-gpt-proxy-controls.py | 44 |  |
+| scripts/audit/round6-import-state-audit-repro.cjs | 44 | Offline audit of imported manga object metadata across production history. |
+| scripts/audit/round6-legacy-brush-repro.cjs | 20 | Actual bundled Fabric + production legacy brush construction, drawing, and PNG commit. |
+| scripts/audit/round6-mode-lock-audit-repro.cjs | 12 | Production tool-mode state restoration audit. No browser session or user data. |
+| scripts/audit/round6-panel-cache-audit-repro.cjs | 18 | Production PanelAuto cache audit: real PNG, unchanged get/detectFrom functions. |
+| scripts/audit/round6-prompt-routing-audit-repro.cjs | 57 | Production prompt replace/UI/writer audit. All dependencies are offline. |
+| scripts/audit/round6-simulator-audit-repro.cjs | 51 |  |
+| scripts/audit/round6-ui-audit-repro.cjs | 76 | Offline, read-only product audit. Exit 0 means defects reproduced. |
+| scripts/audit/round6-vertical-focus-audit-repro.cjs | 33 |  |
 | scripts/audit/scan-source-integrity.py | 59 |  |
 | scripts/auto-swap-drift-test.cjs | 52 |  |
 | scripts/auto-swap-real.cjs | 97 | 换角色 v2 evidence run: page-4 → auto-detect → click a character → reference → 生成 → 应用 (+ optional propagation). |
