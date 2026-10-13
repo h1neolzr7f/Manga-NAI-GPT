@@ -9,11 +9,17 @@
 | `npm run check-translations` | scripts/check-translations.cjs | Translation key validation script - compares keys across all languages in i18next resources |
 | `npm run lint:sync-exported` | scripts/sync-eslint-exported.cjs | !/usr/bin/env node |
 | `npm run test` | scripts/layout-smoke-test.cjs |  |
+| `npm run test:ai-fill-e2e` | scripts/ai-fill-e2e.cjs | 2.0 #2 AI 填充 as a non-destructive layer: novice flow in a real browser (mocked GPT + LaMa; no API cost). |
 | `npm run test:assets` | scripts/asset-library-smoke-test.cjs |  |
+| `npm run test:balloon-e2e` | scripts/balloon-e2e.cjs | 2.0 #3 automatic balloons + reading order. |
 | `npm run test:brushes` | scripts/custom-brush-smoke-test.cjs |  |
 | `npm run test:bubble` | scripts/manga-bubble-detector-test.cjs |  |
+| `npm run test:bubble-ocr` | scripts/run-python.cjs | !/usr/bin/env node |
 | `npm run test:character-bible` | scripts/manga-character-bible-test.cjs |  |
+| `npm run test:charlib-e2e` | scripts/character-library-e2e.cjs | 2.0 #1 character library, novice flow in a real browser. |
+| `npm run test:command-history-e2e` | scripts/command-history-e2e.cjs | 2.0 command layer + history panel: labelled steps with thumbnails, jump back, palette (Ctrl+K) search/run. |
 | `npm run test:cutout` | scripts/cutout-presets-smoke-test.cjs |  |
+| `npm run test:drift` | scripts/gpt-drift-regression-test.cjs | Offline synthetic pixels and async lifecycle regression; no service or credentials. |
 | `npm run test:edit-planner` | scripts/manga-edit-planner-test.cjs |  |
 | `npm run test:editor-regressions` | scripts/history-panel-regression-test.cjs |  |
 | `npm run test:fabric-text-focus` | scripts/fabric-text-focus-smoke-test.cjs | fabric の編集用 textarea がスクロールを起こさないことを検証する。 |
@@ -46,7 +52,9 @@
 | `npm run test:portability` | scripts/portability-smoke-test.cjs | Portability regressions: npm scripts must not depend on a bare `python` alias (absent on |
 | `npm run test:proxy-chain` | scripts/run-python.cjs | !/usr/bin/env node |
 | `npm run test:proxy-guards` | scripts/run-python.cjs | !/usr/bin/env node |
+| `npm run test:psd-e2e` | scripts/psd-e2e.cjs | 2.0 PSD import/export (ag-psd) in a real browser + structure checks in Node (no canvas package needed). |
 | `npm run test:scene-plan` | scripts/scene-plan-smoke-test.cjs |  |
+| `npm run test:script-page-e2e` | scripts/script-page-e2e.cjs | 2.0 #4 script -> page: paste a script into 画一页漫画, split, generate (mock GPT), next page from the queue. |
 | `npm run test:secret-guard` | scripts/run-python.cjs | !/usr/bin/env node |
 | `npm run test:simulator` | scripts/simulator-chat-smoke-test.cjs |  |
 | `npm run test:simulator-extra` | scripts/simulator-extra-smoke-test.cjs |  |
@@ -99,6 +107,27 @@
 - story tabs missing
 - merged bubble panel missing
 
+### `npm run test:ai-fill-e2e`
+
+- true
+- 生成 3 张
+- 3 candidates requested
+- card closed after apply
+- 看原图 hides the AI layer
+- 一把红色雨伞
+- regenerate replaced the layer, no duplicate
+- lama
+
+### `npm run test:balloon-e2e`
+
+- "/" splits panel 1 into two balloons
+- face kept clear
+- metadata survives undo/redo
+- balloons in the face panel get a tail
+- tails stop outside the face:
+- arrange moved it off the face:
+- user text + colour kept
+
 ### `npm run test:brushes`
 
 - 我的墨笔
@@ -117,10 +146,44 @@
 ### `npm run test:character-bible`
 
 - role_a
+- #ff0000
+
+### `npm run test:charlib-e2e`
+
+- cards saved with identity in the Character Bible
+- one GPT request
+- library persists after reload
+- no page errors
+- labels drawn over the canvas
+- unknown faces offer 加入角色库
+- both named characters are recognised:
+- per-panel consistency scores
+
+### `npm run test:command-history-e2e`
+
+- no empty-page hint after resize
+- sel.duplicate
+- palette closes after running
+- every step has a thumbnail, even quick successive ones
+- Ctrl+K toggles
+- plain K does not open the palette
+- newest first, named by command:
+- move inferred:
 
 ### `npm run test:cutout`
 
 - http://127.0.0.1:8765
+
+### `npm run test:drift`
+
+- only measured context offset should be deducted
+- layout changed without scroll/resize: never crop using cached rect
+- old request result must remain detached from new selection
+- late decode must recheck page identity
+- function
+- uniform tone shift is not recomposition
+- insufficient-context
+- screen-tone phase noise is not enough recomposition evidence
 
 ### `npm run test:edit-planner`
 
@@ -281,6 +344,28 @@
 ### `npm run test:portability`
 
 - run-python.cjs must find a Python 3 interpreter on this machine
+
+### `npm run test:psd-e2e`
+
+- ag-psd not loaded at startup
+- one PSD layer per canvas object
+- PSD into a used page -> its own new page
+- not mixed into the previous page
+- multiply
+- editable text layer
+- hidden flag kept
+- hidden layer keeps its real pixels (red)
+
+### `npm run test:script-page-e2e`
+
+- 咦？阿明！ / 早啊，小雪。
+- 今天的海真蓝。
+- one balloon per line (2 lines in panel 3, none in panel 4)
+- one undo removes the generated page
+- names already in the scene are not repeated:
+- GPT prompts in panel order
+- scene i drawn into the i-th frame in reading order
+- queue empty
 
 ### `npm run test:simulator`
 

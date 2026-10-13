@@ -1,0 +1,28 @@
+// Read-only sidebar follow-up audit. Run: node round5-sidebar-audit-repro.cjs [repo]
+const fs=require('fs'),path=require('path'),vm=require('vm'),assert=require('assert');
+const repo=path.resolve(process.argv[2]||process.env.MANGA_AUDIT_ROOT||process.cwd());
+const {createCanvas}=require(require.resolve('@napi-rs/canvas',process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES?{paths:[process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES]}:undefined));
+const read=f=>fs.readFileSync(path.join(repo,f),'utf8');
+function run(x,f){vm.runInContext(read(f),x,{filename:f});}
+function func(x,f,start,end){vm.runInContext('function '+start+read(f).split(start)[1].split(end)[0],x,{filename:f+' [original function]'});}
+function env(){const x={console,setTimeout,clearTimeout,document:{addEventListener(){},createElement(){return createCanvas(1,1);}},canvas:{width:100,height:100,getActiveObject(){return this.active;},getObjects(){return this.objects;},objects:[]},window:{},isPanel:o=>o&&o.type==='polygon',effectLogger:{debug(){}},$(){}};vm.createContext(x);return x;}
+function tone(){const x=env(),fields={'Tone-dot-size':8,'Tone-dot-spacing':2,'Tone-dot-style':'square','Tone-color':'#000000','Tone-grad-style':'top-bottom','Tone-grad-start':0,'Tone-grad-end':100};x.$=id=>id==='Tone-grad-check'?{checked:true}:{value:fields[id]};
+ run(x,'js/sidebar/tone/tone-manager.js');run(x,'js/sidebar/tone/tone.js');x.updatecanvas=()=>{};x.canvas.active={type:'polygon',width:100,height:100,scaleX:1,scaleY:1};
+ assert.equal(x.toneStart(),true);x.generateTone();const a=x.tmpCtxTone.getImageData(150,270,1,1).data[3];assert(a>=76&&a<=77);
+ x.tmpCanvasTone.width=x.tmpCanvasTone.height=100;x.tmpCtxTone=x.tmpCanvasTone.getContext('2d');x.generateTone();const control=x.tmpCtxTone.getImageData(50,90,1,1).data[3];assert(control>=229&&control<=230);
+ const speedFields={'SpeedLine-density':12,'speed-line-style':'horizontal','SpeedLine-grad-check':false,'SpeedLine-color':'#000000','SpeedLine-grad-start':0,'SpeedLine-grad-end':100};x.$=id=>id==='SpeedLine-grad-check'?{checked:false}:{value:speedFields[id]};run(x,'js/sidebar/tone/speedline.js');x.getLastObject=()=>x.canvas.active;x.updateSpeedLineCanvas=()=>{};x.speedLineStart();x.drawTempCanvasSpeedlines();
+ const px=x.tempCtxSpeedLine.getImageData(150,0,1,300).data;let runs=0,inLine=false;for(let i=3;i<px.length;i+=4){if(px[i]>0&&!inLine)runs++;inLine=px[i]>0;}assert.equal(runs,5);
+ console.log('CONFIRMED TONE_SUPERSAMPLE_COORDINATES: production 100x100 tone uses 300x300 buffer + ctx.scale(3), but gradient divides logical y by 300; alpha at logical(50,90)='+a+' instead of production unscaled control='+control+'. Production speedline density=12 renders 5 horizontal runs including clipped lower edge. Real canvas pixels; placement bypassed.');
+}
+function focus(){const x=env();x.fabric={};const min=read('third/Fabric.js/fabric.min_PlusEraser.js');const collection=min.slice(min.indexOf('fabric.Collection='),min.indexOf(';fabric.CommonMethods='));vm.runInContext(collection,x,{filename:'bundled Fabric.Collection [original]'});
+ const c=x.canvas;c._objects=[];c.getObjects=x.fabric.Collection.getObjects;c.add=x.fabric.Collection.add;c.remove=x.fabric.Collection.remove;c.item=x.fabric.Collection.item;c.renderAll=()=>{};c.setActiveObject=()=>{};
+ const panel={type:'polygon',width:100,height:100,left:0,top:0,scaleX:1,scaleY:1,name:'P',getBoundingRect(){return {left:0,top:0,width:100,height:100};}};c.add(panel);x.getLastObject=()=>panel;x.setNotSave=o=>o;x.moveSettings=()=>{};x.setGUID=()=>{};x.saveInitialState=()=>{};x.updateLayerPanel=()=>{};x.saveStateByManual=()=>{};x.panelLogger={debug(){}};
+ x.fabric.util={groupSVGElements(){return {type:'group',width:100,height:100,name:'F',set(p){Object.assign(this,p);}};}};x.fabric.loadSVGFromString=(s,cb)=>cb([],{}); // Paths are synchronous in bundled Path.fromElement and ElementsParser.
+ func(x,'js/sidebar/panel/panel-manager.js','putImageInFrame(imgOrSvg,x,y,isNotActive=false,notReplace=false,isFit=true,targetLayer=null) {','\n\nfunction findTargetFrame');run(x,'js/sidebar/tone/focusline.js');x.tmpCanvasFL=createCanvas(300,300);x.convertToSVG=()=>'<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0L100 0L50 50Z"/></svg>';
+ x.updateFCFabricCanvas();assert.equal(c._objects.length,3);assert.strictEqual(c._objects[1],c._objects[2]);x.updateFCFabricCanvas();assert.equal(c._objects.length,4);assert.strictEqual(c._objects[2],c._objects[3]);assert.notStrictEqual(c._objects[1],c._objects[2]);
+ console.log('CONFIRMED FOCUSLINE_DOUBLE_ADD: production updateFCFabricCanvas + putImageInFrame with bundled Fabric.Collection.add/remove: first update yields [panel,F1,F1] same object twice; second update yields [panel,F1,F2,F2], because remove only removes one duplicate. Original SVG path synchronous callback modeled; DOM/clip geometry shell.');
+}
+function glow(){const x=env();run(x,'js/sidebar/effect/effect-manager.js');const listeners=[];x.effectCheck={checked:true,addEventListener(type,handler){if(type==='change')listeners.push(handler);}};x.effectSize1={value:'20',addEventListener(){}};x.effectColor={value:'#fff',addEventListener(){}};x.saveEffectValueMap=()=>{};vm.runInContext('nowEffect=MODE_EFFECT_GLOW',x);const target={set(props){Object.assign(this,props);}};x.canvas.active=target;x.canvas.renderAll=()=>{};x.addEffectEventListener();listeners[1]();assert.equal(target.shadow.blur,40);x.effectSize1.value='250';listeners[1]();assert.equal(target.shadow.blur,900);
+ console.log('CONFIRMED GLOW_RADIX: production addEffectEventListener change callback parses blur in radix 20: UI size=20 produces shadow.blur=40, size=250 produces 900. DOM event fixture; actual production callback.');
+}
+tone();focus();glow();

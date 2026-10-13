@@ -7,7 +7,7 @@
 
 | ファイル | 行数 | 用途 |
 |---------|------|------|
-| 99_server.py | 1183 |  |
+| 99_server.py | 1190 |  |
 | css/common.css | 224 |  |
 | css/components.css | 350 |  |
 | css/controls-mini.css | 568 |  |
@@ -29,10 +29,10 @@
 | css/simulator-chat.css | 790 | simulator-chat-area .simulator-chat-panel{ |
 | css/styles-css.css | 36 |  |
 | css/tagify.css | 42 |  |
-| css/task-launcher.css | 146 | 新手任务: task bar, home card, wizard heads/cards and 服务设置. Uses only css/ui-theme.css tokens. |
+| css/task-launcher.css | 177 | 新手任务: task bar, home card, wizard heads/cards and 服务设置. Uses only css/ui-theme.css tokens. |
 | css/tippy.css | 31 |  |
 | css/toast.css | 131 |  |
-| css/ui-theme.css | 143 | One theme for the whole editor. Every new surface (task bar, wizards, 服务设置) and the main |
+| css/ui-theme.css | 190 | One theme for the whole editor. Every new surface (task bar, wizards, 服务设置) and the main |
 | css/ui/blend.css | 430 | blendFloatingWindow { |
 | css/ui/bottom-bar.css | 408 |  |
 | css/ui/custom-html-components.css | 110 | input, select, textarea { |
@@ -48,8 +48,8 @@
 | css/ui/shortcut-modal.css | 16 |  |
 | css/ui/tutorial.css | 372 |  |
 | css/ui/unified-settings.css | 82 |  |
-| css/visual-studio.css | 399 |  |
-| gpt_image_proxy.py | 475 |  |
+| css/visual-studio.css | 409 |  |
+| gpt_image_proxy.py | 477 |  |
 | html/Minual/03_xxx2webp.bat | 20 |  |
 | html/Minual/03_xxx2webp_50%.bat | 17 |  |
 | html/Minual/SB/st/03_xxx2webp.bat | 20 |  |
@@ -62,17 +62,22 @@
 | html/TermsOfService/terms-of-service.html | 120 |  |
 | html/common.css | 343 |  |
 | html/functionList.html | 321 |  |
-| index.html | 3085 |  |
+| index.html | 3099 |  |
+| js/ai/ai-fill-core.js | 99 | AI 填充 (2.0 #2) pure helpers: mask geometry, soft edges, prompt, layer metadata. No DOM. |
+| js/ai/ai-fill.js | 372 | AI 填充 (2.0 #2): paint / smart-select an area + one sentence -> up to 3 candidates -> chosen one becomes a |
 | js/ai/ai-management.js | 115 | exported I2I, T2I, apiHeartbeat, clearAllQueues, existsWaitQueue |
 | js/ai/ai-settings.js | 428 |  |
-| js/ai/auto-swap.js | 614 | 换角色 — character swap in place. |
+| js/ai/auto-swap.js | 719 | 换角色 — character swap in place. |
+| js/ai/balloon-layout-core.js | 125 | 2.0 #3 reading order + automatic speech-balloon placement (pure, unit-tested; CPU, no model needed). |
+| js/ai/balloon-layout.js | 196 | 2.0 #3 browser side: automatic dialogue balloons (avoid faces + busy art, manga reading order, tails toward |
+| js/ai/character-library.js | 205 | Character library 2.0 (#1): recognise library characters on the page, score consistency, feed GPT edits. |
 | js/ai/director/scene-plan-controller.js | 66 |  |
 | js/ai/director/scene-plan-schema.js | 19 |  |
 | js/ai/director/scene-plan-service.js | 70 |  |
-| js/ai/gpt-region-editor.js | 1686 | Manga-NAI-GPT: isolated, non-destructive image editing surface. |
+| js/ai/gpt-region-editor.js | 1840 | Manga-NAI-GPT: isolated, non-destructive image editing surface. |
 | js/ai/manga-bubble-detector.js | 81 | Conservative local bubble-candidate detector. |
-| js/ai/manga-character-bible-core.js | 64 | Character Bible data contract (own implementation). |
-| js/ai/manga-character-bible-ui.js | 224 | Private, browser-local character reference cards. |
+| js/ai/manga-character-bible-core.js | 78 | Character Bible data contract (own implementation). |
+| js/ai/manga-character-bible-ui.js | 230 | Private, browser-local character reference cards. |
 | js/ai/manga-edit-planner-ui.js | 126 | Natural-language *plan* preview. Deterministic parser, no cloud calls. |
 | js/ai/manga-edit-planner.js | 79 | Editable plan, not an AI semantic parser. |
 | js/ai/manga-importer.js | 2524 |  |
@@ -81,12 +86,16 @@
 | js/ai/manga-page-structure-ui.js | 391 | Manga page structure inspector: Fabric snapshot -> sampled pixels -> reviewable panels. |
 | js/ai/manga-page-structure.js | 276 | Manga page structure v1: deterministic, low-cost XY-cut candidates. |
 | js/ai/manga-smart-text-core.js | 121 | Shared, dependency-free geometry and light-bubble erase rules. |
-| js/ai/manga-smart-text-editor.js | 586 | Smart manga lettering workflow. |
+| js/ai/manga-smart-text-editor.js | 591 | Smart manga lettering workflow. |
 | js/ai/manga-text-ink-mask.js | 106 | Conservative dark-ink proposal for a user-selected TEXT rectangle. |
+| js/ai/nai-engine-core.js | 137 | NovelAI engine core (1.6): pure helpers shared by 改一块 / 画一页 / AI 生图 NAI routes. Unit-tested in Node. |
+| js/ai/nai-engine.js | 81 | NovelAI engine (1.6): one queue (NovelAI allows one generation at a time per account), retries on 429/5xx, |
 | js/ai/nai-status-format.js | 25 | Human-readable NovelAI subscription status for the "检查 NAI" toast. |
 | js/ai/novelai-only-mode.js | 132 |  |
 | js/ai/panel-auto.js | 156 | Automatic panel detection (local, CPU, rule-based): the existing white-gutter XY-cut |
 | js/ai/panel-pipeline-review.js | 220 | exported markPanelAutoOk |
+| js/ai/prompt-assist-core.js | 129 | Prompt assist core (1.6, optional): offline Danbooru tag index + NAI V4/V4.5 prompt rules + LLM polish template. |
+| js/ai/prompt-assist.js | 213 | Prompt assist (1.6, optional, off by default): offline Danbooru tag autocomplete/validation for NovelAI prompt boxes, |
 | js/ai/prompt/auto/auto-generation.js | 105 |  |
 | js/ai/prompt/auto/auto-prompt-util.js | 817 | generatePageList(btmGetGuidsSize()); |
 | js/ai/prompt/auto/character-card-manager.js | 544 |  |
@@ -103,7 +112,8 @@
 | js/ai/queue/task-queue.js | 90 | exported TaskQueue |
 | js/ai/role/ai-roles.js | 35 | exported hasNotRole, roles |
 | js/ai/role/role-assignment-ui.js | 79 | exported roleAssignmentUI |
-| js/ai/sam-click-select.js | 243 | 智能点选 (SAM 2.1 tiny, local, CPU): click on a character/object → 3 candidate shapes (small → large) |
+| js/ai/sam-click-select.js | 244 | 智能点选 (SAM 2.1 tiny, local, CPU): click on a character/object → 3 candidate shapes (small → large) |
+| js/ai/script-page-core.js | 83 | 2.0 #4 script -> page (LLM-free). Paste a script in almost any everyday format; it is split into pages, |
 | js/ai/ui/ai-ui-util.js | 9 | exported updateWorkflowType |
 | js/ai/ui/unified-settings-window.js | 49 | exported unifiedSettingsWindow |
 | js/assets/asset-blob-store.js | 70 |  |
@@ -119,25 +129,27 @@
 | js/assets/image2-job-store.js | 35 |  |
 | js/assets/original-starter-pack.js | 107 |  |
 | js/assets/site-ui-pack.js | 86 |  |
-| js/canvas-manager.js | 1066 | exported aspectRatio, changeView, forcedAdjustCanvasSize, initResizeCanvas, inputImageFile, resizeCanvas, resizeCanvasToObject |
+| js/canvas-manager.js | 1075 | exported aspectRatio, changeView, forcedAdjustCanvasSize, initResizeCanvas, inputImageFile, resizeCanvas, resizeCanvasToObject |
 | js/core/auto-save.js | 258 | exported AutoSaveManager |
+| js/core/command-history.js | 185 | global commonProperties |
 | js/core/compression/lz4.js | 226 |  |
 | js/core/compression/project-compression.js | 345 | exported btmSaveProjectFile, loadLz4BlobProjectFile, multiLoadLz4, multiLoadZip, openFirstLoadedPageIfCanvasEmpty, processZip |
 | js/core/debug.js | 403 | exported DEBUG_FLAGS |
 | js/core/font/font-dropdown.js | 299 |  |
 | js/core/font/font-manager-core.js | 741 | exported fontClassName, fontInit |
 | js/core/global-error-handler.js | 17 | グローバルエラーハンドラ（未キャッチのエラーとPromise rejectionを検知） |
+| js/core/history-labels.js | 56 | 2.0 history: name an undo step by diffing two saved canvas states (pure, unit-tested). |
 | js/core/logger.js | 198 | exported _dbgFabric, _dbgLogger, autoSaveLogger, canvasLogger, compressionLogger, dashboardLogger, dashboardPerfLogger, dashboardTagLogger, dbLogger, delegatorLogger, effectLogger, errorHandlerLogger, eventLogger, focusTrapLogger, fontLogger, freehandBubbleLogger, generationTaskLogger, imageLogger, layerLogger, logger, panelLogger, perfLogger, projectLogger, raLogger, registryLogger, serviceLogger, simulatorStudioLogger, spinnerLogger, textLogger, tutorialLogger, uiLogger, workflowLogger |
-| js/core/manga-page-size.js | 255 |  |
+| js/core/manga-page-size.js | 266 |  |
 | js/core/service/service-request.js | 94 | exported ServiceRequest |
 | js/core/service/worker-register.js | 116 | exported clearCache |
-| js/core/settings.js | 166 | exported basePrompt, commonProperties, i2iInit, jsColorSetById, minCanvasSizeHeight, minCanvasSizeWidth, svgPagging, syncJsColorFromInputs, t2iInit, webpQuality |
+| js/core/settings.js | 168 | exported basePrompt, commonProperties, i2iInit, jsColorSetById, minCanvasSizeHeight, minCanvasSizeWidth, svgPagging, syncJsColorFromInputs, t2iInit, webpQuality |
 | js/core/svg/google-icon-helper.js | 230 | exported searchIcon, updateSVGStyles |
 | js/core/svg/google-icon-names.js | 13 | exported iconList, initialIcons |
 | js/core/util/anime-util.js | 11 |  |
 | js/core/util/array-buffer-utils.js | 54 | exported ArrayBufferUtils |
-| js/core/util/fabric-text-focus.js | 74 | fabric の IText / Textbox は、入力用の 1px の textarea を |
-| js/core/util/fabric-util.js | 832 | exported avtive, copy, createGUIDMap, deepCopy, fitImageToCanvas, getCanvasGUID, getCenterXByFabricObject, getCenterYByFabricObject, getImageObjectList, getLastObject, getObjectCount, getObjectList, getPointAtDistance, getRandomPanel, haveClipPath, initMessage, initMessageText, isGroup, isHorizontalText, isLayerPreview, isLine, isPanelType, isPath, isShapes, isSpeechBubbleSVG, isSpeechBubbleText, isText, isVerticalText, removeClipPath, removeGUID, replaceGuids, setGUID |
+| js/core/util/fabric-text-focus.js | 83 | fabric の IText / Textbox は、入力用の 1px の textarea を |
+| js/core/util/fabric-util.js | 836 | exported avtive, copy, createGUIDMap, deepCopy, fitImageToCanvas, getCanvasGUID, getCenterXByFabricObject, getCenterYByFabricObject, getImageObjectList, getLastObject, getObjectCount, getObjectList, getPointAtDistance, getRandomPanel, haveClipPath, initMessage, initMessageText, isGroup, isHorizontalText, isLayerPreview, isLine, isPanelType, isPath, isShapes, isSpeechBubbleSVG, isSpeechBubbleText, isText, isVerticalText, removeClipPath, removeGUID, replaceGuids, setGUID |
 | js/core/util/html-canvas-util.js | 92 | exported createClippedCanvas, createOffscreenCanvas, createScaledCanvas, enhanceDarkRegionsCPU, findNonTransparentBounds, renderLayerToCanvas |
 | js/core/util/image-analyzer-util.js | 122 | exported createGrid, findLargestRectangle |
 | js/core/util/image-util.js | 855 | exported blobUrlToDataUrl, clipCopy, createCanvasFromFabricImage, cropAndDownload, cropImage, enhanceDarkImage, estimateExportSize, exportCanvasDataURL, exportDataUrlByteLength, flipHorizontally, flipVertically, formatByteSize, getCropAndDownloadLink, getCropAndDownloadLinkByMultiplier, getHeight, getLink, getWidth, hexToRgba, imageObject2Base64ImageEffectKeep, imageObject2DataURL, imageObject2DataURLByCrop, imgFile2webpFile, normalizeExportQuality, resolveExportBackground, resolveExportBitDepth, resolveExportFormat, resolveExportMultiplier, resolveExportMultiplierForDpi, rgbToHex, rgbaToHex, sendHtmlCanvas2FabricCanvas |
@@ -245,7 +257,7 @@
 | js/svg/manga-panels-image-vertical.js | 44 | exported MangaPanelsImage_Vertical |
 | js/svg/speechbubble.js | 51 | exported SpeechBubble |
 | js/ui/ai/auto-prompt-ui.js | 170 |  |
-| js/ui/beginner-guide.js | 526 |  |
+| js/ui/beginner-guide.js | 535 |  |
 | js/ui/bottom-bar.js | 545 | {guid, { imageLink, blob }} blob is lz4 |
 | js/ui/canvas-object-menu.js | 712 | Canvas object right-click context menu |
 | js/ui/control/common-control-management.js | 61 | exported updateControls |
@@ -261,8 +273,10 @@
 | js/ui/overlay-progress.js | 86 | exported OP_hideLoading, OP_isCancelled, OP_showLoading |
 | js/ui/prompt-helper-images.js | 54 | Prompt-helper example images are not in the repository; they are downloaded on first use |
 | js/ui/prompt-manager.js | 68 | exported openPromptChangeFloatingWindow |
-| js/ui/service-settings.js | 371 | exported ServiceSettings |
-| js/ui/task-launcher.js | 631 | exported TaskLauncher |
+| js/ui/psd-io.js | 193 | PSD import / export (2.0) with ag-psd (MIT, https://github.com/Agamnentzar/ag-psd), loaded on first use. |
+| js/ui/service-settings.js | 389 | exported ServiceSettings |
+| js/ui/task-launcher.js | 791 | exported TaskLauncher |
+| js/ui/third/ag-psd/ag-psd.js | 21378 |  |
 | js/ui/third/base-translation/base-de.js | 563 |  |
 | js/ui/third/base-translation/base-en.js | 578 |  |
 | js/ui/third/base-translation/base-es.js | 555 |  |
@@ -271,7 +285,7 @@
 | js/ui/third/base-translation/base-ko.js | 570 |  |
 | js/ui/third/base-translation/base-ru.js | 556 |  |
 | js/ui/third/base-translation/base-zh.js | 605 | exported base_zh |
-| js/ui/third/i18next.js | 6031 | exported changeLanguage, getText, getTranslation |
+| js/ui/third/i18next.js | 6071 | exported changeLanguage, getText, getTranslation |
 | js/ui/third/tippy.js | 95 | exported addTooltipByElement, setLanguage |
 | js/ui/toast.js | 119 | exported checkActiveImage, createToast |
 | js/ui/tutorial.js | 445 |  |
@@ -282,62 +296,98 @@
 | js/ui/util/mode-manager.js | 415 | exported activeClearButton, changeCursor, changeDefaultCursor, changeObjectCursor, cropModeClear, knifeModeClear, nonActiveClearButton, operationModeClear, pencilModeClear |
 | js/ui/util/tagify-util.js | 75 | exported initializeTagify |
 | js/ui/util/ui-util.js | 68 | exported changeHiddenById, changeSelected, getSelectedValueByButton, getSelectedValueByGroup, hideById, selectedById, showById, unSelectedById |
-| js/ui/visual-ps-tools.js | 630 |  |
-| js/ui/visual-studio.js | 491 |  |
+| js/ui/visual-ps-tools.js | 631 |  |
+| js/ui/visual-studio.js | 497 |  |
 | local_tools/cutout.py | 167 |  |
 | local_tools/model_manager.py | 207 |  |
 | local_tools/processors/__init__.py | 1 |  |
 | local_tools/server.py | 340 |  |
 | manga_bubble_ocr.py | 200 |  |
-| manga_character_detect.py | 587 |  |
+| manga_character_detect.py | 608 |  |
+| manga_character_library.py | 204 |  |
 | manga_lama_inpaint.py | 153 |  |
 | manga_model_guard.py | 232 |  |
 | manga_ocr_preclean.py | 139 |  |
 | manga_ocr_refiner.py | 88 |  |
 | manga_sam_select.py | 191 |  |
-| manga_smart_ocr.py | 375 |  |
+| manga_smart_ocr.py | 381 |  |
 | manga_text_detector.py | 133 |  |
 | prompt_helper_images.py | 165 |  |
 | scripts/MangaMakerUI.py | 64 |  |
+| scripts/ai-fill-core-test.cjs | 37 |  |
+| scripts/ai-fill-e2e.cjs | 181 | 2.0 #2 AI 填充 as a non-destructive layer: novice flow in a real browser (mocked GPT + LaMa; no API cost). |
 | scripts/asset-library-smoke-test.cjs | 113 |  |
+| scripts/audit/ancillary-audit-repro.cjs | 40 |  |
+| scripts/audit/backend-audit-round2.py | 205 | !/usr/bin/env python3 |
+| scripts/audit/editor-audit-repro.cjs | 60 |  |
+| scripts/audit/expanded_frontend_repro.cjs | 117 |  |
+| scripts/audit/image-edit-audit-repro.cjs | 7 |  |
+| scripts/audit/property-history-audit-repro.cjs | 14 |  |
+| scripts/audit/psd-zip-audit-repro.cjs | 48 |  |
+| scripts/audit/round3-process-audit-repro.cjs | 27 |  |
+| scripts/audit/round4-cutout-audit-repro.cjs | 74 | Read-only production cutout audit. Uses @napi-rs/canvas for real PNG/pixel processing. |
+| scripts/audit/round4-project-load-audit-repro.cjs | 32 | Read-only fixture for failed project import transactionality. No user files used. |
+| scripts/audit/round5-assets-audit-repro.cjs | 120 | Offline production-function audit. Exit 0 means defects reproduced, not fixed. |
+| scripts/audit/round5-canvas-audit-repro.cjs | 61 | Read-only audit. Run: node round5-canvas-audit-repro.cjs [repository-root] |
+| scripts/audit/round5-export-audit-repro.cjs | 25 |  |
+| scripts/audit/round5-ocr-audit-repro.py | 29 |  |
+| scripts/audit/round5-prompt-plan-audit-repro.cjs | 66 | Production code audit. Offline DOM/storage fixtures; no external requests. |
+| scripts/audit/round5-queue-cancel-audit-repro.cjs | 84 | Offline audit: runs the repository's production task queue, provider, task |
+| scripts/audit/round5-sam-audit-repro.cjs | 63 | Offline production SAM selection/cache audit. No model download or paid request. |
+| scripts/audit/round5-sidebar-audit-repro.cjs | 28 | Read-only sidebar follow-up audit. Run: node round5-sidebar-audit-repro.cjs [repo] |
+| scripts/audit/round5-startup-audit-repro.py | 48 |  |
+| scripts/audit/round5-text-ui-audit-repro.cjs | 65 | Scratch-only read-only audit. VM exports references to unchanged production functions. |
+| scripts/audit/scan-source-integrity.py | 59 |  |
+| scripts/auto-swap-drift-test.cjs | 52 |  |
 | scripts/auto-swap-real.cjs | 97 | 换角色 v2 evidence run: page-4 → auto-detect → click a character → reference → 生成 → 应用 (+ optional propagation). |
+| scripts/auto-swap-session-test.cjs | 110 |  |
 | scripts/auto-swap-test.cjs | 84 | 换角色 pure helpers: crop aspect/inside panel, prompt, descriptor/similarity, panel clip, identity matching. |
+| scripts/balloon-e2e.cjs | 139 | 2.0 #3 automatic balloons + reading order. |
+| scripts/balloon-layout-core-test.cjs | 48 |  |
 | scripts/beginner-ux-guards-test.cjs | 46 | Beginner UX guards: destructive "clear canvas" asks first, zh menu labels match the |
+| scripts/canvas-fit-drift-fixture.cjs | 25 |  |
+| scripts/canvas-view-drift-test.html | 38 |  |
+| scripts/character-library-e2e.cjs | 153 | 2.0 #1 character library, novice flow in a real browser. |
+| scripts/character-library-test.py | 91 |  |
 | scripts/check-translations.cjs | 227 | Translation key validation script - compares keys across all languages in i18next resources |
 | scripts/cjk-break-test.cjs | 14 |  |
 | scripts/comic-dogfood.cjs | 181 | Dogfood: make a short 4-page manga only through the editor UI (mouse/keyboard, like a beginner), |
+| scripts/command-history-e2e.cjs | 94 | 2.0 command layer + history panel: labelled steps with thumbnails, jump back, palette (Ctrl+K) search/run. |
 | scripts/custom-brush-smoke-test.cjs | 44 |  |
 | scripts/cutout-color-key-smoke-test.py | 36 |  |
 | scripts/cutout-presets-smoke-test.cjs | 34 |  |
+| scripts/fabric-text-focus-nested-test.cjs | 30 |  |
 | scripts/fabric-text-focus-smoke-test.cjs | 145 | fabric の編集用 textarea がスクロールを起こさないことを検証する。 |
 | scripts/full-feature-e2e.cjs | 460 | Full-feature end-to-end walk-through in real Chromium against the real 99_server.py. |
 | scripts/gen-project-index.cjs | 722 | プロジェクト索引の自動生成。 |
 | scripts/generate-original-starter-svgs.cjs | 326 |  |
 | scripts/generate-site-ui-svgs.cjs | 391 |  |
-| scripts/gpt-browser-acceptance.cjs | 1311 | Real headless Chromium acceptance test against the actual HTML/Fabric runtime. |
+| scripts/gpt-browser-acceptance.cjs | 1326 | Real headless Chromium acceptance test against the actual HTML/Fabric runtime. |
+| scripts/gpt-drift-regression-test.cjs | 229 | Offline synthetic pixels and async lifecycle regression; no service or credentials. |
 | scripts/gpt-http-integration-test.py | 205 |  |
-| scripts/gpt-image-proxy-smoke-test.py | 257 |  |
+| scripts/gpt-image-proxy-smoke-test.py | 269 |  |
 | scripts/gpt-panel-i18n-test.cjs | 53 | Regression: every mgpt_* key used by the GPT region editor exists in all 8 i18next |
 | scripts/gpt-panel-line-protect-test.cjs | 58 | Regression: GPT region edits must not erase panel borders / gutters inside the selection. |
 | scripts/gpt-proxy-network-guard-test.py | 160 |  |
 | scripts/gpt-real-api-acceptance.cjs | 367 | OPT-IN, BILLABLE real-API acceptance for the GPT region editor (never part of npm test / CI). |
 | scripts/gpt-region-editor-smoke-test.cjs | 387 | Offline UI smoke test: verifies the standalone editor parses and maps CSS pixels. |
+| scripts/history-labels-test.cjs | 24 |  |
 | scripts/history-panel-regression-test.cjs | 216 |  |
 | scripts/image-export-integration-test.cjs | 324 | 位深度と画素プレビューの統合テスト。 |
 | scripts/image-export-smoke-test.cjs | 433 |  |
 | scripts/image2-interface-smoke-test.cjs | 23 |  |
 | scripts/image2-persistence-regression-test.cjs | 159 |  |
 | scripts/import-image-keeps-page-test.cjs | 25 | Regression: File > Import image on a page that only had a manga template resized the |
-| scripts/install-ai.ps1 | 51 |  |
+| scripts/install-ai.ps1 | 58 |  |
 | scripts/layout-smoke-test.cjs | 196 |  |
 | scripts/lib-top-level-functions.cjs | 56 | Dependency-free: names of top-level `function name(` declarations in a classic script. |
 | scripts/license-guard-test.cjs | 20 | Open-source licence guard: no AGPL bundle, no fonts with unclear redistribution terms, font aliases resolve, |
 | scripts/local-secret-guard-test.py | 261 |  |
 | scripts/local-tools-origin-test.py | 179 |  |
-| scripts/make-one-click-zip.ps1 | 63 | Build a beginner zip without git history, secrets, or machine caches. |
+| scripts/make-one-click-zip.ps1 | 71 | Build a beginner zip without git history, secrets, or machine caches. |
 | scripts/manga-bubble-detector-test.cjs | 46 |  |
 | scripts/manga-bubble-ocr-test.py | 64 |  |
-| scripts/manga-character-bible-test.cjs | 24 |  |
+| scripts/manga-character-bible-test.cjs | 36 |  |
 | scripts/manga-character-detect-test.py | 174 |  |
 | scripts/manga-edit-planner-test.cjs | 67 |  |
 | scripts/manga-import-smoke-test.cjs | 169 |  |
@@ -347,21 +397,23 @@
 | scripts/manga-model-request-test.cjs | 22 | Local model requests (OCR / LaMa): failures tell a beginner the next step. |
 | scripts/manga-ocr-preclean-test.py | 119 | !/usr/bin/env python3 |
 | scripts/manga-ocr-refiner-test.py | 94 |  |
-| scripts/manga-page-size-smoke-test.cjs | 47 |  |
+| scripts/manga-page-size-smoke-test.cjs | 55 |  |
 | scripts/manga-page-structure-test.cjs | 116 | Red/green contract: inspect page pixels, split only credible gutters and |
 | scripts/manga-real-model-acceptance.py | 133 | !/usr/bin/env python3 |
 | scripts/manga-real-ui-acceptance.cjs | 161 | REAL (unmocked) Chromium acceptance for the local OCR -> Manga OCR -> LaMa flow. |
 | scripts/manga-sam-select-test.py | 142 |  |
 | scripts/manga-smart-ocr-runtime-test.py | 21 |  |
-| scripts/manga-smart-ocr-test.py | 120 |  |
+| scripts/manga-smart-ocr-test.py | 135 |  |
 | scripts/manga-smart-text-test.cjs | 103 |  |
 | scripts/manga-text-detector-test.py | 96 |  |
 | scripts/manga-text-ink-mask-test.cjs | 77 |  |
 | scripts/model-progress-test.cjs | 24 | First-use model download card text (js/ai/manga-model-request.js progressText). |
+| scripts/nai-engine-core-test.cjs | 45 |  |
 | scripts/nai-error-readable-test.py | 164 |  |
 | scripts/nai-pipeline-credentials-test.cjs | 24 | Regression: the NAI pipeline smoke test must never reuse the NovelAI token as the |
 | scripts/nai-pipeline-smoke-test.mjs | 324 | NAI-only pipeline smoke test (NovelAI + Director proxy). |
 | scripts/nai-real-acceptance.cjs | 178 | OPT-IN real NovelAI acceptance (never part of npm test / CI). Stays inside Opus free |
+| scripts/nai-route-e2e.cjs | 103 | 1.6 NovelAI routes (mock NAI): 改一块 via NAI inpaint, GPT refusal -> 改用 NovelAI, 画一页 via NAI with panel aspect sizes, |
 | scripts/nai-status-format-test.cjs | 18 | Regression: "检查 NAI" must not show the misleading "无限生图：否" for Opus users. |
 | scripts/no-duplicate-globals-test.cjs | 25 | Classic <script> files share one global scope: a top-level function declared in two files is |
 | scripts/no-third-party-director-test.py | 231 |  |
@@ -369,7 +421,7 @@
 | scripts/novelai-page-result-test.cjs | 9 |  |
 | scripts/novelai-readable-error-test.cjs | 39 | Regression: NovelAI errors shown to the user are readable (JSON from the local proxy, |
 | scripts/novice-audit-shots.cjs | 64 | Self-review walkthrough: a fresh novice opens the app at 1440x900 and 1280x800, screenshots every state |
-| scripts/novice-task-e2e.cjs | 1787 | Novice full-task acceptance (docs/GROK_BOT_FINAL_DELIVERY.md §4): a new user, no docs, real Chromium, |
+| scripts/novice-task-e2e.cjs | 1801 | Novice full-task acceptance (docs/GROK_BOT_FINAL_DELIVERY.md §4): a new user, no docs, real Chromium, |
 | scripts/offline-icon-fonts-test.cjs | 23 | Regression: icon fonts came only from fonts.gstatic.com, so offline (or where Google |
 | scripts/page-studio-smoke-test.cjs | 106 |  |
 | scripts/panel-auto-test.cjs | 23 | Automatic panel detection core: XY-cut (MangaPageStructure) + tighten to ink, mapped to page pixels. |
@@ -379,13 +431,20 @@
 | scripts/prepare-installer.ps1 | 118 |  |
 | scripts/privacy-guard-test.cjs | 19 | Open-source guard: no tracked text file may contain API keys, tokens, private relay/tunnel hosts or personal |
 | scripts/project-load-open-page-test.cjs | 43 | Regression: "Load project" only added page thumbnails; when the canvas was empty |
+| scripts/prompt-assist-core-test.cjs | 36 |  |
+| scripts/prompt-assist-e2e.cjs | 76 | 1.6 prompt assist (mock LLM, local tag fixture): off by default; enable in 服务设置 -> tag DB download + SHA check -> |
 | scripts/prompt-helper-images-test.py | 132 |  |
 | scripts/proxy-chain-negative-test.py | 269 |  |
 | scripts/proxy-guard-smoke-test.py | 66 |  |
+| scripts/psd-e2e.cjs | 127 | 2.0 PSD import/export (ag-psd) in a real browser + structure checks in Node (no canvas package needed). |
+| scripts/release-packaging-test.cjs | 19 | Verify the release pipeline's trigger and file dependencies before publishing. |
 | scripts/remove-dead-functions.cjs | 36 | Usage: node scripts/remove-dead-functions.cjs list.tsv  (file<TAB>line<TAB>name per row). |
 | scripts/remove-spaces.cjs | 84 | JSファイルからインデントと不要なスペースを削除するスクリプト |
 | scripts/run-python.cjs | 29 | !/usr/bin/env node |
 | scripts/scene-plan-smoke-test.cjs | 9 |  |
+| scripts/script-page-core-test.cjs | 49 |  |
+| scripts/script-page-e2e.cjs | 118 | 2.0 #4 script -> page: paste a script into 画一页漫画, split, generate (mock GPT), next page from the queue. |
+| scripts/select-manga-page-test.cjs | 24 |  |
 | scripts/server-port-conflict-test.py | 44 |  |
 | scripts/service-request-test.cjs | 46 | Regression: the shared service request/error layer gives one consistent, readable Chinese |
 | scripts/simulator-chat-smoke-test.cjs | 51 |  |
@@ -393,6 +452,7 @@
 | scripts/simulator-timeline-smoke-test.cjs | 11 |  |
 | scripts/story-engine-smoke-test.cjs | 126 |  |
 | scripts/sync-eslint-exported.cjs | 57 | !/usr/bin/env node |
+| scripts/task-page-continuity-test.cjs | 132 | Offline behavioural regressions: persisted character anchors, stable request state, cancellation and export cleanup. |
 | scripts/tone-target-apply-test.cjs | 26 | Regression: toneStart() resolved the clicked panel, but updatecanvas() re-asked getLastObject(), |
 | scripts/tone-target-click-test.cjs | 34 | Regression: panels are not selectable, so "click a panel, then a tone" put the tone on |
 | scripts/ux-screenshots.cjs | 44 | Beginner-flow screenshots for UX before/after comparison. |
@@ -405,7 +465,7 @@
 | scripts/windows/99_test_nai_pipeline.bat | 16 |  |
 | scripts/windows/start_local_tools.bat | 4 |  |
 | scripts/windows/start_manga_editor_nai.bat | 23 |  |
-| scripts/windows/start_manga_editor_nai.ps1 | 570 |  |
+| scripts/windows/start_manga_editor_nai.ps1 | 600 |  |
 | service-worker.js | 93 | Service Worker: Cache management for HTTP/HTTPS deployment |
-| 一键启动.bat | 29 |  |
-| 安装AI功能.bat | 11 |  |
+| 一键启动.bat | 30 |  |
+| 安装AI功能.bat | 12 |  |

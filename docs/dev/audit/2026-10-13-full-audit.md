@@ -648,3 +648,377 @@ fixture原A页仍显示left=23的对象、GUID=A，但两条原历史被替换�
 - PR5的flow7根因仍待浏览器定位。继续读测试发现openPage只等待GUID变化，且吞掉超时，没有核对目标页GUID；应用等待又只查是否存在任一名为“GPT 局部改图”的对象，可能命中旧结果。这是验收工具的证据不足，**尚不能据此断言它就是本次失败根因**。应记录并断言目标GUID、此次结果身份及像素变化，保留原失败记录。
 - 没有新增产品修复或合并PR5；上述五项仍待修复。尚未完成真实浏览器、干净Windows、真实API与用户153页工程验收，不保证穷尽全部bug。
 
+
+
+# 第五轮：剩余模块扩查、真实像素与失败事务
+
+本轮开始时GitHub main为5079d5f（仅文档），产品基线仍ca9572d。新增59–91共33项，现有编号合计91项。以下均有执行证据；Windows条目保留静态调用链/语言级复现的边界，不算完整Windows验收。原问题补充、产品设计限制、未验证候选另列。
+
+### 59 — 运行中任务点×取消后，结果仍替换源图（P2）
+
+位置：[js/ai/queue/spinner.js:35](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/queue/spinner.js#L35)；[js/ai/provider/novelai-provider.js:509](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/provider/novelai-provider.js#L509)。
+
+一个I2I任务已running时点×，getAiTask变null、队列仍active=1，请求没有AbortSignal。释放受控响应后source-A被移除，generated-result仍回贴。没有切页或ID复用，不重复05/06。
+
+修复方向：保存独立取消状态；应用前检查取消与源对象版本，至少阻止自动回贴。上游已发生的扣费不能据此声称撤销。
+
+复现：[round5-queue-cancel-audit-repro.cjs](../../../scripts/audit/round5-queue-cancel-audit-repro.cjs)（exit=0表示缺陷成功出现）。
+
+### 60 — 新旧NovelAI队列互不协调，同账号并发两次生成（P2）
+
+位置：[js/ai/ai-management.js:3](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/ai-management.js#L3)；[js/ai/nai-engine.js:65](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/nai-engine.js#L65)。
+
+旧图层生成使用novelaiQueue，新AI Fill/画一页使用闭包chain。生产请求函数用相同Authorization取得maxInFlight=2；旧任务完成但新版仍等待时existsWaitQueue=false，clearAllQueues也不覆盖新版。没有声称真实上游必然拒绝或多扣费。
+
+修复方向：所有入口共用按账号调度器，统一active/waiting/取消/状态查询。
+
+复现：[round5-queue-cancel-audit-repro.cjs](../../../scripts/audit/round5-queue-cancel-audit-repro.cjs)（exit=0表示缺陷成功出现）。
+
+### 61 — 生成图保存了blob，却因索引失败而在重开后隐身（P2）
+
+位置：[js/assets/asset-store.js:75](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/assets/asset-store.js#L75)；[js/assets/asset-store.js:161](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/assets/asset-store.js#L161)；[js/assets/image2-client.js:80](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/assets/image2-client.js#L80)。
+
+只模拟manifest的localStorage写入QuotaExceeded，BlobStore成功保存1个blob；任务仍succeeded。重开hydrate得到files=1、assets=0，jobAssetResolves=false。区别于19两种文件保存都失败、53主动清设置；没有声称blob删除。
+
+修复方向：成功状态必须包含metadata提交；失败保留生成字节供保存重试，启动可从同事务存储的metadata重建索引。
+
+复现：[round5-assets-audit-repro.cjs](../../../scripts/audit/round5-assets-audit-repro.cjs)（exit=0表示缺陷成功出现）。
+
+### 62 — 素材索引导入中途失败，先前覆盖和新增记录不回滚（P2）
+
+位置：[js/assets/asset-pack.js:16](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/assets/asset-pack.js#L16)；[js/assets/asset-store.js:314](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/assets/asset-store.js#L314)。
+
+导入三条：同ID改旧路径、增加新记录、size=-1。第三条被validate拒绝，但旧可读路径已经改成不存在的missing-backup.png，新记录也已持久化；重开仍受影响。每条register/save在完整验证前提交。
+
+修复方向：全部验证后在临时索引合并，成功时一次提交；导入失败保持原库。
+
+复现：[round5-assets-audit-repro.cjs](../../../scripts/audit/round5-assets-audit-repro.cjs)（exit=0表示缺陷成功出现）。
+
+### 63 — 服务器存储截断素材唯一ID，长同名第二图覆盖第一图（P1，服务器回退条件）
+
+位置：[js/assets/asset-manifest.js:14](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/assets/asset-manifest.js#L14)；[js/assets/asset-scanner.js:67](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/assets/asset-scanner.js#L67)；[99_server.py:222](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/99_server.py#L222)；[99_server.py:241](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/99_server.py#L241)。
+
+不同红/蓝真实PNG使用同一个长文件名，生产ID和hash都不同，但服务器仅取ID前32字符，唯一后缀被截掉，两图落同path；第二次wb写覆盖红图。禁用IndexedDB的正式服务器回退路径中，重开两条素材都读到蓝图。IndexedDB正常时独立blob可能保住原图。
+
+修复方向：文件身份使用完整ID的稳定hash/UUID，不截名称前缀；禁止不同身份映射同文件，原子写入。
+
+复现：[round5-assets-audit-repro.cjs](../../../scripts/audit/round5-assets-audit-repro.cjs)（exit=0表示缺陷成功出现）。
+
+### 64 — 删除素材与迟到持久化冲突，留下孤立blob（P3）
+
+位置：[js/assets/asset-store.js:166](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/assets/asset-store.js#L166)；[js/assets/asset-store.js:295](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/assets/asset-store.js#L295)。
+
+persistGenerated刚开始便remove，put被微任务延迟到delete之后。生产fixture最终libraryAssets=0、durableBlobs=1、metadataResurrected=false。确认存储泄漏，不夸大为素材索引复活。
+
+修复方向：按asset ID串行写删，以删除版本/墓碑拒绝迟到写入，并清理无引用blob。
+
+复现：[round5-assets-audit-repro.cjs](../../../scripts/audit/round5-assets-audit-repro.cjs)（exit=0表示缺陷成功出现）。
+
+### 65 — 绿色裁剪/框选抠图辅助框被烘焙进PNG（P2）
+
+位置：[js/ui/util/mode-change.js:132](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/util/mode-change.js#L132)；[js/core/util/image-util.js:597](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/util/image-util.js#L597)。
+
+辅助框设置excludeFromExport=true，但捆绑Fabric的raster导出不读取该标志，它仅影响JSON/SVG。真实PNG白底内部变RGBA=[239,255,235,255]，绿色填色已经进入作品；隐藏红图层对照正确遗漏。
+
+修复方向：栅格导出临时隐藏/过滤辅助对象，并在finally恢复，不能只依赖序列化排除标志。
+
+复现：[round5-export-audit-repro.cjs](../../../scripts/audit/round5-export-audit-repro.cjs)（exit=0表示缺陷成功出现）。
+
+### 66 — 同步导出异常跳过恢复；渲染异常还会污染live canvas（P2，受控故障注入）
+
+位置：[js/core/util/image-util.js:634](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/util/image-util.js#L634)；[js/core/util/image-util.js:681](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/util/image-util.js#L681)；[third/Fabric.js/fabric.min_PlusEraser.js:1](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/third/Fabric.js/fabric.min_PlusEraser.js#L1)。
+
+cropAndDownload/clipCopy在Promise catch安装前同步导出，抛错时网格已移除、drawGrid=0、错误提示=0。捆绑Fabric渲染抛错还留下200×200、interactive=false、retina=false、contextTop=null、viewport放大2倍。尚未取得自然触发该render错误的用户工程。
+
+修复方向：公共入口以try/catch/finally覆盖同步与异步；离屏导出，或完整恢复画布尺寸、viewport、交互和上下文。
+
+复现：[round5-export-audit-repro.cjs](../../../scripts/audit/round5-export-audit-repro.cjs)（exit=0表示缺陷成功出现）。
+
+### 67 — 模拟器分页长图包含无关图层和编辑网格（P2，有透明区条件）
+
+位置：[js/simulator/longshot-exporter.js:32](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/longshot-exporter.js#L32)；[js/simulator/playback-controller.js:98](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/playback-controller.js#L98)。
+
+capturePages仅用group确定裁剪范围，仍导出整canvas。真实PNG包含无关蓝色图层[0,0,255,255]；目标透明区还包含网格[226,74,74,255]。默认不透明背景可能遮住网格，不能说所有模板都有网格；不重复41/42坐标与比例错误。
+
+修复方向：以目标group/同simulatorPageId对象离屏渲染，指定独立背景，过滤辅助显示。
+
+复现：[round5-export-audit-repro.cjs](../../../scripts/audit/round5-export-audit-repro.cjs)（exit=0表示缺陷成功出现）。
+
+### 68 — 气泡OCR去重误删相邻重复字（P2，正确TSV受控输入）
+
+位置：[manga_bubble_ocr.py:144](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/manga_bubble_ocr.py#L144)。
+
+两个20px宽“あ”相隔1px，后接“お”。无重叠的同字仅因横向中心距离≤字宽1.2倍被判重复，生产read_bubble把「ああお」变为「あお」。未运行真实Tesseract产生该TSV。
+
+修复方向：重复判断依据实际重叠/拆字证据并考虑方向，不能把正常字距当重复。
+
+复现：[round5-ocr-audit-repro.py](../../../scripts/audit/round5-ocr-audit-repro.py)（exit=0表示缺陷成功出现）。
+
+### 69 — OCR横排按字框中心高度排序，颠倒同一行（P2，正确TSV受控输入）
+
+位置：[manga_bubble_ocr.py:161](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/manga_bubble_ocr.py#L161)。
+
+同一行“日”“本”“語”的框为(40,40,20,24)/(61,42,20,18)/(82,40,20,24)，纵向充分重叠，却按y+h//2优先排序为「本日語」。根因与68去重不同。
+
+修复方向：先按纵向重叠/基线聚类行，再按x排同行；保留稳定逐字映射。
+
+复现：[round5-ocr-audit-repro.py](../../../scripts/audit/round5-ocr-audit-repro.py)（exit=0表示缺陷成功出现）。
+
+### 70 — 竖排OCR获胜后，宽短多列仍被标横排（P2，正确TSV受控输入）
+
+位置：[manga_bubble_ocr.py:180](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/manga_bubble_ocr.py#L180)；[manga_bubble_ocr.py:192](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/manga_bubble_ocr.py#L192)。
+
+只有jpn_vert返回三短列从右到左「あいう」，生产读序正确却输出vertical=false。best未保存获胜方向，最后只凭整个bbox纵横比推断，后续字幕会默认横排。
+
+修复方向：保留获胜引擎与列结构，整体高宽比作为辅助而非唯一方向依据。
+
+复现：[round5-ocr-audit-repro.py](../../../scripts/audit/round5-ocr-audit-repro.py)（exit=0表示缺陷成功出现）。
+
+### 71 — 智能字幕的自动遮盖擦掉气泡边线（P2，真实PNG）
+
+位置：[js/ai/manga-smart-text-editor.js:384](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/manga-smart-text-editor.js#L384)；[js/ai/manga-smart-text-editor.js:460](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/manga-smart-text-editor.js#L460)。
+
+只采样文字框外至少5px的白色环，便批准整个向外扩张矩形填色。气泡黑边位于20px高文字框上方2px，生产detect→apply让(100,38)从黑色变全白。原图仍在，边线被新遮盖层遮住；真实OCR是否给该紧框未测。
+
+修复方向：擦字mask限制在安全气泡内部并保护边线，不能仅凭外环颜色批准扩张区域。
+
+复现：[round5-text-ui-audit-repro.cjs](../../../scripts/audit/round5-text-ui-audit-repro.cjs)（exit=0表示缺陷成功出现）。
+
+### 72 — 多列OCR整体框被当单字字号，短译文放大数倍（P2，生产字号参数）
+
+位置：[js/ai/manga-smart-text-editor.js:472](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/manga-smart-text-editor.js#L472)。
+
+原字宽20px、三列整体OCR bbox宽70px，两字替换经apply得到fontSize=77，原字3.85倍。竖排用整体宽度、横排用整体高度乘1.1当原字号上限，误把多列/多行尺寸当单字。不同于50显式换行适配。Fabric文字像素未实测。
+
+修复方向：保留单字/单行中位尺寸估计原字号，整体框只用于布局。
+
+复现：[round5-text-ui-audit-repro.cjs](../../../scripts/audit/round5-text-ui-audit-repro.cjs)（exit=0表示缺陷成功出现）。
+
+### 73 — 智能字幕应用解码期间切页，旧字幕贴到新页（P2，受控异步）
+
+位置：[js/ai/manga-smart-text-editor.js:435](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/manga-smart-text-editor.js#L435)；[js/ai/manga-smart-text-editor.js:502](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/manga-smart-text-editor.js#L502)。
+
+A页apply暂停Fabric遮盖层解码，复用canvas载入B并调用公开syncPage；释放后旧A遮盖层/文字共2层仍加入B，随后清当前字幕状态。入口验证之后、await解码之后没有再次验证GUID/草稿/源像素。与18/28/56同族，但为独立字幕入口。
+
+修复方向：捕获页面与草稿版本，每个await后及提交前复查，清理也仅清所属页。
+
+复现：[round5-text-ui-audit-repro.cjs](../../../scripts/audit/round5-text-ui-audit-repro.cjs)（exit=0表示缺陷成功出现）。
+
+### 74 — LaMa确认应用期间取消，迟到解码仍提交图层（P2，受控异步）
+
+位置：[js/ai/manga-lama-inpaint-ui.js:281](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/manga-lama-inpaint-ui.js#L281)；[js/ai/manga-lama-inpaint-ui.js:377](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/manga-lama-inpaint-ui.js#L377)。
+
+预览→确认→暂停Fabric解码→公开cancel使面板隐藏、清approved/prepared并增加ticket→释放后仍加1个lama-erase-patch并onApplied。apply提前捕获target，只查input.validate，不检查ticket/批准身份。
+
+修复方向：应用独立ticket，每个await及提交前核对批准对象、取消状态与页面。
+
+复现：[round5-text-ui-audit-repro.cjs](../../../scripts/audit/round5-text-ui-audit-repro.cjs)（exit=0表示缺陷成功出现）。
+
+### 75 — LaMa更换蒙版后旧预览仍可确认，输出与所见不同（P2，真实PNG）
+
+位置：[js/ai/manga-lama-inpaint-ui.js:196](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/manga-lama-inpaint-ui.js#L196)；[js/ai/manga-lama-inpaint-ui.js:345](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/manga-lama-inpaint-ui.js#L345)；[js/ai/manga-lama-inpaint-ui.js:359](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/manga-lama-inpaint-ui.js#L359)。
+
+规则预览擦除两根笔画；启用检测器后mask只含第一根，但Confirm仍启用、preview.src未变。确认的实际第二笔画(86,50)仍为黑，旧预览对应像素是白。approved引用可变crop，应用读取了新mask。模型输出为桩。
+
+修复方向：任何蒙版改动统一作废预览；批准结果保存不可变mask快照/版本。
+
+复现：[round5-text-ui-audit-repro.cjs](../../../scripts/audit/round5-text-ui-audit-repro.cjs)（exit=0表示缺陷成功出现）。
+
+### 76 — 智能点选抽样哈希碰撞，改图后复用旧页面embedding（P2，真实PNG＋模型桩）
+
+位置：[js/ai/sam-click-select.js:22](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/sam-click-select.js#L22)；[manga_sam_select.py:150](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/manga_sam_select.py#L150)。
+
+两张64×64合法PNG，黑8×8物体分别在x=3/24、y=0，均长370字符。生产每97字符采样的hashString给相同imageId=1he8qgc-aa。连续执行生产select，即使第二次带新image，set_image仅1次；第二mask仍box=[3,0,11,8]，本应从24开始。
+
+修复方向：用覆盖全部内容的摘要及页面版本标识缓存；显式image与缓存身份不符时重建embedding。不把该桩结果当真实SAM质量验收。
+
+复现：[round5-sam-audit-repro.cjs](../../../scripts/audit/round5-sam-audit-repro.cjs)（exit=0表示缺陷成功出现）。
+
+### 77 — GPT智能点选丢精确mask，孔洞被填入且断开部分漏选（P2，真实像素与函数桥接）
+
+位置：[manga_sam_select.py:99](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/manga_sam_select.py#L99)；[js/ai/sam-click-select.js:117](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/sam-click-select.js#L117)；[js/ai/gpt-region-editor.js:798](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/gpt-region-editor.js#L798)；[js/ai/gpt-region-editor.js:1523](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/gpt-region-editor.js#L1523)。
+
+服务保留精确mask但polygon只取最大外轮廓；生产finish仅传cand.polygon，GPT重新填充lasso。候选孔洞像素alpha0变255，断开的已选部分255变0，和蓝色预览不一致；负点击排除的内部区域可能被重新允许修改。未运行真实SAM轮廓提取，候选mask/外轮廓为满足其代码合同的fixture。
+
+修复方向：GPT应用直接使用候选精确栅格mask，完整保留孔洞/多个连通部分；轮廓仅用于显示。
+
+复现：[round5-sam-audit-repro.cjs](../../../scripts/audit/round5-sam-audit-repro.cjs)（exit=0表示缺陷成功出现）。
+
+### 78 — 混合结果裁透明边后被移到左上并放大（P2，真实PNG）
+
+位置：[js/layer/blend/blend.js:495](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/layer/blend/blend.js#L495)；[js/core/util/image-util.js:367](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/util/image-util.js#L367)。
+
+100×100混合图非透明范围[30,40,20,10]，sendHtmlCanvas2FabricCanvas裁出20×10，丢minX/Y又scaleToWidth(100)，显示变[0,0,100,50]。与54抠图响应裁切不同，这条本地混合应用已有裁切bounds却未使用。
+
+修复方向：保留composite页面坐标、裁切偏移与像素比例，不再按全页宽重新缩放。
+
+复现：[round5-canvas-audit-repro.cjs](../../../scripts/audit/round5-canvas-audit-repro.cjs)（exit=0表示缺陷成功出现）。
+
+### 79 — 页面扩大后画笔离屏buffer仍旧尺寸，外侧笔迹消失（P2，真实PNG）
+
+位置：[js/sidebar/pen/custom-brush.js:177](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/sidebar/pen/custom-brush.js#L177)；[js/canvas-manager.js:198](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/canvas-manager.js#L198)。
+
+TaperBrush在100px页绘制alpha255，生产resizeCanvasToObject(200,200)后buffer仍100px；在(150,150)绘制alpha0。新建同参数画笔对照alpha255。CustomStamp/DoubleOutline/Mosaic有相同分配模式，但仅Taper实际执行。
+
+修复方向：尺寸变化时重建/扩容画笔buffer，或在每次笔触开始核对尺寸，保留当前设置。
+
+复现：[round5-canvas-audit-repro.cjs](../../../scripts/audit/round5-canvas-audit-repro.cjs)（exit=0表示缺陷成功出现）。
+
+### 80 — 滤镜切换对象时，把A像素写进B图层（P1，受控解码与生产选择事件）
+
+位置：[js/fabric/fabric-management.js:18](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/fabric/fabric-management.js#L18)；[js/ui/control/glfx-control.js:437](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/control/glfx-control.js#L437)。
+
+selection:updated先发起A的恢复解码，随即将lastActive改B。迟到onload读可变lastActive，remove(B)后加入A像素、复制B的guid及left=60；A本身仍在。B原像素被替换。未跑真实浏览器/WebGL。
+
+修复方向：回调捕获原目标对象和请求版本，只操作原目标；选择改变时取消或丢弃旧恢复。
+
+复现：[round5-canvas-audit-repro.cjs](../../../scripts/audit/round5-canvas-audit-repro.cjs)（exit=0表示缺陷成功出现）。
+
+### 81 — 矩形直线分镜模板的所有比例重试都切分失败（P2，实际JSTS与生产模板retry）
+
+位置：[js/sidebar/panel/knife/knife-geometry.js:146](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/sidebar/panel/knife/knife-geometry.js#L146)；[js/sidebar/panel/knife/knife-line-renderer.js:98](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/sidebar/panel/knife/knife-line-renderer.js#L98)；[js/panel/layout-templates.js:118](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/panel/layout-templates.js#L118)。
+
+矩形中心竖切的交点等距离，closest/farthest比较都取首点，线端点同为(50,0)。生产9种retry比例横向和竖向全部false；捆绑JSTS无法分割零长线。几何Fabric对象为外壳，执行无旋转场景。
+
+修复方向：按切线参数顺序取两个不同交点，明确处理相等距离；模板验证矩形横/竖与偏比例。
+
+复现：[round5-canvas-audit-repro.cjs](../../../scripts/audit/round5-canvas-audit-repro.cjs)（exit=0表示缺陷成功出现）。
+
+### 82 — 切分比例检查拒绝后，子图变换和clip没有回滚（P1/P2，实际JSTS＋受控Fabric）
+
+位置：[js/sidebar/panel/knife/knife-split-engine.js:45](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/sidebar/panel/knife/knife-split-engine.js#L45)；[js/sidebar/panel/knife/knife-split-engine.js:343](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/sidebar/panel/knife/knife-split-engine.js#L343)；[js/sidebar/panel/panel-manager.js:169](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/sidebar/panel/panel-manager.js#L169)。
+
+100×100梯形12%竖切最终返回false并恢复原分镜，但子图scale已变1.00776、left变5.612，relatedPoly/clip指向已经删除的88×98.8临时分镜。失败操作确实改变原图；不是单纯切分不可用。
+
+修复方向：先离屏验证比例/几何，再一起提交；失败恢复子图变换、clip/绑定、层序和分镜关系。
+
+复现：[round5-canvas-audit-repro.cjs](../../../scripts/audit/round5-canvas-audit-repro.cjs)（exit=0表示缺陷成功出现）。
+
+### 83 — AI安装的CPU约束被SAM2隔离构建绕过（P2，机制已复现）
+
+位置：[scripts/install-ai.sh:18](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/scripts/install-ai.sh#L18)；[scripts/install-ai.ps1:48](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/scripts/install-ai.ps1#L48)。
+
+SAM2使用--no-deps但未关闭build isolation；CPU index只作用于上一条pip。sam2 1.1.0源码build-system另需torch>=2.5.1，pip隔离环境重新解析构建依赖。相同要求fixture用--no-index明确禁下载，仍进入Installing build dependencies并找torch失败。没有下载torch/CUDA、未测真实安装流量。
+
+修复方向：明确准备构建依赖后禁隔离，或给构建依赖同样受控CPU源；不能将--no-deps/SAM2_BUILD_CUDA=0当作禁构建依赖下载。
+
+复现：[round5-startup-audit-repro.py](../../../scripts/audit/round5-startup-audit-repro.py)（exit=0表示缺陷成功出现）。
+
+### 84 — 安装包构建遇合法单引号路径，生成Python语法错误（P3，语言级实际复现）
+
+位置：[scripts/prepare-installer.ps1:101](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/scripts/prepare-installer.ps1#L101)。
+
+把iconSource/iconOutput直接拼入Python原始单引号字符串。有效PNG放在“O'Brien Manga 测试”目录，同样python -c报SyntaxError；中文/空格本身正常。完整Windows打包未运行。
+
+修复方向：路径通过sys.argv或标准编码参数传入，不直接拼入Python源码。
+
+复现：[round5-startup-audit-repro.py](../../../scripts/audit/round5-startup-audit-repro.py)（exit=0表示缺陷成功出现）。
+
+### 85 — 自定义抠图端口与Windows探测/提示和客户端不一致（P2，实际sidecar＋静态Windows合同）
+
+位置：[local_tools/server.py:327](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/local_tools/server.py#L327)；[scripts/windows/start_manga_editor_nai.ps1:45](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/scripts/windows/start_manga_editor_nai.ps1#L45)；[js/local-tools/local-tools-client.js:4](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/local-tools/local-tools-client.js#L4)。
+
+生产sidecar尊重LOCAL_TOOLS_PORT，动态端口/health实际返回ok。但Windows固定ToolsPort=8765，子进程继承自定义环境，探测及成功提示仍8765，客户端默认也8765。未在Windows执行完整链路，不说所有默认启动均失败。
+
+修复方向：统一端口来源，启动后核验实际URL的health，再同步客户端地址；不能仅凭进程没退出说就绪。
+
+复现：[round5-startup-audit-repro.py](../../../scripts/audit/round5-startup-audit-repro.py)（exit=0表示缺陷成功出现）。
+
+### 86 — 旧版导演角色卡输入显示改了，实际设定未保存（P1/P2，生产函数复现）
+
+位置：[js/ai/prompt/auto/character-card-manager.js:113](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/prompt/auto/character-card-manager.js#L113)。
+
+初始化先renderAll后saveCards；保存用normalizeCard克隆替换cards对象，输入回调仍闭包旧card。首次输入“新”和继续输入“新设定”，界面值变化，但getCards、basePrompt及localStorage均仍“原始设定”。区别于32现代CharacterLibrary异步覆盖。
+
+修复方向：按稳定ID更新当前对象，或只在序列化时normalize；验收连续输入、项目重开和导演实际读取。
+
+复现：[round5-prompt-plan-audit-repro.cjs](../../../scripts/audit/round5-prompt-plan-audit-repro.cjs)。
+
+### 87 — 40页及更长工程无法生成自动提示词页计划（P2，生产函数复现）
+
+位置：[js/ai/prompt/auto/auto-prompt-util.js:46](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/prompt/auto/auto-prompt-util.js#L46)。
+
+结构固定最多3周期，每周期最多11页，加转场/首尾后上限39。40/153页执行generatePageList都在100次随机尝试后抛unknwn page generate.；合法最大随机值对照实际结构39页。与21单页布局负高度不同。
+
+修复方向：按目标页数确定性分配阶段并验证总和，验收39/40/153与小页数。
+
+复现：[round5-prompt-plan-audit-repro.cjs](../../../scripts/audit/round5-prompt-plan-audit-repro.cjs)。
+
+### 88 — 标签补全删除权重表达式关闭标记（P3，生产函数复现）
+
+位置：[js/ai/prompt-assist.js:62](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/prompt-assist.js#L62)。
+
+生产scan/input/Tab回调对普通blu正常补成blue hair；1.2::blu::变为1.2::blue hair，{blu}变为{blue hair，分别丢::和}。accept保留前缀却删掉到逗号的全部后缀。标签库来自离线缓存。
+
+修复方向：解析并只替换正文，保留成对前后权重标记；覆盖光标在标签中间、数字权重、花/方括号。
+
+复现：[round5-prompt-plan-audit-repro.cjs](../../../scripts/audit/round5-prompt-plan-audit-repro.cjs)。
+
+### 89 — 网点渐变、速度线密度因三倍坐标混用出错（P2，生产函数复现）
+
+位置：[js/sidebar/tone/tone.js:23](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/sidebar/tone/tone.js#L23)。
+
+100×100目标创建300×300 buffer并ctx.scale(3)，生成又用300作逻辑尺寸。真实生产网点在逻辑(50,90)alpha=76，取消超采样的同函数对照为229；速度线density=12仅5个可见横线段（含裁切下边缘）。放置步骤未执行。
+
+修复方向：统一逻辑尺寸和像素buffer尺寸，生成用逻辑尺寸，超采样只作用于栅格化。
+
+复现：[round5-sidebar-audit-repro.cjs](../../../scripts/audit/round5-sidebar-audit-repro.cjs)。
+
+### 90 — 集中线重复加入同一对象，更新留下旧图层（P2，生产函数复现）
+
+位置：[js/sidebar/tone/focusline.js:213](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/sidebar/tone/focusline.js#L213)。
+
+putImageInFrame内部add后，updateFCFabricCanvas又add同一对象。生产函数及捆绑Fabric.Collection第一次得到[panel,F1,F1]，第二次[panel,F1,F2,F2]，remove只移掉一个重复引用。纯path同步SVG解析回调按依赖实际语义建模，DOM/clip为外壳。
+
+修复方向：仅由一个入口add并明确返回对象；更新前移除所有旧效果引用，验收连续调参数、删除、保存和重开。
+
+复现：[round5-sidebar-audit-repro.cjs](../../../scripts/audit/round5-sidebar-audit-repro.cjs)。
+
+### 91 — 辉光尺寸被按二十进制解析（P3，生产函数复现）
+
+位置：[js/sidebar/effect/effect-manager.js:196](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/sidebar/effect/effect-manager.js#L196)。
+
+原change回调parseInt(effectSize1.value,20)，UI输入20实际shadow.blur=40，输入250得到900，效果值和用户设置不一致。DOM事件为fixture，生产回调原样执行。
+
+修复方向：使用十进制或Number，并验收0/20/250与滑块实际参数。
+
+复现：[round5-sidebar-audit-repro.cjs](../../../scripts/audit/round5-sidebar-audit-repro.cjs)。
+
+
+## 安装机制的外部依据
+
+已核对[PyPI sam2 1.1.0源码包](https://pypi.org/project/sam2/1.1.0/#files)，152,836字节，SHA256为7e0ea252d43c10d853e3acfce0b5770ac683c30481bd6de311300e9d44f45b74；其构建要求与[上游pyproject](https://github.com/facebookresearch/sam2/blob/main/pyproject.toml)一致。[pip官方隔离构建说明](https://pip.pypa.io/en/stable/reference/build-system/)区分运行依赖和构建依赖。已证实重新安装torch构建依赖的机制；Linux默认PyPI torch可能带CUDA组件，实际安装量尚未验收，不用本fixture声称测到了几GB下载。
+
+## 不重复计数的限制和候选
+
+- 素材包界面明确叫“索引”，导出不打包原图是设计限制。同一blob库导入/hydrate可恢复，新设备还需原图或服务器文件；没有将这条计为新bug。
+- 一键启动.bat的-Ci免pause说明与父BAT读取环境变量存在静态不一致：子PowerShell设置不能传回父BAT。Windows CI另行预设MNAI_NO_PAUSE所以掩盖该缺口；未运行cmd.exe，暂不新增编号。
+- 混合栅格化未完整处理opacity/clipPath/flip/origin，为代码候选，与38/39相近，尚无完整Fabric像素对照；画笔另外三种buffer问题也未实测，不扩大已验证结论。
+- 未把新的切页/取消问题归因于聊天PR；PR5仍未合并，其full acceptance的flow7失败仍未定位。
+
+## 本轮验证与覆盖清单
+
+- 主审重新执行全部本轮诊断，获得上述输出；PNG像素、捆绑Fabric/JSTS及Python生产函数均在对应fixture说明的依赖边界内执行。
+- npm test通过；另跑19个补充命令，18个通过，check:index发现6份生成索引过期。本次已重新生成这些索引并再次运行check:index通过，不把审查工具新增导致的索引变化冒充产品bug。
+- Node解析检查覆盖js目录排除third子目录后的224个JS文件；Pythoncompile覆盖根目录及local_tools共17个生产Python文件，均无语法错误。index.html直接本地src/href资源检查没有缺失。这些是语法/直接引用检查，不是逐功能完整验收。
+- 每个文件的检查深度、模块冒烟及实机缺口记录于[覆盖清单](2026-10-13-coverage.md)。真实浏览器交互、WebGL/Pixi、干净Windows安装、多设备素材迁移、真实模型/上游API及用户153页工程仍需实机验证。
+- 没有修改产品行为、未合并聊天PR，也没有使用真实付费生成或下载大模型。新增问题尚未修复，不声称已找尽所有bug。
+
+## 补查的静态候选（尚未计入91项）
+
+- vertical-textbox.js:130–131白名单不含deleteContentForward/deleteWordForward，竖排Delete/IME同步需浏览器验证。
+- custom/optimized-wild-text.js:106–123及类似特效文字重建只保留left/top，其他变换/层身份可能重置；与38相近，尚无完整Fabric对照。
+- snow-tone.js:130–139也混用三倍buffer和已缩放context，疑似雪点大量越界；作为89待补证据，不独立编号。
+- speech-bubble-freehand.js:271–282合并旧气泡后，原文本/文字框关系迁移尚未验证，不声称对白已经丢失。
+- tone-noise.js:37结束时重置isDrawingTone而非isDrawingToneNoise，以及晚到fromURL的会话归属，需实际模式链路验证。
+- VerticalTextbox.fromObject参数看似可疑，但options会再次写text，当前证据不足，排除“必然文字丢失”结论。
+
+## 第五轮更新修复顺序
+
+1. 与原保存/页面身份问题一起先修63服务器文件覆盖、80滤镜覆盖、82失败切分不回滚、86角色设定不保存；61/62索引事务也放在数据完整性阶段。
+2. 修59取消后自动替换、60账号队列及既有重复请求/未知结果问题，再处理73/74晚到提交。
+3. 修68–72正文/读序/方向/字号/边线，75/77预览与mask一致，76缓存身份；逐句与逐像素验收。
+4. 修65–67输出污染/失败恢复、78–81几何与画笔、87长页计划、89/90网点和重复对象。
+5. 补83–85干净Windows/CPU依赖/端口与路径验收，修64/88/91低优先级存储与参数问题。
+
+这个顺序不替代用户具体要求；诊断脚本需要在修复后改成正向回归。没有把33个新条目合成一个未经实机验收的大改动。
