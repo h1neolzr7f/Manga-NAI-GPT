@@ -9,6 +9,7 @@
 - 本机抠图服务 / Local cutout service: [local_tools/API.md](../local_tools/API.md)
 
 ## 开发 / For developers
+- [完整审查与开发交接入口（含生产手册、53项发现与复现工具）](AUDIT_AND_HANDOFF.md)
 - [参与开发 / Contributing](../CONTRIBUTING.md)
 - [docs/dev/](dev/) — 设计与实现说明 / design notes:
   [GPT 局部改图](dev/MANGA_NAI_GPT_PHASE1.md) ·

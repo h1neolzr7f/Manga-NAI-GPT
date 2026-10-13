@@ -1,0 +1,589 @@
+# Manga-NAI-GPT 1.6.1 扩大范围审查
+
+审查日期：2026-10-13（北京时间）  
+仓库：https://github.com/h1neolzr7f/Manga-NAI-GPT  
+审查基线：main，`ca9572de1640a7acb462bd49e69fb75de343e7c7`。最新发布 v1.6.1 于北京时间 2026-10-13 02:10 发布；dev/2.0 的末次提交更早，本报告不把它误当成最新版。
+
+结论：现有离线回归通过，但仍有实际的数据丢失、任务记录覆盖、模型兼容和恢复可靠性问题。下一轮应优先修保存/页面身份和任务生命周期，再做真实服务与安装包验收。当前不宜仅凭 CI 全绿宣布稳定成品。
+
+首轮只审查与复现，未修改、提交或推送项目代码。第二轮的聊天配置修复及独立PR状态见本文末尾。下述“复现”主要指执行原生产函数、以可控制的存储、网络或模型依赖建立的离线复现，不等同于完整浏览器或真实推理验收。
+
+## 优先修复：数据和付费结果
+
+### 01 — 点击当前页缩略图回滚刚做的编辑（P1，生产函数复现）
+
+位置：[js/ui/bottom-bar.js:394](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/bottom-bar.js#L394)；[js/core/compression/project-compression.js:142](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/compression/project-compression.js#L142)。
+
+先保存页面，再移动一个图层，然后点击当前页自己的缩略图。切页函数先取得旧 projectData，再保存当前内容；保存会替换 Map 记录，但随后仍加载先前取得的旧 blob。复现结果：图层 left 从 2 退回 1，撤销历史也回到旧的两条状态。
+
+修复：同页点击应直接返回；必须重载时，在保存之后重新获取记录。验收应检查画面、历史、下载项目三者都保留最新修改。
+
+### 02 — 复制页保存后重开，原页与副本合并（P1，生产函数复现）
+
+位置：[js/ui/bottom-bar.js:434](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/bottom-bar.js#L434)；[js/core/compression/project-compression.js:202](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/compression/project-compression.js#L202)；[js/layer/image-history-management.js:231](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/layer/image-history-management.js#L231)。
+
+复制操作创建新的页面 Map key，却复用源 blob，其历史状态仍带源页面 GUID。项目重开时，multiLoadLz4 从第一条历史状态取页面身份，两页得到同一个 GUID，后者覆盖前者。复现：页面 [A,B] 重开后只剩 [A]，加载器返回 [A,A]。
+
+修复：副本的页面身份必须在全部保存结构中统一重建；不能只换当前 canvas GUID。验收覆盖复制后不编辑、编辑、撤销/重做、多次复制和整项目重开。
+
+### 03 — 撤销删除页面，会丢掉另一页的新修改（P1，生产函数复现）
+
+位置：[js/ui/bottom-bar.js:465](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/bottom-bar.js#L465)。
+
+删除 A 后在 B 上编辑，再点“撤销删除”，恢复代码切到 A 时没有要求保存当前 B。返回 B 后，最新修改消失。复现：B 的 left=5 回到旧 blob 的 left=4。
+
+修复：恢复页面前保存当前页面，或恢复缩略图而保留当前编辑页。不要让恢复操作暗中破坏另一页。
+
+### 04 — 自动保存过程中新增修改，被误标为已经保存（P1，生产函数复现）
+
+位置：[js/core/auto-save.js:74](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/auto-save.js#L74)；[js/core/compression/project-compression.js:34](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/compression/project-compression.js#L34)。
+
+压缩捕获较早的历史快照；await 完成后，自动保存却用最新 live state 计算 lastSavedHash。复现：压缩期间把 left=1 改成 2，存下的 blob 仍为 1，但下一轮 save() 认为 2 已保存，零写入。
+
+修复：快照、版本号与“已保存标记”对应同一次捕获；异步期间的新增修改必须继续保持 dirty。验收用延迟压缩/存储，故意在其间编辑和切页。
+
+### 05 — 同页多个生成任务覆盖目标信息，跨页完成时错贴或丢结果（P1，生产函数复现）
+
+位置：[js/ai/queue/generation-task-manager.js:96](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/queue/generation-task-manager.js#L96)；[js/ai/provider/novelai-provider.js:543](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/provider/novelai-provider.js#L543)；[js/ai/provider/novelai-provider.js:499](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/provider/novelai-provider.js#L499)。
+
+generationTaskMap 只按 canvasGuid 存一个任务。同页两格分别排队 A、B，B 的目标会覆盖 A 的目标。离开该页后，A 的结果可能贴到 B；A 清理记录后，B 已没有目标记录。离线复现确认元数据覆盖和清理冲突；真实服务出图没有调用。
+
+修复：用唯一 request ID 保存任务，记录其页面及目标图层；完成/取消只能清自己的记录，并等待异步注册完成。验收覆盖同页多格、不同页、多次取消和不同完成顺序。
+
+## 自动保存、任务取消与历史
+
+### 06 — 任务 ID 会复用并覆盖仍在运行的任务（P2，生产函数复现）
+
+位置：[js/ai/queue/generation-task-manager.js:8](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/queue/generation-task-manager.js#L8)；[js/ai/queue/generation-task-manager.js:39](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/queue/generation-task-manager.js#L39)。
+
+创建 aitask-1/2，移除 1 后，renumberAiTasks 把 ID 分配计数器重置为剩余数量。再建一个任务仍叫 aitask-2，覆盖旧任务。取消按钮和结果清理也可能对应错任务。
+
+修复：唯一 ID 与显示排序分开，ID 不回退；仅显示 order 重新编号。
+
+### 07 — 自动保存不感知删页与页面排序（P2，生产函数复现）
+
+位置：[js/core/auto-save.js:12](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/auto-save.js#L12)；[js/core/auto-save.js:65](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/auto-save.js#L65)。
+
+dirty 判断只看当前页历史和 GUID，实际保存却含所有页面与顺序。保存两页后，只删除非当前页或调整顺序，下一次自动保存零写入。恢复仍带已删除页/旧顺序。
+
+修复：整个项目有自己的修订计数；删页、排序、页面 blob 更新都应改变它。
+
+### 08 — 自动保存写入失败后不重试；清除后标记未重置（P2，生产函数复现）
+
+位置：[js/core/auto-save.js:75](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/auto-save.js#L75)；[js/core/auto-save.js:81](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/auto-save.js#L81)；[js/core/auto-save.js:95](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/auto-save.js#L95)；[js/project-management.js:50](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/project-management.js#L50)。
+
+lastSavedHash 在存储成功之前就更新。模拟一次 IndexedDB 写入失败，恢复存储后，在没有新编辑的情况下仍零写入。clearAutoSave 删除记录后也不清标记，正常下载项目会调用这个路径。
+
+修复：所有数据写成功后才提交保存标记；失败和清除必须使标记失效。清除后的空恢复记录是否符合产品设计可另定，但写失败绝不能被当成保存成功。
+
+### 09 — 收到响应头后，下载响应体脱离超时控制（P2，生产函数复现）
+
+位置：[js/core/service/service-request.js:74](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/service/service-request.js#L74)；[js/ai/nai-engine.js:51](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/nai-engine.js#L51)。
+
+fetch 返回响应头就清定时器，之后读取 JSON/ZIP/图像。服务先发 200 再停止传输时，响应体没有完整 deadline。NaiEngine 还移除了用户 abort 监听，取消后 reader 继续等，可能阻塞后续串行任务。ServiceRequest 对 response.text() 失败会吞掉异常，进一步可能返回空对象。
+
+复现：10ms timeout 下，40ms 后 response body 仍 pending，内部 signal 未 abort。NaiEngine 的取消失效也以延迟 body 复现。
+
+修复：超时/取消覆盖直到读取、解包完成；将读取失败向调用者传播。付费请求的未知结果不得因此自动重发。
+
+### 10 — 换角色图层的历史记录早于最终层级调整（P2，生产函数复现，完整 Fabric 回放待验）
+
+位置：[js/ai/auto-swap.js:326](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/auto-swap.js#L326)；[js/fabric/fabric-management.js:118](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/fabric/fabric-management.js#L118)。
+
+c.add 立即触发历史保存，然后 moveTo 把生成图移到字幕下面，没有再保存最终顺序。离线 fixture 得到：当前顺序 [底图,替换,文字]，历史快照 [底图,文字,替换]。撤销再重做可能让替换层遮住文字。
+
+修复：添加和重排作为一个历史事务，结束时只保存最终状态。
+
+## 服务配置与本机 AI
+
+### 11 — 用户填写的 GPT 聊天模型被强制改成 DeepSeek（P1，前后端函数复现）
+
+位置：[js/ai/ai-settings.js:45](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/ai-settings.js#L45)；[js/ai/ai-settings.js:57](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/ai-settings.js#L57)；[99_server.py:767](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/99_server.py#L767)。
+
+例如 gpt-4.1-mini，在输入框失焦/读取已保存设置时改成 deepseek-v4-flash；后端发送前也做同样改写。所以只修前端无效。官方 OpenAI 或只支持某一 GPT 模型的中转会收到不支持的模型名。
+
+修复：尊重明确配置的模型，迁移只针对确切的旧默认值；不要匹配整个 gpt-/chatgpt- 前缀。
+
+### 12 — 标准 OpenAI 兼容模型列表被过滤为空（P2，本地响应复现）
+
+位置：[99_server.py:935](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/99_server.py#L935)。
+
+标准 {data:[{id:"deepseek-chat",object:"model"}]} 没有某厂商特有的 supported_protocols 字段，被全部过滤，返回 data:[]。
+
+修复：接受标准模型对象，仅在明确提供协议元数据时据其过滤。
+
+### 13 — NovelAI 前后端尺寸策略不同，inpaint 图片/蒙版与参数不一致（P1，合同不一致已复现，真实上游后果待验）
+
+位置：[js/ai/nai-engine-core.js:35](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/nai-engine-core.js#L35)；[js/ai/ai-fill.js:165](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/ai-fill.js#L165)；[99_server.py:509](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/99_server.py#L509)；[99_server.py:563](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/99_server.py#L563)。
+
+1000×400 区域，前端 sizeFor 得到 1600×640，并生成同尺寸图片/蒙版；后端默认最大边 1536，只改参数为 1536×640，没有同步缩放图片/蒙版。参数与输入图尺寸不一致已确认；究竟被 NovelAI 拒绝还是发生尺寸偏差，应以真实调用验证。
+
+修复：统一尺寸规范；局部重绘同时维护参数、图和 mask 的一致性，费用/返回元数据也要一致。
+
+### 14 — 人物模型初始化中断，会污染之后的重试（P1，模型依赖桩复现）
+
+位置：[manga_character_detect.py:72](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/manga_character_detect.py#L72)。
+
+face 写入共享 _extra 后，后续 CCIP 下载失败。下一次仅检查 face 是否存在，就认定整体准备完成，跳过剩余下载。复现：字典只剩 face，重试下载次数为 0；身份 embedding 使用缺失的 ccip/ccipm 会报错。
+
+修复：先在局部变量完整准备，再原子发布共享会话；失败不得留下“半就绪”状态。
+
+### 15 — 空闲模型清理能与正在执行的角色库请求冲突（P1/P2，受控并发复现）
+
+位置：[manga_model_guard.py:150](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/manga_model_guard.py#L150)；[manga_character_library.py:95](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/manga_character_library.py#L95)；[manga_character_library.py:143](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/manga_character_library.py#L143)；[manga_smart_ocr.py:329](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/manga_smart_ocr.py#L329)。
+
+角色库 embed/identify、部分 face/detect 路径没有在完整使用期间持有相应 guard。空闲清理会清共享 _extra。受控交错复现 release_idle 释放 sam2 后，正在 embed 的请求得到 KeyError('face')。
+
+修复：按实际共享模型会话统一所有消费者的“正在使用”计数/互斥，加载与使用均覆盖。
+
+### 16 — 人物检测缓存忽略 refine 与模型可用性（P2，缓存函数复现）
+
+位置：[manga_character_detect.py:562](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/manga_character_detect.py#L562)。
+
+同图先 refine:false，再 refine:true，仍返回 refined:false,cached:true，精修模型初始化次数为 0。安装好模型后也可能继续复用先前降级结果。
+
+修复：缓存键含精修模式及模型能力版本，或在能力变化时失效缓存。
+
+### 17 — 抠图设置里的合法 0 被默认值替换（P3，参数复现）
+
+位置：[local_tools/cutout.py:162](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/local_tools/cutout.py#L162)。
+
+前景阈值、背景阈值、侵蚀大小都设 0，实际 rembg 参数变成 240/10/10。原因是使用 value or default。
+
+修复：明确区分缺失/None 与数值 0；验收用零值和边界值。
+
+## 辅助功能、素材、离线和启动
+
+### 18 — 素材异步加载完成后，插入到已经切换的新页（P2，生产函数复现）
+
+位置：[js/assets/asset-store.js:387](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/assets/asset-store.js#L387)。
+
+开始添加素材时捕获的是复用的 canvas 对象，没有页面 GUID/版本校验。读取或图片解码期间切到 B，回调就添加到 B，并按 B 当前选中分镜放置。
+
+复现：A 开始 addToCanvas，延迟 fromURL 回调，切 B，释放回调，新增图片记录 page=B。模拟器异步插入也应扩大检查。
+
+修复：捕获页面与目标身份；完成时验证，或把结果保存到原页等待应用。
+
+### 19 — 素材持久化失败，仍提示刷新后可用（P2，故障依赖复现）
+
+位置：[js/assets/asset-store.js:161](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/assets/asset-store.js#L161)；[js/assets/asset-store.js:184](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/assets/asset-store.js#L184)；[js/assets/asset-library-controller.js:233](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/assets/asset-library-controller.js#L233)。
+
+persistImported 不要求至少一种持久化成功。IndexedDB 与 /user-assets 同时失败时仍 resolve，并把 missing=false；UI 宣称刷新后仍可缓存加载，实际只留在内存。
+
+修复：返回明确持久化结果；失败时提示本次仅在内存，不要声称已保存。配额满/写入失败场景应进入验收。
+
+### 20 — 部分模拟器播放会把原始场景截断（P1，控制器离线复现，实际渲染器浏览器待验）
+
+位置：[js/simulator/playback-controller.js:55](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/playback-controller.js#L55)；[js/simulator/playback-controller.js:91](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/playback-controller.js#L91)；[js/simulator/extra-renderer-factory.js:134](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/extra-renderer-factory.js#L134)。
+
+非 chat 分支渲染 makeVisibleScene 的截断副本，makeGroup 又把该副本作为 simulatorScene 保存。下一次读取拿到的是已经截断的数据。三事件复现：next 后场景 events 只剩第一项，再 next 仍只有第一项。论坛/评论等 replies/comments 也走截断逻辑。chat 单独 visibleCount 分支不应混为同一问题。
+
+修复：完整场景是持久化源，播放位置只是视图状态，不能覆盖源数据；验收播放/暂停/导出后原始事件总数不变。
+
+### 21 — 长剧本全部塞一页，分镜高度能变成负数（P2，布局函数复现）
+
+位置：[js/simulator/story-to-manga.js:25](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/story-to-manga.js#L25)；[js/simulator/story-to-manga.js:145](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/story-to-manga.js#L145)。
+
+该辅助“剧情转分镜”路径把所有 normal panels 摊平放到一个 canvas，并持续减去行间距。1000×1400 页面、240 格得到 cellHeight=-1.175。即便不达到负数，几十格也会过小。此问题针对该辅助路径，不等同于新版 task-launcher 的整个“画一页”路径。
+
+修复：每页设置合理分镜上限并分页；保留 plan 的 pages 边界，不靠压小所有格子承载任意长度剧本。
+
+### 22 — PWA 的启动入口没有离线缓存（P2，真实 worker 代码的缓存 fixture 复现）
+
+位置：[manifest.json:5](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/manifest.json#L5)；[service-worker.js:70](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/service-worker.js#L70)。
+
+启动 URL 是 ./（根路径 /），worker 只缓存带扩展名的静态路径。在线访问 / 和 /index.html 后，离线 / 仍 miss，/index.html 才 hit；安装处理也没有预缓存应用外壳。
+
+修复：导航统一落到缓存的 index.html，预缓存必要外壳；验证停止本地服务后安装应用能否启动，并区分纯编辑可离线与 AI 需要服务。
+
+### 23 — Linux/macOS 启动器把其他网站当成本应用（P2，未改动启动脚本＋本地 HTTP 复现）
+
+位置：[start.sh:9](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/start.sh#L9)。
+
+只要选定端口 /index.html 返回成功，就显示编辑器已在运行。用返回“Unrelated dashboard”的本地服务复现，启动器退出 0 并准备打开错误应用。Windows 已有页面标记检查。
+
+修复：探测明确的应用身份/version；启动就绪循环超时也应报失败，不能循环结束无条件声称启动成功。
+
+### 24 — Director 代理 URL 检查与实际连接之间存在 DNS 重绑定空隙（P2 安全，受控本地网络复现）
+
+位置：[99_server.py:346](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/99_server.py#L346)；[99_server.py:830](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/99_server.py#L830)。
+
+校验域名时解析一次，urllib 连接时再次解析，没有固定到已验证的地址。受控测试第一轮返回公网 IP、连接轮返回 127.0.0.1，成功向本应用本应禁止的端口发 POST，携带测试 Bearer token。
+
+前提：用户配置了攻击者控制的网关域名或相应 DNS；不是已发现普通外站能任意访问本应用，也不是发布包泄漏凭证的证据。
+
+修复：复用 GPT 图像代理的连接时地址校验/绑定方案；所有 Director/tagger 出站连接保持同样规则。
+
+## 静态发现：还需实机或像素级验证
+
+以下不作为“已经完成真实用户复现”汇报，但应加入下一轮验收。
+
+1. **运行中任务的 × 可能只是移除指示器。** [js/ai/queue/spinner.js:46](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/queue/spinner.js#L46) 只在 waiting 时移除队列项；running 没有实际 abort/禁止迟到结果应用的完整路径。应测试取消后继续收到生成结果时画布是否仍改变。
+2. **多次 SAM 手选人物复用同一 id='click'。** [js/ai/auto-swap.js:404](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/auto-swap.js#L404)；[js/ai/auto-swap.js:533](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/auto-swap.js#L533)。批量通过 id 找第一个人物，doneIds 与其他人物保护也可能混淆。应选三个人物，确认各自目标独立。
+3. **PSD 半透明图层疑似重复计算 opacity。** [js/ui/psd-io.js:31](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/psd-io.js#L31) 栅格化已带 opacity，[js/ui/psd-io.js:76](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/psd-io.js#L76) 又给 PSD 层同一 opacity。应以 50% 图层导出并检查实际 alpha/合成，目标不能变成约25%。
+4. **PSD 字体/竖排/旋转、父组隐藏与混合模式不完整。** [js/ui/psd-io.js:53](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/psd-io.js#L53)；[js/ui/psd-io.js:109](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/psd-io.js#L109)；[js/ui/psd-io.js:152](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/psd-io.js#L152)。导入统一 Textbox，导出文字 transform 用单位矩阵；摊平 group 未传承全部父级属性。需真实 PSD 往返比对，不能仅检查文件可打开。
+5. **本地安装器构建排除规则偏窄。** [scripts/prepare-installer.ps1:27](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/scripts/prepare-installer.ps1#L27) 未完整排除 .env.*、*.env、.venv、work 等；这仅是开发机自行构建风险，不是干净 CI 发布包已有泄漏的证据。
+
+## 优化建议
+
+- **先稳定核心，暂缓继续堆功能。** 保存/页身份/任务生命周期问题会破坏所有新功能的可信度。统一项目修订、任务 ID、异步结果归属，比继续给每个 UI 局部加状态变量更划算。
+- **把测试从“函数能跑”补到“用户数据能往返”。** 重点加入当前页重复点击、复制页往返、撤销删除与另一页修改、自动保存故障/慢压缩、多格排队并切页、取消后迟到结果、PSD 像素及文字往返。
+- **真实服务兼容矩阵。** GPT 直连、至少两种中转响应格式、NovelAI V3/V4.5/V5及局部重绘，分别验证参考图、mask、尺寸、错误/余额提示、下载/解码完整时限、未知结果不重扣。不能用 mock 出图取代画质/身份一致性验收。
+- **真实清洁 Windows 安装验收。** 当前发布有安装器/便携版和嵌入基础运行环境，应在无 Python/Node 的干净机器解压启动，再安装可选 CPU AI。CI DryRun 并不证明 PyTorch、LaMa、SAM2 与 OCR 真能一起安装。
+- **下载入口减负。** README 应优先解释安装版、便携版、源码版的区别；当前向新手推荐源码＋Python，与已有基础运行环境的发布资产不够一致。
+- **按用户任务收敛 UI。** 默认新手模式突出导入、换角色、字幕、改一块、保存；辅助模拟器/旧生成面板留在明确的高级入口。标称 novice 的测试不少默认切 pro 模式，需补真正的默认新手流程。
+- **按真实开销限制资源。** Director/tagger/NAI 响应存在无界 read；ThreadingMixIn 请求线程没有实际被旁边的500线程 executor 限制；sidecar 缺完整并发/解码像素控制；作业历史与会话缺清理。应以批量大漫画压力测试确定合理限额，而非仅按上传文件字节数估计内存。
+- **收窄缓存所有权。** worker 激活删除整个 origin 的其他 cache，注册还会清理其他 scope；应只管理本应用的缓存与注册。
+
+## 本轮验证与边界
+
+- main、v1.6.1 发布及五项最新 Actions 状态已核对；对应工作流为 success。
+- 本地 `npm test` 完整执行并明确捕获 exit=0。
+- 另运行23个脚本入口，全部 exit=0，覆盖导入、模拟器/素材/剧情、页面尺寸、文字聚焦、PNG/图片导出集成、代理/OCR/LaMa、HTTP、密钥保护、网络、NAI错误、本机origin与端口检测。部分真实 Tesseract/CJK 和被占用端口子用例被跳过，不将它们算作实机通过。
+- 后端审查另执行65个相关现有用例：52通过、13跳过；与上述脚本有重叠，不能相加成一个总通过数。
+- 补充生产函数/缓存/模型依赖/受控本地网络复现发现上面的问题；这些场景现有回归未覆盖。
+- 本环境 Playwright 可用，但没有 Chromium 可执行文件；尝试安装返回无效下载，故本轮未完成真实浏览器点击验收。
+- 未调用真实 GPT/NovelAI、未下载大模型、未在 Windows 真机安装；不声称已测所有画质、身份一致性、发布包启动与硬件性能。
+- 仓库工作区保持无改动。审查范围已扩大，但报告不保证穷尽所有潜在 bug。
+
+## 建议修复顺序
+
+1. 01–05：丢数据、页面副本身份、自动保存并发与付费结果归属。
+2. 06–12、18–20：任务 ID/取消/历史、服务配置、素材与场景数据。
+3. 13–17、24：真实 NAI 参数合同、本机模型加载与并发、代理连接校验。
+4. 21–23及静态发现：长剧本分页、离线与启动、PSD往返、安装器排除。
+5. 一次完整实机验收：新手导入两页→修改→复制→保存重开→批量取消/切页→导出 PNG/PSD，再做真实 API 和干净 Windows 安装。
+
+验收门槛应是“数据不丢、目标不串、取消有效、失败可恢复、导出往返一致”，不能仅用新增功能数量或 CI 绿灯代表完成度。
+
+
+# 第二轮扩大筛查与聊天模型修复
+
+用户新增要求：聊天模型可以由用户自行设置。继续扩大筛查，保持与第一轮发现去重。审查缺陷仍以 main `ca9572de1640a7acb462bd49e69fb75de343e7c7` 为基线；下面的聊天配置修复在独立分支。
+
+## 聊天模型已修复到独立草稿 PR
+
+[PR #5：允许自定义聊天模型，保留用户配置](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/5)  
+分支：`codex/custom-chat-model-audit`，提交：`c6f998b4bad3a8ab0d456d3fc9b8857acd00fafd`。**尚未合并，发布版1.6.1仍保留旧问题。**
+
+本修复覆盖原第11/12项，并补上加载设置时无浏览器Key就清空自定义URL的错误迁移。用户填写的地址、Key、模型名由用户决定；模型ID只裁掉首尾空格，保留大小写，GPT/Qwen/私有部署不会被替换。列表只提供建议，不限制手填模型；刷新和异步加载也不覆盖手填值。标准OpenAI /models无supported_protocols字段仍能列出。模型按钮采用DOM文本渲染，避免把任意模型ID当HTML。
+
+服务端环境DIRECTOR_MODEL也保留原值。Key和地址原有发送限制未放宽；没有预填第三方地址。已在review中识别并移除“浏览器没Key就删除地址”的逻辑，支持Key放在服务端.env的用户配置。
+
+验证：修复前新增用例明确失败，修复后8个JavaScript场景＋6个真实localhost HTTP代理用例通过；npm test、npm run lint、git diff --check、no-third-party-director 10项、local-secret-guard 11项通过，独立代码复查无其他重要问题。远端提交树SHA与本地测试提交树一致。未调用付费聊天模型；真实浏览器点击尚未完成。
+
+## 新增24项具体问题（25–48）
+
+以下主要是原生产函数和实际codec的受控离线复现，网络、DOM、模型或解码时序按场景替换成测试依赖。它们证明控制流/数据合同问题，不等于完成实际服务画质或浏览器像素验收。
+
+### 25 — 仅改文字样式/翻转图片，撤销和自动保存不记录（P1）
+
+位置：[js/sidebar/text/text-effect.js:229](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/sidebar/text/text-effect.js#L229)；[js/core/util/image-util.js:297](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/util/image-util.js#L297)。
+
+字体大小/颜色和侧栏翻转只 set/render，不保存历史或发 object:modified。建立自动保存后仅改这些属性，live 为64/红色，历史仍32/黑色；下一次自动保存写入次数为0。图片翻转 likewise live true/true、历史 false/false。手动保存或另一项已记录编辑可能偶然补救，不能据此认为安全。
+
+修复方向：所有用户属性更改应结束一个完整历史事务，dirty 状态应对应 live 编辑。
+
+### 26 — 复制选中图层，复制出同一个 GUID（P1）
+
+位置：[js/core/command-history.js:143](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/command-history.js#L143)；[js/core/settings.js:90](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/settings.js#L90)；[js/core/util/fabric-util.js:243](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/util/fabric-util.js#L243)。
+
+执行生产 Commands.run('sel.duplicate') 后，两层同名身份 layer-A；生产 createGUIDMap 的 size 只有1。该命令仅改坐标/名称，克隆时连 guid、guids 与模拟器身份都带过去。与首轮“复制页面”是不同问题。
+
+修复方向：重建副本及子对象身份，并正确重映射副本内部关系，避免旧任务、父子层关系指向原件。
+
+### 27 — AI Fill 快速双击生成，发送双倍请求（P1）
+
+位置：[js/ai/ai-fill.js:231](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/ai-fill.js#L231)；[js/ai/ai-fill.js:254](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/ai-fill.js#L254)；[js/ai/ai-fill.js:276](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/ai-fill.js#L276)。
+
+busy 在等待服务 readiness 与页面解码之后才设置。同步触发两次 generate，实际代码向测试传输发送6次请求，原本一轮应为3个候选。真实 API 未调用，但重复请求路径已经确认。
+
+修复方向：第一处 await 前同步占用会话/操作，所有异常出口释放对应操作；验证双击期间只产生一轮候选。
+
+### 28 — AI Fill 候选跨页错贴（P1/P2）
+
+位置：[js/ai/ai-fill.js:92](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/ai-fill.js#L92)；[js/ai/ai-fill.js:313](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/ai-fill.js#L313)；[js/ai/ai-fill.js:319](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/ai-fill.js#L319)。
+
+会话没有原页面 GUID，应用等待图片解码后直接加到复用 canvas。A 开始应用、切到B、完成解码，A补丁实际插入B。生成后先切页再点应用同样没有目标校验。
+
+修复方向：保留来源页面、源图版本、目标身份；解码后和真正 mutation 前再核对，过期结果保留为候选。
+
+### 29 — 关闭重开 AI Fill，旧解码结果污染新会话（P2）
+
+位置：[js/ai/ai-fill.js:176](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/ai-fill.js#L176)；[js/ai/ai-fill.js:281](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/ai-fill.js#L281)；[js/ai/ai-fill.js:290](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/ai-fill.js#L290)。
+
+三张响应全部完成后，延迟 unpad 图片解码，实际调用 close()，再开新的 busy 会话。释放旧解码，旧任务把 candidates 写入新 S，并把新 busy/controller 清空。复现不依赖传输层忽略取消。
+
+修复方向：捕获具体会话对象/令牌，每个 await 后检查；finally 只能清理自己的会话。
+
+### 30 — 异步插入聊天模板，会删除另一页新选中的聊天（P1）
+
+位置：[js/simulator/chat-controller.js:201](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/chat-controller.js#L201)；[js/simulator/chat-controller.js:242](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/chat-controller.js#L242)。
+
+A发起 renderScene，等待中切B并选中B已有聊天。渲染完成后才查 current selected group，B聊天被删除，A输出插入B。不是仅多出一个对象，而是破坏性替换。
+
+修复方向：渲染前固定来源页面和拟替换对象；渲染后验证仍在原页、对象仍是同一目标。
+
+### 31 — GPT 自动引用了上一页识别的人物（P2）
+
+位置：[js/ai/character-library.js:177](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/character-library.js#L177)；[js/ai/gpt-region-editor.js:1342](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/gpt-region-editor.js#L1342)。
+
+A识别到Alice，切到B选同坐标区域，cardForRegion 没核对 region.pageGuid 与识别缓存来源，返回A的Alice。GPT可能自动发送不相干参考图。
+
+修复方向：按页面与源图修订绑定识别结果；切页立即失效旧结果，自动参考前再校验。
+
+### 32 — 角色特征后台构建覆盖新编辑，并复活已删除角色（P2）
+
+位置：[js/ai/character-library.js:18](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/character-library.js#L18)；[js/ai/manga-character-bible-ui.js:142](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/manga-character-bible-ui.js#L142)。
+
+buildIdentity 捕获整张旧卡，await embedding 后完整 put。期间改名字/tags，则旧字段覆盖新编辑；期间删除，则完成后卡又出现。两种场景都已复现。
+
+修复方向：完成时重读卡，检查仍存在及参考图修订相同，只合并 identity 字段，不回写旧整卡。
+
+### 33 — 正常角色参考图自动识别功能实际上被 JPEG/PNG 合同打断（P1）
+
+位置：[js/ai/manga-character-bible-ui.js:65](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/manga-character-bible-ui.js#L65)；[js/ai/character-library.js:20](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/character-library.js#L20)；[manga_character_library.py:89](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/manga_character_library.py#L89)；[manga_smart_ocr.py:35](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/manga_smart_ocr.py#L35)。
+
+优化上传参考图总是输出 JPEG；角色库直接把它传给 character-embed；后端 read_image 只接受PNG。有效JPEG进入生产 embed，在模型已准备的fixture下返回400“当前只支持 PNG 画布截图”。UI后台 catch 吞掉此失败，卡能保存却没有 identity。
+
+修复方向：统一图像格式合同：后端正确解码白名单格式，或 embedding 请求前转PNG；失败状态必须可见。
+
+### 34 — 旧批处理在结果未知/出图后写盘失败时，自动重复生成（P1）
+
+位置：[scripts/novelai-batch-tools.mjs:297](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/scripts/novelai-batch-tools.mjs#L297)；[scripts/novelai-batch-tools.mjs:323](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/scripts/novelai-batch-tools.mjs#L323)。
+
+generateImageWithRetry 捕获所有异常，默认最多8次。测试模拟已出图随后磁盘满，3次重试得到3次已接受请求；模拟上游已接受但响应丢失也得到3次。与新版前端避免重复扣费的保护不一致。
+
+修复方向：把发送、读取、解码、写盘分阶段；出图后仅重试本地保存，结果未知不自动重发付费请求。
+
+### 35 — 旧批处理忽略用户选择的服务端端口（P2）
+
+位置：[scripts/novelai-batch-tools.mjs:451](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/scripts/novelai-batch-tools.mjs#L451)；[scripts/novelai-batch-tools.mjs:524](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/scripts/novelai-batch-tools.mjs#L524)；[99_server.py:589](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/99_server.py#L589)。
+
+设 MNAI_PORT=17333，生产 generateComicDemo 仍请求127.0.0.1:8000。8000没有本应用会失败；8000若为另一副本则混用其服务/文件环境。素材预览和漫画样稿都硬编码该端口。
+
+修复方向：启动子进程时传递实际服务base URL，前端/脚本/代理统一；自定义端口必须跑完整批任务验收。
+
+### 36 — 切换 NovelAI Token，费用预估仍用上个账号会员/余额（P2）
+
+位置：[js/ai/nai-engine.js:20](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/nai-engine.js#L20)；[js/ai/nai-engine.js:29](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/nai-engine.js#L29)。
+
+全局 subscription cache 120秒没有token键。A为Opus，换B后costText不查B，仍显示A的免费和余额。生产函数fixture确认第二次health请求次数为0。
+
+修复方向：缓存绑定凭证身份；切换账号失效；迟到的旧账号health响应不能覆盖当前结果。
+
+### 37 — 高级生成的固定种子0被当成随机（P3）
+
+位置：[js/ai/provider/novelai-provider.js:247](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/provider/novelai-provider.js#L247)；[js/ai/provider/novelai-provider.js:293](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/provider/novelai-provider.js#L293)。
+
+输入阶段支持0，但 cleanBaseRequest 只保留 seed>0。固定Math.random=0.5时，用户种子0变为2147483647；新手核心路径已支持0，两个入口不一致。
+
+修复方向：明确支持有限整数0及合法最大值，随机使用单独哨兵。
+
+### 38 — 油漆桶/仿制图章破坏裁剪、混合及图层顺序（P1）
+
+位置：[js/ui/visual-ps-tools.js:279](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/visual-ps-tools.js#L279)；[js/ui/visual-ps-tools.js:347](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/visual-ps-tools.js#L347)；[js/ui/visual-ps-tools.js:495](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/visual-ps-tools.js#L495)。
+
+替换图片仅保留部分变换、opacity、GUID，移除原图并在末尾add。复现裁剪分镜图原本在文字下，填色后到文字上；clipPath、multiply、名称、aiFill等元数据丢失。
+
+修复方向：用同层级、同对象语义替换像素，保留剪裁与相关metadata；一次历史事务，并验证图层顺序/目标一致。
+
+### 39 — 旋转/翻转图像的油漆桶和图章点错像素（P2）
+
+位置：[js/ui/visual-ps-tools.js:302](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/visual-ps-tools.js#L302)；[js/ui/visual-ps-tools.js:319](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/visual-ps-tools.js#L319)。
+
+localToImage仅减left/top再除scale，无逆变换。10×10图旋转90°于(100,100)，画布内点(95,105)应映射(5,5)，实际为(-5,5)并被拒绝。翻转图也按未翻转像素定位。
+
+修复方向：使用图像完整逆变换矩阵处理旋转、origin、flip与缩放；验收任意旋转与中心origin。
+
+### 40 — 旧 ZIP 项目存在两条独立加载失败路径（P2）
+
+位置：[js/project-management.js:101](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/project-management.js#L101)；[js/core/compression/project-compression.js:231](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/compression/project-compression.js#L231)；[js/core/compression/lz4.js:152](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/compression/lz4.js#L152)。
+
+平铺的单页ZIP被multiLoadZip当成多页容器，只找嵌套.zip，得到零页；DEFLATE嵌套ZIP转换则直接复制JSZip compressedContent，不解压，state JSON变成压缩字节并JSON.parse报错。使用实际打包JSZip/DEFLATE复现。
+
+修复方向：明确识别单页与多页ZIP，通过zipEntry.async读取解压数据；对STORE和DEFLATE老项目都做迁移往返。
+
+### 41 — 模拟器分页插入漫画会把人物和文字压扁（P2）
+
+位置：[js/simulator/playback-controller.js:99](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/playback-controller.js#L99)。
+
+scaleX按可用宽计算，scaleY独立按180px高度计算。1000×1800图插到1000宽画布时scaleX=.43、scaleY=.1，宽高比从.5556变成2.3889。
+
+修复方向：宽高共同计算单一fit scale，两轴一致；允许用户另行明确非等比变换。
+
+### 42 — 移动模拟器整页后，分页数量和裁切范围变化（P2）
+
+位置：[js/simulator/extra-renderer-factory.js:183](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/extra-renderer-factory.js#L183)；[js/simulator/longshot-exporter.js:18](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/simulator/longshot-exporter.js#L18)。
+
+pageView高度相对页面，objects.top仍绝对画布坐标。3600高页面移到top=2000，以1800分页，实际得到3页而非2页，最后裁切起点5600已在原页底部外。生产分页/capture参数已复现，实际图像像素待浏览器验收。
+
+修复方向：先规范坐标为导出页面相对值，处理真实变换并夹到边界；移动前后导出内容应一致。
+
+### 43 — 隐私模式遗漏实际图层预览和导入文件缩略图（P2/P3）
+
+位置：[css/task-launcher.css:162](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/css/task-launcher.css#L162)；[js/layer/layer-management.js:473](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/layer/layer-management.js#L473)；[js/assets/asset-library-controller.js:125](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/assets/asset-library-controller.js#L125)。
+
+隐私CSS匹配layer-item img，实际createPreviewImage输出DIV.layer-preview，通过backgroundImage显示图像；导入素材asset-library-card img也没覆盖。生产函数确实输出DIV。README承诺模糊文件缩略图，当前实现覆盖不完整；浏览器CSS绘制待验。hover主动显示是设计，不算新缺陷。
+
+修复方向：覆盖真实DOM类与背景图；定义每个候选/历史/角色/素材预览的隐私覆盖，补CSS真实操作验收。
+
+### 44 — 合法长文件名使本机抠图在推理前失败（P2）
+
+位置：[local_tools/server.py:134](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/local_tools/server.py#L134)；[local_tools/server.py:263](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/local_tools/server.py#L263)。
+
+244字符PNG名称可正常创建，但处理流程为临时文件把随机前缀拼到完整文件名，超255字节得到ENAMETOOLONG/errno36，processor未运行。
+
+修复方向：临时名只保留简短随机名及扩展名，或移除没使用的临时文件。
+
+### 45 — 同时下载同一示例图包，临时文件互相抢占（P2）
+
+位置：[prompt_helper_images.py:78](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/prompt_helper_images.py#L78)；[prompt_helper_images.py:99](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/prompt_helper_images.py#L99)；[prompt_helper_images.py:113](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/prompt_helper_images.py#L113)。
+
+两个请求共同写target.part并os.replace。受控并发验证一项成功、另一项FileNotFoundError。多个标签页/窗口可触发，不是模型推理问题。
+
+修复方向：同包串行或唯一临时文件；提交阶段验证，不共享固定.part。
+
+### 46 — 网络字体族名没有URL解码（P2）
+
+位置：[js/core/font/font-manager-core.js:424](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/font/font-manager-core.js#L424)；[js/core/font/font-manager-core.js:434](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/font/font-manager-core.js#L434)。
+
+family=Roboto+Slab:wght@400 被保存为Roboto+Slab而非Roboto Slab，选择器因此使用不匹配字体族，回退默认字体。生产registerWebFont函数已复现。
+
+修复方向：URL.searchParams解码plus/percent；保存与应用真实CSS字体族名。
+
+### 47 — 移动/缩放 AI Fill 图层后导出 PSD，退回原始位置（P2）
+
+位置：[js/ui/psd-io.js:38](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/psd-io.js#L38)；[js/ui/psd-io.js:78](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/psd-io.js#L78)。
+
+aiFillLayer使用aiFill.box的原始位置尺寸，忽略live变换。实际ag-psd往返fixture：live left/top=8/8、scale2，导出left/top=0/0、4×4原始像素。旋转/翻转同样不在该分支处理。
+
+修复方向：按live变换导出图像与蒙版，对齐导出坐标；元数据原始框不能覆盖用户后续修改。
+
+### 48 — 导出 PSD 丢掉画布背景色（P2）
+
+位置：[js/ui/psd-io.js:73](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/psd-io.js#L73)；[js/ui/psd-io.js:91](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ui/psd-io.js#L91)。
+
+导出只遍历对象，canvas.backgroundColor不作为层；composite固定白色。粉色背景fixture解码PSD得到白色，无代表粉色背景的层。
+
+修复方向：按画布实际背景导出可编辑背景或正确合成；分别验收有色、透明背景。
+
+## 第一轮PSD待验证项已推进到codec/生产函数复现
+
+- 半透明图层重复opacity已确认：红色图层50%透明度导出为像素alpha128/255，再乘PSD层opacity128/255，有效约25.2%。仍需真实编辑器显示验收。
+- 编辑文本变换/颜色丢失已确认：缩放旋转文字导出单位矩阵；应用正常rgba红色被PSD文本色解析为黑色。竖排FancyFont导入变为无字体/角度属性的水平Textbox。
+- 父组隐藏/25%opacity/multiply丢失已确认：实际ag-psd读取后导入子对象为visible=true、opacity1、source-over。
+
+这些对应首轮静态列表第3/4项，**不重复算作新增25–48项**。验证使用实际捆绑ag-psd、JSZip和从加载的Fabric提取的方法；像素/DOM渲染部分为确定性的替代依赖。
+
+## 新增安全候选：导入SVG可能成为同源活动文档
+
+位置：[99_server.py:227](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/99_server.py#L227)；[99_server.py:1127](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/99_server.py#L1127)。
+
+已确认：导入带script的SVG原文被保存，并按image/svg+xml同源提供，没有sandbox CSP或attachment声明。
+
+明确触发前提：用户导入恶意SVG，随后将其持久化本地URL作为文档打开。仅通过img元素展示不会执行脚本。本轮没有完成浏览器SVG脚本执行测试，因此将其列为待浏览器验证的安全候选，不算已完成利用验证。若以文档上下文执行，将共享编辑器origin的存储与同源API权限。应清洗SVG、隔离origin或对文档打开实施恰当sandbox。
+
+## 新增验证记录
+
+以下所有补充复现均由主审重新执行，取得对应输出；没有付费调用或大模型下载。
+
+| 复现脚本 | 范围 | 本轮结果 |
+| --- | --- | --- |
+| expanded_frontend_repro.cjs | AI Fill重入/跨页/会话、自动参考图、卡更新、会员缓存、聊天替换、seed0 | 9个场景通过（包含卡编辑/删除两个场景） |
+| ancillary-audit-repro.cjs | 图层复制GUID、模拟器比例/分页、隐私DOM | 全部通过 |
+| psd-zip-audit-repro.cjs | 实际ag-psd/JSZip＋Fabric方法：opacity、文字、分组、AI位置、背景、两种ZIP | 全部通过 |
+| property-history-audit-repro.cjs | 文字属性/图片翻转与自动保存 | 全部通过 |
+| image-edit-audit-repro.cjs | 油漆桶属性/顺序、坐标变换 | 全部通过 |
+| backend-audit-round2.py | 旧批任务端口/重试、长文件名、下载并发、JPEG、SVG提供、字体 | 8项通过 |
+
+以上审查脚本是临时验证工具，并非已经合入项目的持续回归。聊天配置的8＋6项是本PR正式新增回归，已接入npm test。现有主回归依旧通过，说明其覆盖没有涵盖这些新增失败场景。
+
+## 更新修复顺序
+
+1. 先处理第一轮保存/复制页问题，再处理25–34、38：用户数据、重复请求/费用和破坏性图层替换。
+2. JPEG参考图33与旧批处理重复生成34优先：功能静默失败/重复收费会直接损害用户体验。
+3. 修人物卡并发及参考图归属31/32、Token费用缓存36，以及已有本机模型初始化/清理竞态。
+4. 修PSD往返（已确认静态项＋47/48）、ZIP迁移40、画笔坐标39、模拟器分页41/42。
+5. 端口、下载、长文件名、字体、隐私和条件安全候选补齐；完成真正的默认新手模式、干净Windows和真实API完整验收。
+
+本轮完成的是**聊天配置修复＋扩大审查**；其余新增问题尚未修复，第一轮未列入PR的旧问题也仍然存在。不把问题数量当成完成度，更不声称已穷尽所有bug。
+
+
+# 第三轮：生产手册驱动的流程与语义检查
+
+本轮用户补充《Manga-NAI：漫画创作与生产手册（供 Agent 使用）》（附件 AGENT (1).md，文档日期2026-09-29）。已完整阅读441行；文档引用的153页工程、nai_generate.py和lettering_core.py没有随本附件提供，当前Manga-NAI-GPT仓库也没有这些对应目录，不能将文档自述“本次核验”当成本轮已执行验证。
+
+## 这份手册与编辑器的关系
+
+它适合作为产品的创作与验收需求来源：
+
+| 手册要求 | 当前项目已有基础 | 还需适配或补足 |
+| --- | --- | --- |
+| 剧情→逐页分镜→提示词 | ScriptPageCore、ScenePlan、画一页 | 稳定page/panel/line ID、source/purpose、连续性、审定版本，不能仅保留画面和纯对白字符串 |
+| 角色身份、服装、道具连续性 | 角色库、角色标签、系列种子 | 跨页状态与语义检查；同种子不能代表身份、服装、物品位置完全一致 |
+| 代表页试图、4–6页检查后继续 | 队列、候选预览、人工review状态 | 全篇选图、六页联系表、计划/实际格数、叙事与实际画面的验收记录 |
+| 未知结果不盲重发、请求哈希和输出留档 | 新版NaiEngine有部分未知结果保护 | 旧batch重复生成问题34仍在；需统一请求身份、持久化pending/verified状态与本地保存重试 |
+| 对白逐句对应、读序和说话人清楚 | 脚本解析、气泡布局、OCR/改字幕 | 不能在解析/合并/转换时丢说话人，不能仅凭OCR通过判定文字合格 |
+| clean/safe/protect不同蒙版 | 文本ink mask、局部保护、非破坏图层 | 实际清字和排字边界分离、逐字与像素检查，避免覆盖边框/人物 |
+| 当前项目自主决定流程与参数 | 自定义服务和编辑器多个入口 | 手册规则应可选，不能把2–4格/2人/六页节奏直接硬编码成所有用户的限制 |
+
+三处必须避免原样照搬：
+1. 手册主要示范**整页一次生成**；当前“画一页”有**每格生成后拼页**路径。不能把“Exactly THREE frames”整页prompt直接发给每格，否则出现格内再分格。
+2. 手册jobs数组与pages.json是其专用客户端格式，当前ScenePlan/向导字段不同；需要显式转换并保存额外创作信息。手册已正确提醒不能直接当API请求。
+3. 手册客户端从.env读取NAI项；本仓库当前使用NOVELAI_API_KEY/NAI_API_KEY或界面Token。密钥规则要适配实际实现。免费资格、型号和订阅条件须实际查询，不将2026-09-29文档规则当永久官方保证。
+
+## 新增五项：49–53
+
+### 49 — 剧本超过四句时合并不同说话人；向导又丢掉逐句说话人（P1/P2，生产函数复现）
+
+位置：[js/ai/script-page-core.js:71](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/script-page-core.js#L71)；[js/ai/script-page-core.js:77](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/script-page-core.js#L77)。
+
+一格内甲乙交替五句，解析后第四条为speaker=乙、text=第四句第五句，甲的第五句被归给乙。随后toWizard把所有speaker去掉，只保留用斜杠分开的文字。文字没有消失，但审定语义和气泡归属已经改变，直接违反手册要求的逐句映射。
+
+修复方向：超过容量时显式拆格/气泡或提示人工处理；只合并同一说话人的连续文本。向导和后续气泡布局应传递稳定line ID与speaker，不按人物空间顺序猜对白归属。两种数据丢失发生在同一对白管线，计为一项。
+
+### 50 — 显式多行字幕溢出，却被判为已适配（P2，生产函数复现）
+
+位置：[js/ai/manga-smart-text-core.js:84](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/manga-smart-text-core.js#L84)。
+
+fitText的首个成功分支仅检查最长行长度，不检查全部行在跨行方向的总尺寸。100×20框内五个单字行，返回字号17、五行、wrapped=false，无overflow；按当前lineHeight1.16计算文本块约98.6高。自动换行分支有高度检查，用户显式换行却绕过它。
+
+修复方向：单行与多行走统一的宽高适配，无法在最小字号放下时明确overflow，不能通过扩大框/压扁字体掩盖。
+
+### 51 — 气泡尾巴的全页人物索引与格内索引混用（P2，生产函数复现）
+
+位置：[js/ai/balloon-layout.js:80](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/balloon-layout.js#L80)；[js/ai/balloon-layout.js:108](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/balloon-layout.js#L108)；[js/ai/balloon-layout-core.js:69](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/ai/balloon-layout-core.js#L69)。
+
+speakers返回全页faces索引；place先筛到当前格，再按同一数字取格内face。第二格唯一人物全页index=1，筛选后只剩格内index=0，结果tail=null。对同一坐标输入格内index=0能正确得到tail。多个格内人物还可能错指另一人。
+
+修复方向：在筛选时保持原face身份或统一转换到局部索引。验收跨格说话人与尾巴，不只统计气泡是否生成。
+
+### 52 — 导入底图的移动/缩放事件也被历史过滤（P1/P2，事件过滤已复现，完整操作待浏览器验证）
+
+位置：[js/sidebar/panel/panel-manager.js:85](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/sidebar/panel/panel-manager.js#L85)；[js/layer/image-history-management.js:31](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/layer/image-history-management.js#L31)；[js/fabric/fabric-management.js:119](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/fabric/fabric-management.js#L119)。
+
+initialPutImage设置saveHistory=false；后续object:modified通过isSaveObject(event)判断，event.target.saveHistory=false会被拒绝。该判断连target.saveHistory=true也拒绝：只有target.saveHistory未定义会保存。实际生产判断函数对这两个事件均返回false。
+
+这与25“属性按钮未发事件”不同：此处事件可以正常发出，却在过滤层被阻断。完整编辑器的拖动→撤销→自动保存往返仍需浏览器验证，不夸大为所有图层都受影响。
+
+修复方向：初次批量放置的临时历史暂停与对象长期编辑权限分开，明确target字段的true/false语义。
+
+### 53 — 重置设置连带清除素材索引与生成任务记录（P2，生产函数复现）
+
+位置：[js/project-management.js:659](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/project-management.js#L659)；[js/assets/asset-store.js:12](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/assets/asset-store.js#L12)；[js/assets/image2-job-store.js:3](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/assets/image2-job-store.js#L3)。
+
+执行生产resetAllSettings的确认按钮，会localStorage.clear()。用于导入/生成素材的nai_comic_asset_manifest_v1和image2任务记录一并删除，确认列表的六项设置说明没有明确列出这些创作资产。素材IndexedDB blob可能仍留着，但索引缺失；加载只恢复blob而不重建素材metadata，导致素材库列表消失。
+
+修复方向：只重置本应用设置键，若另有清除创作数据操作应明确列出并独立处理。**没有证据称IndexedDB角色卡也被这一操作删除**，不把所有存储都笼统说成丢失。
+
+## 验证、CI状态与未完成项
+
+- round3-process-audit-repro.cjs由主审编写并执行通过，六条输出覆盖以上五项（49包含解析/向导两个阶段）。
+- 当前main最新提交仍是ca9572d；聊天修复PR5仍为独立草稿，未合并。
+- **补充先前未完成的CI结论：PR5四项工作流成功，full acceptance失败。** 作业日志为37 PASS、1 FAIL；失败是flow7“生成中切页→切回后应用”。第2页未被改动，但回到第1页后也没有应用成功，状态仍提示当前在第2页。
+- 该失败没有新增控制台page error。当前尚未证明由聊天设置修改引起，也未证明只是测试不稳定；不擅自归因，不改断言或反复点击来掩盖。
+- 完整mock Chromium交互、安全HTTP、旧回归与Windows便携检查等子作业均成功；失败的是含真实Tesseract的默认全任务作业。不能将“部分通过”说成全部CI通过。
+- 浏览器本地验证和失败根因定位仍未完成。上传手册的153页、NAI客户端/嵌字工具也未取得源码或图像，本文没有替它们做真实性/全篇质量背书。
+- 这轮没有新增产品代码改动；新增发现尚未修复。接下来的验收应同时检查数据完整、真实图像、逐句语义和流程状态。
+
