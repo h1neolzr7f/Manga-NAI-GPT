@@ -580,10 +580,71 @@ initialPutImage设置saveHistory=false；后续object:modified通过isSaveObject
 ## 验证、CI状态与未完成项
 
 - round3-process-audit-repro.cjs由主审编写并执行通过，六条输出覆盖以上五项（49包含解析/向导两个阶段）。
-- 当前main最新提交仍是ca9572d；聊天修复PR5仍为独立草稿，未合并。
+- 第三轮审查时产品基线为ca9572d。随后main已增加本审查和生产手册文档；产品代码基线未变。聊天修复PR5仍为独立草稿，未合并。
 - **补充先前未完成的CI结论：PR5四项工作流成功，full acceptance失败。** 作业日志为37 PASS、1 FAIL；失败是flow7“生成中切页→切回后应用”。第2页未被改动，但回到第1页后也没有应用成功，状态仍提示当前在第2页。
 - 该失败没有新增控制台page error。当前尚未证明由聊天设置修改引起，也未证明只是测试不稳定；不擅自归因，不改断言或反复点击来掩盖。
 - 完整mock Chromium交互、安全HTTP、旧回归与Windows便携检查等子作业均成功；失败的是含真实Tesseract的默认全任务作业。不能将“部分通过”说成全部CI通过。
 - 浏览器本地验证和失败根因定位仍未完成。上传手册的153页、NAI客户端/嵌字工具也未取得源码或图像，本文没有替它们做真实性/全篇质量背书。
 - 这轮没有新增产品代码改动；新增发现尚未修复。接下来的验收应同时检查数据完整、真实图像、逐句语义和流程状态。
+
+# 第四轮：抠图像素、异步归属与工程导入事务
+
+本轮把全部报告、原始生产手册、适配说明和诊断工具写入GitHub main。产品代码仍以ca9572d为基线；第一批文档提交为64fed95。继续执行生产函数和真实PNG像素检查，新增54–58五项，现有编号合计58项。重复机制的补充归入原编号，不重复计数。
+
+### 54 — 裁掉透明边缘后，抠图被拉回原尺寸并发生移位（P2，真实像素与生产函数复现）
+
+位置：[local_tools/cutout.py:116–134](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/local_tools/cutout.py#L116)；[local_tools/model_manager.py:203–204](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/local_tools/model_manager.py#L203)；[local_tools/server.py:263–275](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/local_tools/server.py#L263)；[js/local-tools/background-removal-client.js:257–269](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/local-tools/background-removal-client.js#L257)、296–305（均为上述产品基线）。
+
+100×100源图以200×200显示，人物像素在源图(60,20)。生产postprocess_rgba开启crop返回14×14 PNG；客户端仍保留原left/top，并把结果缩放回200×200。人物页面x本应为220，却变成128.571；正确裁切后放置应为left=216、top=86，保持每个源像素的显示比例。服务响应缺少裁切偏移，全图和选区应用都无法还原它。
+
+修复方向：服务返回原尺寸和crop box，应用时保留像素尺度、按源图变换映射裁切偏移，覆盖缩放、旋转、翻转和不同origin。不能只将输出尺寸替换成输入尺寸。
+
+### 55 — 浏览器颜色抠图忽略裁切、羽化和只输出蒙版（P2，真实像素与生产函数复现）
+
+位置：[index.html:1342–1346](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/index.html#L1342)；[js/local-tools/background-removal-client.js:64–66](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/local-tools/background-removal-client.js#L64)、339–357、373–378、430–435。
+
+界面勾选crop=true、only_mask=true，feather=4，执行公开processSelected颜色抠图分支，结果仍是100×100彩色红色前景；alpha只有0/255，没有裁切、没有灰度蒙版、没有羽化。神经网络失败后的颜色回退复用同一路径。UI选项可见且被采集，但未进入实际像素后处理。
+
+修复方向：颜色分支与神经网络分支统一后处理语义，或明确禁用不支持的选项。回退时说明结果变化，不静默把蒙版请求变成彩色图。
+
+### 56 — 抠图等待期间切页，把原页结果贴到新页（P2，受控异步生产函数复现）
+
+位置：[js/local-tools/background-removal-client.js:292–329](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/local-tools/background-removal-client.js#L292)、364–393、412–450。
+
+A页发起replace抠图，等待服务返回时将全局canvas载入B页。结果返回后remove(source-A)没有删除B对象，却把A的抠图加入B，并在当前canvas调用历史保存。受控fixture确认B原对象保留、A结果新增，backgroundRemovalSourceGuid仍为source-A。该链路没有origin page GUID或源对象仍在画布的检查。
+
+修复方向：请求保存页面、源对象和修改版本；完成时验证归属，跨页结果进入预览/候选或原页队列。不要直接操作当前全局canvas。与18/28同属异步归属问题，但抠图是独立用户流程，单列修复与验收。
+
+### 57 — 本机颜色抠图覆盖原alpha，复活透明像素（P2，生产ModelManager真实PNG复现）
+
+位置：[local_tools/cutout.py:137–149](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/local_tools/cutout.py#L137)；[local_tools/model_manager.py:180–184](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/local_tools/model_manager.py#L180)；[local_tools/server.py:263–275](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/local_tools/server.py#L263)、290–310；[local_tools/API.md颜色抠图API说明](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/local_tools/API.md)。
+
+透明红像素alpha=0与半透明蓝像素alpha=128，通过公开ModelManager.remove_background(..., 'color-key', ...)以白色为背景，返回alpha=[255,255]。服务用颜色差得到的新alpha直接覆盖输入alpha，透明RGB内容重新出现，原半透明边缘变成不透明。此项针对已文档化的sidecar/API调用；编辑器浏览器颜色分支绕过服务，不把两条路径混为一谈。
+
+修复方向：颜色键mask与原始alpha相交/相乘，不能增加原图透明度；invert也应保留输入透明区域。验收透明底、半透明抗锯齿和蒙版输出。
+
+### 58 — 工程导入结构错误时，失败后没有回滚原页面状态（P1，生产函数复现）
+
+位置：[js/core/compression/project-compression.js:98–126](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/core/compression/project-compression.js#L98)；[js/layer/image-history-management.js:145–147](https://github.com/h1neolzr7f/Manga-NAI-GPT/blob/ca9572de1640a7acb462bd49e69fb75de343e7c7/js/layer/image-history-management.js#L145)、218–222。
+
+语法错误的历史JSON会在替换前被拒绝，已有保护有效。但合法JSON中的objects=null通过JSON.parse预检；导入随后替换stateStack、清空imageMap、应用外来basePrompt和画布尺寸，restoreImage在objects.map抛错。finally只恢复加载/历史锁，不恢复旧数据。
+
+fixture原A页仍显示left=23的对象、GUID=A，但两条原历史被替换为单条错误历史，旧图片映射清除，提示词变为incoming，画布100×100变为320×480。跳转该历史会报错；下一次saveState后undo仍因错误历史报错。没有声称导入失败一定清空可见对象，确认的是显示内容与底层历史/图片/参数已不一致。
+
+修复方向：在临时状态中完成历史schema、图片引用和画布数据验证及加载；成功后一起提交，失败恢复全部原状态。仅预先JSON.parse不能保证事务完整。优先于外观问题处理。
+
+## 原编号的补充证据
+
+- **17**：浏览器容差0也被Number(tolerance)||28改为28；白色key错误删除#e6e6e6像素，实际PNG验证。
+- **26**：全图抠图action=new在copyPlacement复制源guid，源图与新结果具有相同source-A GUID，生产函数复现。
+- **39**：翻转的蓝左/红右源图经processRegion后变回红左/蓝右；提取调整源区域却在结果应用中丢掉flipX，实际非对称像素验证。
+- **38**：抠图replace分支同样remove/add到最上层，copyPlacement未复制clip/blend等属性。此为代码检查补充，尚未额外执行完整Fabric蒙版回放，不新增编号。
+
+## 验证与仍待查证的范围
+
+- round4-cutout-audit-repro.cjs主审复跑取得七条确认输出：四项新增、三项旧编号补充。使用真实@napi-rs/canvas PNG和生产Python/Pillow后处理，神经网络返回由fixture控制；没有推理质量背书。
+- round4-project-load-audit-repro.cjs主审执行通过，包含“语法错误保留原状态”的对照及“结构错误破坏原状态”的案例。压缩容器和DOM为确定性替代依赖，生产导入/历史函数原样运行。
+- 工具目录现在有10个诊断脚本。exit=0仍表示缺陷被成功复现，不能拿它宣布修复通过。
+- PR5的flow7根因仍待浏览器定位。继续读测试发现openPage只等待GUID变化，且吞掉超时，没有核对目标页GUID；应用等待又只查是否存在任一名为“GPT 局部改图”的对象，可能命中旧结果。这是验收工具的证据不足，**尚不能据此断言它就是本次失败根因**。应记录并断言目标GUID、此次结果身份及像素变化，保留原失败记录。
+- 没有新增产品修复或合并PR5；上述五项仍待修复。尚未完成真实浏览器、干净Windows、真实API与用户153页工程验收，不保证穷尽全部bug。
 

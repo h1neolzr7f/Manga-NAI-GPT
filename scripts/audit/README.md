@@ -13,7 +13,11 @@ node scripts/audit/property-history-audit-repro.cjs
 node scripts/audit/image-edit-audit-repro.cjs
 node scripts/audit/round3-process-audit-repro.cjs
 python scripts/audit/backend-audit-round2.py
+node scripts/audit/round4-cutout-audit-repro.cjs
+node scripts/audit/round4-project-load-audit-repro.cjs
 ```
+
+第四轮抠图像素脚本额外需要 `@napi-rs/canvas`（测试依赖，正常 Node 模块解析可找到它即可）及 Pillow；不执行 rembg 推理。
 
 JS脚本默认读取当前工作目录，可用MANGA_AUDIT_ROOT指定待审仓库。Python按脚本所在仓库定位。不要对包含个人图像/凭证的浏览器会话执行这些fixture；它们不需要真实浏览器会话。
 
@@ -26,6 +30,8 @@ JS脚本默认读取当前工作目录，可用MANGA_AUDIT_ROOT指定待审仓�
 | property-history-audit-repro | 字体属性/翻转与历史、自动保存 |
 | image-edit-audit-repro | 油漆桶属性/层序、变换坐标 |
 | round3-process-audit-repro | 五句speaker合并、多行适配、尾巴索引、事件过滤、重置资产索引 |
+| round4-cutout-audit-repro | 裁切坐标、浏览器选项、异步跨页、服务端alpha，以及17/26/39补充 |
+| round4-project-load-audit-repro | 合法JSON但错误结构的工程导入失败后，旧历史/图片/尺寸/提示词未回滚；含语法错误保护对照 |
 | backend-audit-round2 | 旧batch端口/重复生成、JPEG嵌入、长文件名、下载竞态、字体、SVG提供行为 |
 
 并非每条审查记录都有保留下来的独立脚本。部分首轮检查以临时fixture执行，报告已经注明验证方式；不要声称本目录覆盖全部问题。
