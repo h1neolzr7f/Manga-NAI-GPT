@@ -88,10 +88,7 @@ def _director_fallback_models(error=None):
     }
 
 def _director_default_model():
-    model = (os.environ.get('DIRECTOR_MODEL') or DIRECTOR_DEFAULT_MODEL).strip().lower()
-    if not model or model == 'qwen3.5-flash' or model.startswith('gpt-') or model.startswith('chatgpt-'):
-        return DIRECTOR_DEFAULT_MODEL
-    return model
+    return (os.environ.get('DIRECTOR_MODEL') or DIRECTOR_DEFAULT_MODEL).strip() or DIRECTOR_DEFAULT_MODEL
 
 def _get_windows_user_proxy():
     if winreg is None:
@@ -772,11 +769,8 @@ class CORSRequestHandler(SimpleHTTPRequestHandler):
         except Exception:
             return body
         fallback_model = _director_default_model()
-        model = str(data.get('model') or '').strip().lower()
-        if not model or model.startswith('gpt-') or model.startswith('chatgpt-'):
-            data['model'] = fallback_model
-        else:
-            data['model'] = model
+        model = str(data.get('model') or '').strip()
+        data['model'] = model or fallback_model
         return json.dumps(data, ensure_ascii=False).encode('utf-8')
 
     def _proxy_novelai(self, method, upstream_path, body=None):
@@ -934,10 +928,10 @@ class CORSRequestHandler(SimpleHTTPRequestHandler):
                 raw = json.loads(response.read().decode('utf-8-sig') or '{}')
                 models = []
                 for item in raw.get('data') or []:
-                    protocols = item.get('supported_protocols') or []
-                    if 'openai:chat-completions' not in protocols:
+                    protocols = item.get('supported_protocols')
+                    if protocols is not None and 'openai:chat-completions' not in protocols:
                         continue
-                    model_id = str(item.get('id') or '').strip().lower()
+                    model_id = str(item.get('id') or '').strip()
                     if not model_id:
                         continue
                     models.append({
@@ -945,7 +939,7 @@ class CORSRequestHandler(SimpleHTTPRequestHandler):
                         'name': item.get('name') or model_id,
                         'context_length': item.get('context_length'),
                         'description': item.get('description') or '',
-                        'supported_protocols': protocols
+                        'supported_protocols': protocols or []
                     })
                 DIRECTOR_DYNAMIC_MODELS.clear()
                 DIRECTOR_DYNAMIC_MODELS.update(item['id'] for item in models)

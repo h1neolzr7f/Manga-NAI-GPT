@@ -457,31 +457,8 @@ $('naiBatchDirectorEnabled').checked=true;
 data.naiBatchDirectorEnabled=true;
 localStorage.setItem('naiBatchDirectorDefaultMigratedV4','1');
 }
-// The Director used to ship with a third-party gateway prefilled. There is no default
-// any more: a saved URL without a user-entered Director key is that old default, so
-// clear it (the Director stays off until the user configures their own gateway).
-if(localStorage.getItem('naiDirectorNoDefaultUrlV1')!=='1'){
-var dirUrlEl=$('naiDirectorApiUrl');
-if(!secrets.naiDirectorApiKey&&dirUrlEl&&dirUrlEl.value){
-dirUrlEl.value='';
-data.naiDirectorApiUrl='';
-try{
-var dirStore=JSON.parse(localStorage.getItem('localSettingsData')||'{}');
-dirStore.naiDirectorApiUrl='';
-localStorage.setItem('localSettingsData',JSON.stringify(dirStore));
-}catch(error){/* ignore */}
-}
-localStorage.setItem('naiDirectorNoDefaultUrlV1','1');
-}
-if(localStorage.getItem('naiDirectorModelMigratedV5')!=='1'){
-var modelEl=$('naiDirectorModel');
-var legacyModels={'qwen3.5-flash':1,'qwen3-flash':1};
-if(modelEl&&legacyModels[modelEl.value]){
-modelEl.value='deepseek-v4-flash';
-data.naiDirectorModel='deepseek-v4-flash';
-}
-localStorage.setItem('naiDirectorModelMigratedV5','1');
-}
+// Keep explicit URLs and model IDs: the key may be supplied by the local server.
+// Shipped URL defaults stay empty; proxy credential/destination guards still apply.
 if(localStorage.getItem('letteringFontSizeDefaultMigratedV1')!=='1'){
 var sizeEl=$('fontSizeSlider');
 if(sizeEl&&(String(sizeEl.value)==='14'||data.fontSizeSlider==='14'||data.fontSizeSlider===undefined)){
