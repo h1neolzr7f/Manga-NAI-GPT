@@ -558,7 +558,7 @@ window.__lastScript=r;
 function fillScriptPage(pg){
 if(!pg)return;
 pageLayout=null;choosePanels(pg.panels.length);
-pg.panels.forEach(function(p,i){var w=ScriptPageCore.toWizard(p);var a=document.querySelector('#taskPagePanels [data-scene="'+i+'"]'),b=document.querySelector('#taskPagePanels [data-line="'+i+'"]');if(a)a.value=w.scene;if(b)b.value=w.line;});
+pg.panels.forEach(function(p,i){var w=ScriptPageCore.toWizard(p);var a=document.querySelector('#taskPagePanels [data-scene="'+i+'"]'),b=document.querySelector('#taskPagePanels [data-line="'+i+'"]');if(a)a.value=w.scene;if(b){b.value=w.line;if(b.dataset&&ScriptPageCore.wizardLines)b.dataset.scriptLines=JSON.stringify(ScriptPageCore.wizardLines(p));}});
 updateCastPreview();
 var nx=$('taskScriptNext');if(nx){nx.hidden=!scriptQueue.length;nx.textContent='下一页剧本（还剩 '+scriptQueue.length+' 页）';}
 }

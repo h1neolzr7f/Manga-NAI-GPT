@@ -239,9 +239,17 @@ if(!template){
 setStatus('此模板属于本地资源包，当前未安装。',true);
 return null;
 }
+// Pin the source page and replacement target before the async render (audit 30).
+var previous=findSelectedSimulatorGroup();
+if(previous&&previous.canvas&&previous.canvas!==current)previous=null;
+var pageGuid=typeof getCanvasGUID==='function'?getCanvasGUID():null;
 var group=await renderer.renderScene(validation.scene,template);
 var factory=root.NaiComicExtraRendererFactory;
-var previous=findSelectedSimulatorGroup();
+if(getCanvas()!==current||(pageGuid&&typeof getCanvasGUID==='function'&&getCanvasGUID()!==pageGuid)){
+setStatus('渲染期间已切换页面，未插入聊天模板；请回到原页面重试。',true);
+return null;
+}
+if(previous&&previous.canvas!==current)previous=null;
 if(typeof changeDoNotSaveHistory==='function')changeDoNotSaveHistory();
 var placed;
 if(factory&&typeof factory.placeOnCanvas==='function'){
