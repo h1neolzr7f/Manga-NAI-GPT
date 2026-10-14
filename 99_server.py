@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 from http.server import SimpleHTTPRequestHandler
 import socketserver
 import os
+import hashlib
 import re
 import sys
 import mimetypes
@@ -291,7 +292,10 @@ def safe_imported_asset_name(value):
 def imported_asset_relative_path(asset_id, name):
     safe_id = safe_imported_asset_name(asset_id or uuid.uuid4().hex)
     safe_name = safe_imported_asset_name(name)
-    return 'user_data/asset_packs/imported/%s_%s' % (safe_id[:32], safe_name)
+    # The full id decides the file (audit 63): keep a readable prefix plus a hash of the whole id
+    # so two assets whose ids share a long prefix never map to the same path.
+    digest = hashlib.sha256(str(asset_id or safe_id).encode('utf-8')).hexdigest()[:16]
+    return 'user_data/asset_packs/imported/%s-%s_%s' % (safe_id[:24], digest, safe_name)
 
 def save_imported_asset(body):
     ensure_user_data_dirs()
@@ -310,8 +314,14 @@ def save_imported_asset(body):
     rel = imported_asset_relative_path(payload.get('id'), payload.get('name'))
     abs_path = os.path.join(os.getcwd(), rel.replace('/', os.sep))
     os.makedirs(os.path.dirname(abs_path), exist_ok=True)
-    with open(abs_path, 'wb') as handle:
-        handle.write(raw)
+    tmp_path = abs_path + '.part-' + uuid.uuid4().hex[:8]
+    try:
+        with open(tmp_path, 'wb') as handle:
+            handle.write(raw)
+        os.replace(tmp_path, abs_path)
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
     return rel.replace('\\', '/'), None
 
 def ensure_user_data_dirs():

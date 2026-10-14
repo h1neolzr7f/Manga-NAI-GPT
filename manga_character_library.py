@@ -83,10 +83,35 @@ def _decode(s):
     return np.frombuffer(base64.b64decode(s), np.float32)
 
 
+def read_reference(data_url):
+    """PNG page captures and the JPEG/WebP reference photos the character bible stores (audit 33)."""
+    if isinstance(data_url, str) and data_url.startswith(("data:image/jpeg;base64,", "data:image/webp;base64,")):
+        import binascii
+        from PIL import Image
+        from manga_smart_ocr import MAX_IMAGE_BYTES, MAX_PIXELS
+        try:
+            raw = base64.b64decode(data_url.split(",", 1)[1], validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise SmartOcrError("图片的 Base64 数据无效。") from exc
+        if len(raw) > MAX_IMAGE_BYTES:
+            raise SmartOcrError("图片过大，请缩小到 2500 万像素以内且不超过 12MB。", 413)
+        try:
+            with Image.open(io.BytesIO(raw)) as im:
+                fmt, (w, h) = im.format, im.size
+        except Exception as exc:
+            raise SmartOcrError("参考图无法解码。") from exc
+        if fmt not in ("JPEG", "WEBP"):
+            raise SmartOcrError("图片格式与内容不一致。")
+        if not w or not h or w * h > MAX_PIXELS:
+            raise SmartOcrError("图片过大，请缩小到 2500 万像素以内且不超过 12MB。", 413)
+        return raw, w, h
+    return read_image(data_url)
+
+
 def _rgb(payload):
     import numpy as np
     from PIL import Image
-    raw, _w, _h = read_image(payload.get("image"))
+    raw, _w, _h = read_reference(payload.get("image"))
     return np.array(Image.open(io.BytesIO(raw)).convert("RGB"))
 
 

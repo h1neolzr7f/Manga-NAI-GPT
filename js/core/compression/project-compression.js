@@ -107,8 +107,15 @@ compressionLogger.error("Failed to load file:",file.name,error);
 const jsonResults=await Promise.all(jsonLoadPromises);
 const loadedStates=jsonResults.filter(data=>data!==undefined);
 if(!loadedStates.length)throw new Error('Project contains no canvas history');
-// Parse before replacing the current page so malformed history cannot clear it.
-loadedStates.forEach(state=>JSON.parse(state));
+// Validate structure before replacing the current page so a malformed history cannot clear it.
+loadedStates.forEach(state=>{
+const parsed=typeof state==='string'?JSON.parse(state):state;
+if(!parsed||typeof parsed!=='object'||!Array.isArray(parsed.objects))throw new Error('Project history state is malformed');
+});
+// Everything replaced below is restored if loading fails part-way (audit 58).
+var rollback={stateStack:stateStack,currentStateIndex:currentStateIndex,imageMap:new Map(imageMap),
+basePrompt:JSON.parse(JSON.stringify(basePrompt||{})),width:canvas.width,height:canvas.height};
+try{
 stateStack=loadedStates;
 imageMap.clear();
 loadedImages.forEach((value,key)=>imageMap.set(key,value));
@@ -121,6 +128,16 @@ basePrompt.gptVisualProfiles=loadedBasePrompt&&Array.isArray(loadedBasePrompt.gp
 currentStateIndex=Number.isInteger(canvasInfo.historyIndex)&&canvasInfo.historyIndex>=0&&canvasInfo.historyIndex<stateStack.length?canvasInfo.historyIndex:stateStack.length-1;
 resizeCanvasByNum(canvasInfo.width,canvasInfo.height);
 await restoreHistoryState(currentStateIndex,guid,true);
+}catch(loadError){
+stateStack=rollback.stateStack;
+currentStateIndex=rollback.currentStateIndex;
+imageMap.clear();
+rollback.imageMap.forEach((value,key)=>imageMap.set(key,value));
+Object.keys(basePrompt).forEach(k=>{delete basePrompt[k];});
+Object.assign(basePrompt,rollback.basePrompt);
+resizeCanvasByNum(rollback.width,rollback.height);
+throw loadError;
+}
 
 if(guid){
 setCanvasGUID(guid);

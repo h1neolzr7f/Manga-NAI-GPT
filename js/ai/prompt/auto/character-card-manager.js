@@ -111,7 +111,14 @@ var materialIndex=[];
 var activeCategoryIndex=0;
 
 function saveCards(){
-cards=cards.map(normalizeCard);
+// Normalise in place: input handlers hold references to these card objects, so replacing them
+// with clones would make later edits invisible to getCards/storage (audit 86).
+cards.forEach(function(card,index){
+var normalized=normalizeCard(card,index);
+if(normalized===card)return;
+Object.keys(card).forEach(function(key){delete card[key];});
+Object.assign(card,normalized);
+});
 var store=getProjectStore();
 if(store){
 store.splice(0,store.length);
