@@ -22,6 +22,7 @@ if(!beats.length)beats.push({type:'narrator',speaker:'',content:value.title||'�
 return beats;
 }
 
+var MAX_PANELS_PER_PAGE=6;
 function layoutCells(width,height,count){
 count=Math.max(1,Number(count)||1);
 width=Number(width)||1000;
@@ -31,7 +32,7 @@ var rows=Math.ceil(count/cols);
 var margin=36;
 var gap=18;
 var cellW=(width-margin*2-gap*(cols-1))/cols;
-var cellH=(height-margin*2-gap*(rows-1))/rows;
+var cellH=Math.max(40,(height-margin*2-gap*(rows-1))/rows);
 var cells=[];
 for(var index=0;index<count;index++){
 var col=index%cols;
@@ -146,13 +147,17 @@ function createPanelsFromPlan(plan,options){
 var current=root.canvas;
 if(!current||!root.fabric)return Promise.reject(new Error('Canvas 尚未初始化。'));
 var parsed=root.NaiScenePlanSchema?root.NaiScenePlanSchema.parse(plan):plan;
-var panels=[];
+// Respect the plan's page boundaries and a per-page cap; never squeeze a whole long script
+// into one canvas (audit 21). Only the first page goes onto the current canvas; the rest is
+// reported so the user can continue on a new page.
+var chunks=[];
 parsed.pages.forEach(function(page){
-page.panels.forEach(function(panel){
-if(panel.mode!=='simulator')panels.push(panel);
+var list=page.panels.filter(function(panel){return panel.mode!=='simulator';});
+for(var i=0;i<list.length;i+=MAX_PANELS_PER_PAGE)chunks.push(list.slice(i,i+MAX_PANELS_PER_PAGE));
 });
-});
-if(!panels.length)return Promise.reject(new Error('这段剧情没有可生成的漫画分镜。'));
+if(!chunks.length)return Promise.reject(new Error('这段剧情没有可生成的漫画分镜。'));
+var panels=chunks[0];
+var remainingPanels=chunks.slice(1).reduce(function(n,c){return n+c.length;},0);
 var layout=layoutCells(current.width,current.height,panels.length);
 if(typeof changeDoNotSaveHistory==='function')changeDoNotSaveHistory();
 var created=[];
@@ -167,7 +172,7 @@ if(typeof changeDoSaveHistory==='function')changeDoSaveHistory();
 current.renderAll();
 if(typeof updateLayerPanel==='function')updateLayerPanel();
 if(typeof saveStateByManual==='function')saveStateByManual();
-return Promise.resolve({objects:created,plan:parsed,layout:layout});
+return Promise.resolve({objects:created,plan:parsed,layout:layout,remainingPages:chunks.length-1,remainingPanels:remainingPanels});
 }
 
 root.NaiComicStoryToManga={

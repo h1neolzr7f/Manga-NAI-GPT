@@ -668,6 +668,10 @@ def _start_tool_job(kind, token, args):
         # request) reaches the job; never fall back to the server's own key here.
         env.pop('NOVELAI_API_KEY', None)
         env.pop('NAI_API_KEY', None)
+        # The batch tool must talk to this server, not a hard-coded :8000 (audit 35).
+        if SERVER_PORT:
+            env['MNAI_PORT'] = str(SERVER_PORT)
+            env['MNAI_BASE_URL'] = 'http://127.0.0.1:%d' % SERVER_PORT
         resolved_token = _strip_bearer(token)
         if resolved_token:
             env['NOVELAI_API_KEY'] = _strip_bearer(resolved_token)

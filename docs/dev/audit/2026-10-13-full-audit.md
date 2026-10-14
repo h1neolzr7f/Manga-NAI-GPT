@@ -33,6 +33,9 @@
 | 18 | 已修复 [PR #19](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/19)：添加素材固定来源页面(GUID/canvas)，解码期间切页则取消并提示，不插入新页 |
 | 19 | 已修复 [PR #19](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/19)：IndexedDB 与 /user-assets 都失败时标记 memoryOnly，导入提示明确“仅本次可用、刷新后丢失” |
 | 20 | 已修复 [PR #16](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/16)：播放只渲染截断视图，持久化的 simulatorScene 始终为完整场景 |
+| 21 | 已修复 [PR #20](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/20)：剧情转分镜按 plan 页边界分块、每页最多 6 格，只把第一页放到当前画布并提示剩余格数（产品决定）；格高下限 40px |
+| 22 | 已修复 [PR #20](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/20)：Service Worker 安装时预缓存 index.html/manifest，所有导航离线回退到缓存的 index.html |
+| 23 | 已修复 [PR #20](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/20)：start.sh 以页面标题识别本应用，其他网站不再当作已运行；就绪循环超时报失败 |
 | 24 | 已修复 | [PR #11](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/11)：无系统代理时，Director/tagger/NovelAI 出站连接在连接时解析、校验并固定到已校验地址（与 GPT 图像代理同一规则）；有系统代理时由代理解析。另：_start_tool_job 不再回退读取服务端 NOVELAI_API_KEY |
 | 25 | 已修复 | [PR #12](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/12)：文字属性按钮/滑杆记录历史（250ms 合并为一步），侧栏翻转保存历史 |
 | 26 | 已修复 | [PR #12](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/12)：复制图层重建 GUID，清空子层 guids 引用 |
@@ -42,13 +45,17 @@
 | 30 | 已修复 [PR #16](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/16)：聊天渲染前固定来源页面(GUID)与替换目标；切页后放弃插入并提示，不删除新页对象 |
 | 33 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：角色库嵌入接受 JPEG/WebP（校验格式与像素上限）；建立识别特征失败时界面提示 |
 | 34 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：旧批处理只重试明确拒绝（429/502/503/504）；结果未知与写盘失败不重发付费请求，写盘单独重试 |
+| 35 | 已修复 [PR #20](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/20)：服务器启动批处理时传 MNAI_PORT/MNAI_BASE_URL，脚本只接受回环地址，不再硬编码 8000 |
+| 36 | 已修复 [PR #20](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/20)：订阅缓存绑定 token，切换账号重新查询，旧账号迟到响应不覆盖 |
 | 37 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：0 为合法固定种子（0..4294967295），随机仅用于缺失/非法/-1 |
 | 38 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：PS 工具原位 setElement 替换像素，保留图层顺序/clipPath/混合/GUID |
 | 39 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：localToImage 使用完整逆变换（旋转/原点/翻转/缩放） |
 | 44 | 已修复 [PR #19](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/19)：本机抠图临时文件只用短随机名+扩展名，不再拼完整文件名 |
 | 45 | 已修复 [PR #19](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/19)：示例图包写入使用每个写入者唯一的临时文件再原子替换 |
 | 46 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：网络字体 family 先 URL 解码（+/%20）再保存与应用 |
+| 48 | 已修复 [PR #20](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/20)：PSD 导出把画布背景色作为底层“背景”，合成图使用同色；透明背景保持原样 |
 | 49 | 已修复 [PR #16](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/16)：超容量对白放入同场景续格，不跨说话人合并；每句带稳定 line ID/speaker（wizardLines，写入 data-script-lines） |
+| 50 | 已修复 [PR #20](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/20)：显式多行文字也检查跨行方向总高度，放不下时进入换行/overflow 分支 |
 | 52 | 已修复 | [PR #12](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/12)：事件过滤只在 target.saveHistory===false 时跳过；导入底图添加后清除临时抑制 |
 | 53 | 已修复 [PR #19](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/19)：重置设置保留素材索引与生成任务记录（产品决定：重置仅针对设置，不清创作数据） |
 | 58 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：导入前校验历史结构；加载中途失败时恢复历史、图片映射、提示词与画布尺寸 |

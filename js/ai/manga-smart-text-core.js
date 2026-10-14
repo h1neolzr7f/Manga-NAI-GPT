@@ -88,8 +88,10 @@
     const length = (line, size) => vertical ? Array.from(line).length * size * 1.02 : measure(line, size);
     const lines = clean.split('\n');
     const longest = size => Math.max(...lines.map(line => length(line, size)));
+    // Explicit line breaks also stack across the box: check that height too (audit 50).
+    const stackGap = vertical ? 1.3 : 1.16;
     for (let size = natural; size >= minimum; size--) {
-      if (longest(size) <= along) return { fontSize: size, text: clean, lines: lines.length, wrapped: false };
+      if (longest(size) <= along && lines.length * size * stackGap <= across) return { fontSize: size, text: clean, lines: lines.length, wrapped: false };
     }
     const wrapAt = size => {
       const out = [];
