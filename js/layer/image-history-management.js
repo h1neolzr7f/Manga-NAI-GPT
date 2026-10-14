@@ -40,10 +40,8 @@ if(activeObject.target===undefined){
 return true;
 }
 
-if(activeObject.target.saveHistory===undefined){
-return true;
-}
-return false;
+// Event form: only an explicit saveHistory=false on the target suppresses the step (audit 52).
+return activeObject.target.saveHistory!==false;
 }else{
 return false;
 }

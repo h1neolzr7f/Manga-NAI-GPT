@@ -141,7 +141,7 @@
       { id: 'edit.redo', label: '重做', group: '编辑', keys: 'Ctrl+Y', keywords: 'redo', run: () => root.redo && root.redo() },
       { id: 'view.history', label: '历史记录（回到任一步）', group: '编辑', keywords: 'history 步骤 回退', run: () => root.NaiPsTools && root.NaiPsTools.toggleHistory() },
       { id: 'sel.duplicate', label: '复制选中图层', group: '图层', keys: 'Ctrl+J', keywords: 'duplicate copy 拷贝', history: '复制图层', when: active,
-        run: () => new Promise(ok => { const o = active(); o.clone(c => { c.set({ left: o.left + 20, top: o.top + 20 }); if (o.name) c.name = o.name + ' 副本'; root.canvas.add(c); root.canvas.setActiveObject(c); root.canvas.requestRenderAll(); save(); ok(); }, (typeof commonProperties !== 'undefined' ? commonProperties : []).slice()); }) },
+        run: () => new Promise(ok => { const o = active(); o.clone(c => { c.set({ left: o.left + 20, top: o.top + 20 }); if (o.name) c.name = o.name + ' 副本'; delete c.guid; if (typeof root.generateGUID === 'function') c.guid = root.generateGUID(); if (Array.isArray(c.guids)) c.guids = []; root.canvas.add(c); root.canvas.setActiveObject(c); root.canvas.requestRenderAll(); save(); ok(); }, (typeof commonProperties !== 'undefined' ? commonProperties : []).slice()); }) },
       { id: 'sel.delete', label: '删除选中', group: '图层', keys: 'Delete', keywords: 'delete remove', history: true, when: active,
         run: () => { const c = root.canvas; c.getActiveObjects().forEach(o => c.remove(o)); c.discardActiveObject(); c.requestRenderAll(); save(); } },
       { id: 'sel.flipH', label: '水平翻转选中', group: '图层', keywords: 'flip mirror 镜像', history: true, when: active, run: () => { const o = active(); o.set('flipX', !o.flipX); root.canvas.requestRenderAll(); save(); } },

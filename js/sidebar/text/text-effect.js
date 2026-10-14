@@ -98,7 +98,19 @@ textObj.set("dirty",true);
 if(typeof textObj.initDimensions==="function")textObj.initDimensions();
 if(typeof textObj.updateDimensions==="function")textObj.updateDimensions();
 if(typeof textObj.setCoords==="function")textObj.setCoords();
+scheduleTextPropsHistory();
 return true;
+}
+
+// Text property buttons/sliders change objects directly (no object:modified), so they record
+// their own history step; slider drags are coalesced into one step (audit 25).
+var textPropsHistoryTimer=null;
+function scheduleTextPropsHistory(){
+if(textPropsHistoryTimer)clearTimeout(textPropsHistoryTimer);
+textPropsHistoryTimer=setTimeout(function(){
+textPropsHistoryTimer=null;
+if(typeof saveStateByManual==="function")saveStateByManual();
+},250);
 }
 
 function updateTextControls(object) {

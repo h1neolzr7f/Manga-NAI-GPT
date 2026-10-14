@@ -299,6 +299,7 @@ var activeObject=canvas.getActiveObject();
 if(isImage(activeObject)){
 activeObject.set("flipX",!activeObject.flipX);
 canvas.renderAll();
+if(typeof saveStateByManual==="function")saveStateByManual();
 }
 },
 
@@ -307,6 +308,7 @@ var activeObject=canvas.getActiveObject();
 if(isImage(activeObject)){
 activeObject.set("flipY",!activeObject.flipY);
 canvas.renderAll();
+if(typeof saveStateByManual==="function")saveStateByManual();
 }
 },
 
