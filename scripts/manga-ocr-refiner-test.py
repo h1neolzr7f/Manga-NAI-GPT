@@ -94,6 +94,12 @@ class RefinePageRegionsTest(unittest.TestCase):
     def tearDown(self):
         refiner._reset_for_tests()
 
+    def setUp(self):
+        try:
+            import PIL.Image  # noqa: F401
+        except ImportError:
+            self.skipTest("Pillow not installed in this CI job")
+
     def test_pads_and_rewrites_region_text(self):
         from PIL import Image
         img = Image.new("RGB", (200, 120), (255, 255, 255))
