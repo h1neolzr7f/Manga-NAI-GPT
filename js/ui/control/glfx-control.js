@@ -431,27 +431,31 @@ glfxOriginalImage=null;
 }
 }
 
+// Restoring the unfiltered image is asynchronous; the target is captured now so a selection change
+// meanwhile cannot redirect the restore onto another layer (audit 80).
 function glfxReset() {
 if (glfxOriginalImage) {
-var imgObj=new Image();
-imgObj.onload=function () {
-var img=new fabric.Image(imgObj);
-var activeObject=lastActiveObjectState;
-if (activeObject&&activeObject.type==="image") {
-var copyObject={};
-copy(activeObject,copyObject);
-copy(copyObject,img);
-}
-canvas.remove(activeObject);
-canvas.add(img);
-canvas.setActiveObject(img);
-canvas.requestRenderAll();
-lastActiveObjectState=null;
+var target=lastActiveObjectState;
+var original=glfxOriginalImage;
 glfxCopiedImage=null;
 glfxOriginalImage=null;
 glfxResetFilterValues();
-lastActiveObjectState=canvas.getActiveObject();
+if (!target||target.type!=="image") return;
+var imgObj=new Image();
+imgObj.onload=function () {
+var index=canvas.getObjects().indexOf(target);
+if (index<0) return;   // the original layer is gone (deleted / page switched)
+var img=new fabric.Image(imgObj);
+var copyObject={};
+copy(target,copyObject);
+copy(copyObject,img);
+var wasActive=canvas.getActiveObject()===target;
+canvas.remove(target);
+canvas.insertAt(img,index);
+if (wasActive) canvas.setActiveObject(img);
+if (lastActiveObjectState===target) lastActiveObjectState=img;
+canvas.requestRenderAll();
 };
-imgObj.src=glfxOriginalImage.src;
+imgObj.src=original.src;
 }
 }

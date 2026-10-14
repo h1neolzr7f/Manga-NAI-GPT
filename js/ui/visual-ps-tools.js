@@ -276,39 +276,42 @@ c.getContext('2d').drawImage(el,0,0,c.width,c.height);
 return c;
 }
 
+// Replace pixels in place (audit 38): the same Fabric object keeps its layer order, clipPath,
+// blend mode, name, metadata and GUID; only the bitmap and its scale change. One history step.
 function replaceImageFromCanvas(image,tmp){
 var currentCanvas=canvas();
-if(!currentCanvas||!root.fabric)return;
-root.fabric.Image.fromURL(tmp.toDataURL('image/png'),function(next){
-if(!next)return;
-next.set({
-left:image.left,top:image.top,angle:image.angle||0,flipX:!!image.flipX,flipY:!!image.flipY,
-opacity:image.opacity===undefined?1:image.opacity,originX:image.originX,originY:image.originY,
-scaleX:(image.width*(image.scaleX||1))/(next.width||1),
-scaleY:(image.height*(image.scaleY||1))/(next.height||1)
-});
-if(image.guid)next.guid=image.guid;
-if(typeof changeDoNotSaveHistory==='function')changeDoNotSaveHistory();
-currentCanvas.remove(image);
-currentCanvas.add(next);
-currentCanvas.setActiveObject(next);
-if(typeof changeDoSaveHistory==='function')changeDoSaveHistory();
+if(!currentCanvas||!image||typeof image.setElement!=='function')return;
+var displayW=(image.width||tmp.width)*(image.scaleX||1),displayH=(image.height||tmp.height)*(image.scaleY||1);
+var el=new Image();
+el.onload=function(){
+if(currentCanvas.getObjects().indexOf(image)<0)return;   // removed or page switched meanwhile
+image.setElement(el);
+image.set({width:tmp.width,height:tmp.height,scaleX:displayW/(tmp.width||1),scaleY:displayH/(tmp.height||1),dirty:true});
+image.setCoords();
 if(typeof saveStateByManual==='function')saveStateByManual();
 if(typeof updateLayerPanel==='function')updateLayerPanel();
 currentCanvas.renderAll();
-});
+};
+el.src=tmp.toDataURL('image/png');
 }
 
+// Canvas point -> source pixel through the image's full inverse transform: rotation, origin,
+// flip and scale (audit 39).
 function localToImage(image,pt){
-var dispW=Math.max(1,(image.width||1)*(image.scaleX||1));
-var dispH=Math.max(1,(image.height||1)*(image.scaleY||1));
+var w=Math.max(1,image.width||1),h=Math.max(1,image.height||1);
+var sx=image.scaleX||1,sy=image.scaleY||1;
 var el=(image.getElement&&image.getElement())||image._element;
-var natW=el?(el.naturalWidth||el.width||dispW):dispW;
-var natH=el?(el.naturalHeight||el.height||dispH):dispH;
-return{
-x:((pt.x-(image.left||0))/dispW)*natW,
-y:((pt.y-(image.top||0))/dispH)*natH
-};
+var natW=el?(el.naturalWidth||el.width||w):w;
+var natH=el?(el.naturalHeight||el.height||h):h;
+var a=(image.angle||0)*Math.PI/180,cos=Math.cos(a),sin=Math.sin(a);
+var dx=pt.x-(image.left||0),dy=pt.y-(image.top||0);
+var lx=(dx*cos+dy*sin)/sx,ly=(-dx*sin+dy*cos)/sy;
+var ox=image.originX==='center'?w/2:image.originX==='right'?w:0;
+var oy=image.originY==='center'?h/2:image.originY==='bottom'?h:0;
+lx+=ox;ly+=oy;
+if(image.flipX)lx=w-lx;
+if(image.flipY)ly=h-ly;
+return{x:lx*natW/w,y:ly*natH/h};
 }
 
 function floodFill(image,pt,hex){
