@@ -5,7 +5,7 @@
   'use strict';
   const C = root.NaiEngineCore;
   const $ = id => document.getElementById(id);
-  let chain = Promise.resolve(), queued = 0, sub = null, subAt = 0, lastEnd = 0;
+  let chain = Promise.resolve(), queued = 0, sub = null, subAt = 0, subTok = "", lastEnd = 0;
 
   function token() { const t = (($('novelaiApiKey') || {}).value || '').trim(); return t ? (/^bearer /i.test(t) ? t : 'Bearer ' + t) : ''; }
   function configured() { return !!token(); }
@@ -18,12 +18,17 @@
   /** Cached subscription ({tier, anlas, active}); null when unknown. */
   async function subscription(force) {
     if (!configured()) return null;
+    const tok = token();
+    // The cache belongs to one token: switching accounts must not show the old tier/balance (audit 36).
+    if (subTok !== tok) { sub = null; subAt = 0; subTok = tok; }
     if (sub && !force && Date.now() - subAt < 120000) return sub;
     try {
-      const r = await fetch('/nai-proxy/health', { headers: { Authorization: token() } });
-      const d = await r.json(); if (r.ok && d && d.ok) { sub = { tier: d.tier, anlas: d.anlas, active: d.active, opus: d.tier === 3 }; subAt = Date.now(); }
+      const r = await fetch('/nai-proxy/health', { headers: { Authorization: tok } });
+      const d = await r.json();
+      if (token() !== tok) return subTok === token() ? sub : null;   // late reply for an old token
+      if (r.ok && d && d.ok) { sub = { tier: d.tier, anlas: d.anlas, active: d.active, opus: d.tier === 3 }; subAt = Date.now(); }
     } catch (_) { /* offline: cost shown as unknown */ }
-    return sub;
+    return subTok === tok ? sub : null;
   }
   /** Human cost line for n images of opts. */
   async function costText(opts, n) {

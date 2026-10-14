@@ -125,7 +125,7 @@ if(!engine)throw new Error('剧情编辑器未加载。');
 var title=(el('simStudioChatTitle')&&el('simStudioChatTitle').value)||'未命名对话';
 var script=(el('simStudioChatScript')&&el('simStudioChatScript').value)||'';
 if(!String(script).trim())throw new Error(t('simStudioNeedScript','请先写对白。右侧框里按「角色：台词」每行一句。'));
-var story=engine.parseScript(script,{title:title});
+var story=parseStudioScript(engine,script,title);
 story.title=title;
 return story;
 }
@@ -167,8 +167,9 @@ return object;
 function parseNamed(text){
 return String(text||'').split(/\r?\n/).map(function(line){return line.trim();}).filter(Boolean).map(function(line){
 var match=line.match(/^([^：:]{1,24})[：:]\s*(.*)$/);
-if(match)return {name:match[1],body:match[2],content:match[2]};
-return {name:'观众',body:line,content:line};
+// Every renderer reads its own name key (forum: author, phone: sender, others: name/user) (audit 118).
+if(match)return {name:match[1],author:match[1],sender:match[1],user:match[1],body:match[2],content:match[2]};
+return {name:'观众',author:'观众',sender:'观众',user:'观众',body:line,content:line};
 });
 }
 
@@ -400,6 +401,24 @@ if(!prefix)return [];
 return (root.NaiComicSiteUiParts?root.NaiComicSiteUiParts.list():[]).filter(function(item){return item.id.indexOf(prefix)===0;});
 }
 
+// Keep the full story model behind the plain script view (audit 120): an unedited script returns
+// the original story (aside / choice / targets intact); an edited one warns that the plain text
+// cannot carry those types.
+var loadedStory=null;
+function showStoryScript(story){
+var script=storyToScript(story);
+loadedStory=story?{script:script,story:JSON.parse(JSON.stringify(story))}:null;
+if(el('simStudioChatScript'))el('simStudioChatScript').value=script;
+}
+function parseStudioScript(engine,script,title){
+if(loadedStory&&script===loadedStory.script)return JSON.parse(JSON.stringify(loadedStory.story));
+if(loadedStory&&(loadedStory.story.nodes||[]).some(function(n){return n.type==='aside'||n.type==='choice';})&&!loadedStory.warned){
+loadedStory.warned=true;
+if(typeof root.createToast==='function')root.createToast('剧情对白','改过的文字只按「角色：台词」保存，原来的独白/选项分支不会保留；需要分支请在剧情编辑器里改。');
+}
+return engine.parseScript(script,{title:title});
+}
+
 function storyToScript(story){
 if(!story)return '';
 var names=Object.create(null);
@@ -502,7 +521,35 @@ function renderWebForm(scene){
 var item=root.NaiComicExtraRendererRegistry&&root.NaiComicExtraRendererRegistry.get(currentWebId);
 if(!item)throw new Error('模拟器未加载：'+currentWebId);
 var normalized=typeof item.normalize==='function'?item.normalize(scene||{}):(scene||{});
-fillForm(el('simStudioWebForm'),WEB_FORMS[currentWebId]||[],webFormValues(normalized,currentWebId));
+var values=webFormValues(normalized,currentWebId);
+loadedWebBase={webId:currentWebId,scene:JSON.parse(JSON.stringify(normalized)),form:Object.assign({},values)};
+fillForm(el('simStudioWebForm'),WEB_FORMS[currentWebId]||[],values);
+}
+
+// Rebuild the scene from the loaded one, patching only the fields the user changed, so hidden
+// data (ids, speakerId, effects, theme, background, active index) survives (audit 117).
+var loadedWebBase=null;
+function webSceneFromForm(item){
+var form=readForm(el('simStudioWebForm'));
+if(!loadedWebBase||loadedWebBase.webId!==currentWebId)return applyWebForm(item.normalize({}),form,currentWebId);
+var scene=JSON.parse(JSON.stringify(loadedWebBase.scene));
+var changed=Object.create(null);
+Object.keys(form).forEach(function(key){
+if(key.indexOf('__type__')===0)return;
+if(form[key]!==loadedWebBase.form[key]){changed[key]=form[key];changed['__type__'+key]=form['__type__'+key];}
+});
+var before=JSON.parse(JSON.stringify(scene));
+applyWebForm(scene,changed,currentWebId);
+(WEB_FORMS[currentWebId]||[]).forEach(function(field){
+if(!(field.key in changed))return;
+var oldList=getPath(before,field.key),newList=getPath(scene,field.key);
+if(Array.isArray(oldList)&&Array.isArray(newList)){
+setPath(scene,field.key,newList.map(function(item,i){
+return oldList[i]&&typeof oldList[i]==='object'&&item&&typeof item==='object'?Object.assign({},oldList[i],item):item;
+}));
+}
+});
+return scene;
 }
 
 function renderPartForm(values){
@@ -557,7 +604,7 @@ return root.NaiComicChatRenderer.renderScene(scene,root.NaiComicTemplateRegistry
 function buildWebGroup(){
 var item=root.NaiComicExtraRendererRegistry&&root.NaiComicExtraRendererRegistry.get(currentWebId);
 if(!item)return Promise.reject(new Error('模拟器未加载：'+currentWebId));
-var scene=applyWebForm(item.normalize({}),readForm(el('simStudioWebForm')),currentWebId);
+var scene=webSceneFromForm(item);
 var events=eventsOf(scene);
 updatePlayHud(events.length);
 if(playIndex>=0)scene=visibleScene(scene,playIndex);
@@ -649,14 +696,14 @@ var adapters=root.NaiComicStoryAdapters;
 if(!engine||!adapters)return [];
 var title=(el('simStudioChatTitle')&&el('simStudioChatTitle').value)||'未命名对话';
 var script=(el('simStudioChatScript')&&el('simStudioChatScript').value)||'';
-var story=script.trim()?engine.parseScript(script,{title:title}):null;
+var story=script.trim()?parseStudioScript(engine,script,title):null;
 if(!story)return [];
 story.title=title;
 return eventsOf(adapters.toTemplate(story,currentChatTemplateId()));
 }
 var item=root.NaiComicExtraRendererRegistry&&root.NaiComicExtraRendererRegistry.get(currentWebId);
 if(!item)return [];
-return eventsOf(applyWebForm(item.normalize({}),readForm(el('simStudioWebForm')),currentWebId));
+return eventsOf(webSceneFromForm(item));
 }
 
 function playAt(index){
@@ -742,7 +789,7 @@ var controller=root.NaiComicSimulatorController;
 if(!controller||typeof controller.insertScene!=='function')return Promise.reject(new Error('网页模拟器未加载。'));
 var item=root.NaiComicExtraRendererRegistry&&root.NaiComicExtraRendererRegistry.get(currentWebId);
 if(!item)return Promise.reject(new Error('模拟器不存在：'+currentWebId));
-var scene=applyWebForm(item.normalize({}),readForm(el('simStudioWebForm')),currentWebId);
+var scene=webSceneFromForm(item);
 return controller.insertScene(currentWebId,scene,{replace:false}).then(function(group){
 afterPlaced(t('simStudioPlaced','已经放到画布上了。可以拖动、缩小。'));
 return group;
@@ -766,7 +813,7 @@ if(!composer||typeof composer.loadSelected!=='function'){setStatus('剧情编辑
 if(!composer.loadSelected()){setStatus('请先在画布上点选一个对话模拟器。',true);return false;}
 var story=composer.getStory();
 if(el('simStudioChatTitle'))el('simStudioChatTitle').value=story.title||'';
-if(el('simStudioChatScript'))el('simStudioChatScript').value=storyToScript(story);
+showStoryScript(story);
 var current=typeof root.canvas!=='undefined'?root.canvas:(typeof canvas!=='undefined'?canvas:null);
 var object=current&&current.getActiveObject&&current.getActiveObject();
 var factory=root.NaiComicExtraRendererFactory;
@@ -844,7 +891,7 @@ function applyStory(story,templateId){
 if(!story)return;
 if(currentMode==='chat'){
 if(el('simStudioChatTitle'))el('simStudioChatTitle').value=story.title||'';
-if(el('simStudioChatScript'))el('simStudioChatScript').value=storyToScript(story);
+showStoryScript(story);
 if(templateId&&el('simStudioChatTemplate')){
 el('simStudioChatTemplate').value=templateId;
 markStore(el('simStudioChatStore'),templateId);

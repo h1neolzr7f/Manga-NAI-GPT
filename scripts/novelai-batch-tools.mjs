@@ -1,4 +1,11 @@
 import fs from "node:fs/promises";
+// Base URL of the editor server that launched us (audit 35); 8000 only as a last resort.
+export function serverBase() {
+  const base = (process.env.MNAI_BASE_URL || "").trim().replace(/\/+$/, "");
+  if (/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/i.test(base)) return base;
+  const port = parseInt(process.env.MNAI_PORT || "", 10);
+  return "http://127.0.0.1:" + (port > 0 && port < 65536 ? port : 8000);
+}
 import path from "node:path";
 import zlib from "node:zlib";
 import vm from "node:vm";
@@ -470,7 +477,7 @@ async function generateMaterialPreviews({ limit = Infinity, dryRun = false, step
   if (dryRun || missing.length === 0) return { missing };
   if (!token) throw new Error("Missing NovelAI token. Set NOVELAI_API_KEY/NAI_API_KEY or save it in the app settings first.");
 
-  const endpoint = "http://127.0.0.1:8000/nai-proxy/generate-image";
+  const endpoint = serverBase() + "/nai-proxy/generate-image";
   const model = process.env.NOVELAI_MODEL || "nai-diffusion-4-5-full";
   let index = 0;
   for (const entry of missing) {
@@ -543,7 +550,7 @@ function getComicPreset() {
 async function generateComicDemo() {
   const token = await resolveNovelAiToken();
   if (!token) throw new Error("Missing NovelAI token. Set NOVELAI_API_KEY/NAI_API_KEY or save it in the app settings first.");
-  const endpoint = "http://127.0.0.1:8000/nai-proxy/generate-image";
+  const endpoint = serverBase() + "/nai-proxy/generate-image";
   const model = process.env.NOVELAI_MODEL || "nai-diffusion-4-5-full";
   const preset = getComicPreset();
   const targetRoot = preset.outputDir ? path.join(comicOutputRoot, preset.outputDir) : comicOutputRoot;

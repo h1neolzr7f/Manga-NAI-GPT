@@ -64,6 +64,17 @@ story:value
 };
 }
 
+// Story node index -> index into the background-free dialogue list, by stable node id (audit 119).
+function dialogueIndexFor(nodes,dialogue,index){
+if(!dialogue.length)return 0;
+var start=Math.max(0,Math.min(nodes.length-1,index));
+for(var i=start;i<nodes.length;i++){
+if(nodes[i].type==='background')continue;
+for(var k=0;k<dialogue.length;k++)if(dialogue[k].id===nodes[i].id)return k;
+}
+return dialogue.length-1;
+}
+
 function toVisualNovel(story,options){
 var value=engine().normalize(story);
 var index=options&&typeof options.activeNodeIndex==='number'?options.activeNodeIndex:value.currentIndex;
@@ -102,7 +113,7 @@ onStage:visible.some(function(item){return item.id===character.id;})
 };
 }),
 dialogue:dialogue,
-activeNodeIndex:index,
+activeNodeIndex:dialogueIndexFor(value.nodes,dialogue,index),
 choices:node&&node.type==='choice'?node.choices.map(function(choice){return choice.label;}):[],
 events:value.nodes.map(function(item,nodeIndex){
 return {id:item.id,index:nodeIndex,type:item.type,payload:clone(item)};
