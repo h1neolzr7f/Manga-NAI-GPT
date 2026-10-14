@@ -795,7 +795,7 @@
   }
 
   // Smart click-select (SAM) bridge: a page-pixel outline becomes a lasso selection. Never starts a request.
-  function selectPolygon(points, message) {
+  function selectPolygon(points, message, maskUrl) {
     const c = pageCanvas();
     if (!c || !Array.isArray(points) || points.length < 3) return false;
     const xs = points.map(p => +p[0]), ys = points.map(p => +p[1]);
@@ -814,7 +814,10 @@
     $g('mangaGptSelect').disabled = false;
     const region = { left, top, width: right - left, height: bottom - top };
     setRegion(c, region, message || tr('mgpt_smart_selected', '已用智能点选选中（外框 {w} × {h} 像素）；只有选中的形状会被修改。', { w: region.width, h: region.height }));
-    if (state.region) state.region.lasso = points.map(p => [+(p[0] - left).toFixed(1), +(p[1] - top).toFixed(1)]);
+    if (state.region) {
+      state.region.lasso = points.map(p => [+(p[0] - left).toFixed(1), +(p[1] - top).toFixed(1)]);
+      if (maskUrl) state.region.smartMask = maskUrl; // Audit 77: keep SAM raster; outline is display-only
+    }
     return true;
   }
 
@@ -1520,8 +1523,9 @@
         const keepLines = settings.lines;
         const lineMask = keepLines ? await loadPanelLineMask(region.image, cw, ch) : null;
         linesKept = !!lineMask;
-        const lassoMask = region.lasso ? lassoAlphaMask(region.lasso, region.width, region.height, cw, ch) :
-          region.brush ? lassoAlphaMask(region.brush.points, region.width, region.height, cw, ch, region.brush.width) : null;
+        const smartMask = region.smartMask ? await loadAlphaMask(region.smartMask, cw, ch) : null;
+        const lassoMask = smartMask || (region.lasso ? lassoAlphaMask(region.lasso, region.width, region.height, cw, ch) :
+          region.brush ? lassoAlphaMask(region.brush.points, region.width, region.height, cw, ch, region.brush.width) : null);
         const mask = combineAlpha(combineAlpha(alphaMask, lineMask), lassoMask);
         // seam match on every interior side (page edges have nothing to match against)
         const seamSides = featherPlan(region, c.getWidth(), c.getHeight());

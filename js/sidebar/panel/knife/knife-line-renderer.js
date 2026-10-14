@@ -95,11 +95,23 @@ intersections.push(intersection);
 }
 }
 
-if (intersections.length===2) {
-var intersection1=getIntersectionByDistance(intersections,startKnifeX,startKnifeY,true);
-var intersection2=getIntersectionByDistance(intersections,startKnifeX,startKnifeY,false);
+if (intersections.length>=2) {
+// Audit 81: order along the knife direction so equal-distance hits still yield two distinct ends.
+var kdx=endX-startKnifeX,kdy=endY-startKnifeY;
+var ordered=intersections.slice().sort(function(a,b){
+return ((a.x-startKnifeX)*kdx+(a.y-startKnifeY)*kdy)-((b.x-startKnifeX)*kdx+(b.y-startKnifeY)*kdy);
+});
+var unique=[ordered[0]];
+for(var ui=1;ui<ordered.length;ui++){
+if(Math.hypot(ordered[ui].x-unique[unique.length-1].x,ordered[ui].y-unique[unique.length-1].y)>0.5)unique.push(ordered[ui]);
+}
+var intersection1=unique[0],intersection2=unique.length>=2?unique[unique.length-1]:null;
+if(!intersection1||!intersection2){
+intersection1=getIntersectionByDistance(intersections,startKnifeX,startKnifeY,true);
+intersection2=getIntersectionByDistance(intersections,startKnifeX,startKnifeY,false);
+}
 
-if (intersection1&&intersection2) {
+if (intersection1&&intersection2&&(intersection1.x!==intersection2.x||intersection1.y!==intersection2.y)) {
 var style=KNIFE_CONSTANTS.LINE_STYLE;
 var nextLine=new fabric.Line(
 [intersection1.x,intersection1.y,intersection2.x,intersection2.y],

@@ -97,11 +97,20 @@ var self=this;
 loadTipImage(this.preset,this.color,function(tip){self.tipCanvas=tip;});
 },
 _initOffscreen:function(){
+var w=this.canvas.width,h=this.canvas.height;
 if(!this._offscreenCanvas){
 this._offscreenCanvas=document.createElement("canvas");
-this._offscreenCanvas.width=this.canvas.width;
-this._offscreenCanvas.height=this.canvas.height;
 this._offscreenCtx=this._offscreenCanvas.getContext("2d");
+}
+// Audit 79: rebuild/grow the offscreen buffer when the page is resized.
+if(this._offscreenCanvas.width!==w||this._offscreenCanvas.height!==h){
+var prev=this._offscreenCanvas;
+var next=document.createElement("canvas");
+next.width=w;next.height=h;
+var nctx=next.getContext("2d");
+if(prev.width&&prev.height)nctx.drawImage(prev,0,0);
+this._offscreenCanvas=next;
+this._offscreenCtx=nctx;
 }
 },
 _copyToContextTop:function(){
@@ -175,11 +184,20 @@ this._offscreenCtx=null;
 applyPreset(this,preset||root.NaiBrushPresets.get("ink-taper"));
 },
 _initOffscreen:function(){
+var w=this.canvas.width,h=this.canvas.height;
 if(!this._offscreenCanvas){
 this._offscreenCanvas=document.createElement("canvas");
-this._offscreenCanvas.width=this.canvas.width;
-this._offscreenCanvas.height=this.canvas.height;
 this._offscreenCtx=this._offscreenCanvas.getContext("2d");
+}
+// Audit 79: rebuild/grow the offscreen buffer when the page is resized.
+if(this._offscreenCanvas.width!==w||this._offscreenCanvas.height!==h){
+var prev=this._offscreenCanvas;
+var next=document.createElement("canvas");
+next.width=w;next.height=h;
+var nctx=next.getContext("2d");
+if(prev.width&&prev.height)nctx.drawImage(prev,0,0);
+this._offscreenCanvas=next;
+this._offscreenCtx=nctx;
 }
 },
 _copyToContextTop:function(){

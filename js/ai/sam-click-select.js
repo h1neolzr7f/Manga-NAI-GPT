@@ -126,7 +126,8 @@
     if (s.target === 'layer') return cutToLayer(s, cand);
     if (s.target === 'mask') { if (s.onDone) s.onDone(true, cand); return; }
     const api = gpt();
-    const ok = api && api.selectPolygon && api.selectPolygon(cand.polygon);
+    // Audit 77: hand the precise raster mask to GPT so holes/islands match the blue preview.
+    const ok = api && api.selectPolygon && api.selectPolygon(cand.polygon, null, cand.mask);
     if (s.onDone) s.onDone(!!ok, cand);
   }
 

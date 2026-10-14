@@ -155,7 +155,8 @@ Math.pow(intersection.x-startKnifeX,2)+
 Math.pow(intersection.y-startKnifeY,2)
 );
 
-if (findClosest ? distance<targetDistance : distance>targetDistance) {
+// Prefer a strict improvement; on ties for "farthest", keep the later point so closest≠farthest when lengths match (audit 81).
+if (findClosest ? distance<targetDistance : distance>=targetDistance) {
 targetDistance=distance;
 targetIntersection=intersection;
 }
