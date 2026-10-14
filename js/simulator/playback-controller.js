@@ -57,6 +57,9 @@ timeline=timeline||root.NaiComicTimeline.fromScene(scene);var snapshot=timeline.
 function place(next){
 var factory=root.NaiComicExtraRendererFactory;
 copyGroupIdentity(group,next);
+// The full scene is the persisted source; the playback position is view state only (audit 20).
+var fullScene=group.simulatorScene;
+next.simulatorScene=fullScene;
 var origin=null;
 var keepFit=true;
 var parts=group.simulatorPageId&&factory&&typeof factory.pageObjects==='function'?factory.pageObjects(current,group.simulatorPageId):[];
@@ -76,6 +79,7 @@ current.remove(group);
 current.add(next);
 placed={root:next,objects:[next]};
 }
+(placed.objects||[]).concat([placed.root]).forEach(function(obj){if(obj&&obj.simulatorScene!==undefined)obj.simulatorScene=fullScene;});
 if(typeof changeDoSaveHistory==='function')changeDoSaveHistory();
 selected=placed.root;
 current.setActiveObject(placed.root);

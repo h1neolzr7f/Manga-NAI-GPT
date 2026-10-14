@@ -29,16 +29,19 @@
 | 14 | 已修复 | [PR #10](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/10)：人物模型先在局部完整加载再原子发布；就绪判断要求全部会话 |
 | 15 | 已修复 | [PR #10](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/10)：_get_extra 返回会话快照，空闲清理清空共享字典不影响进行中的请求（会话由快照引用保持存活） |
 | 16 | 已修复 | [PR #10](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/10)：检测缓存键包含 refine；精修模型不可用时的降级结果不缓存 |
+| 20 | 已修复 [PR #16](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/16)：播放只渲染截断视图，持久化的 simulatorScene 始终为完整场景 |
 | 24 | 已修复 | [PR #11](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/11)：无系统代理时，Director/tagger/NovelAI 出站连接在连接时解析、校验并固定到已校验地址（与 GPT 图像代理同一规则）；有系统代理时由代理解析。另：_start_tool_job 不再回退读取服务端 NOVELAI_API_KEY |
 | 25 | 已修复 | [PR #12](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/12)：文字属性按钮/滑杆记录历史（250ms 合并为一步），侧栏翻转保存历史 |
 | 26 | 已修复 | [PR #12](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/12)：复制图层重建 GUID，清空子层 guids 引用 |
 | 27 | 已修复 | [PR #13](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/13)：首个 await 前同步占用会话，双击只生成一轮 |
 | 28 | 已修复 | [PR #13](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/13)：会话记录来源页；应用前与解码后核对页面，切页时保留候选并提示 |
 | 29 | 已修复 | [PR #13](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/13)：生成流程绑定会话对象，旧会话完成不写入新会话、不清理新会话的 busy/controller |
+| 30 | 已修复 [PR #16](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/16)：聊天渲染前固定来源页面(GUID)与替换目标；切页后放弃插入并提示，不删除新页对象 |
 | 33 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：角色库嵌入接受 JPEG/WebP（校验格式与像素上限）；建立识别特征失败时界面提示 |
 | 34 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：旧批处理只重试明确拒绝（429/502/503/504）；结果未知与写盘失败不重发付费请求，写盘单独重试 |
 | 38 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：PS 工具原位 setElement 替换像素，保留图层顺序/clipPath/混合/GUID |
 | 39 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：localToImage 使用完整逆变换（旋转/原点/翻转/缩放） |
+| 49 | 已修复 [PR #16](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/16)：超容量对白放入同场景续格，不跨说话人合并；每句带稳定 line ID/speaker（wizardLines，写入 data-script-lines） |
 | 52 | 已修复 | [PR #12](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/12)：事件过滤只在 target.saveHistory===false 时跳过；导入底图添加后清除临时抑制 |
 | 58 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：导入前校验历史结构；加载中途失败时恢复历史、图片映射、提示词与画布尺寸 |
 | 63 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：导入素材文件名使用完整 ID 的哈希，原子写入 |

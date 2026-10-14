@@ -29,11 +29,12 @@ r = S.parse('1. 教室\n2、走廊\n【3】天台\n第2页\n1. 夜晚\n2. 星空
 assert.equal(r.stats.pages, 2); assert.deepEqual(r.pages.map(p => p.panels.length), [3, 2]);
 r = S.parse(Array.from({ length: 8 }, (_, i) => `第${i + 1}格 场景${i + 1}`).join('\n'));
 assert.deepEqual(r.pages.map(p => p.panels.length), [6, 2]); assert(r.warnings.some(w => /最多 6 格/.test(w)));
-// 4) panel with dialogue only gets a guessed scene and a warning; long dialogue merged into 4 balloons
+// 4) panel with dialogue only gets a guessed scene and a warning; long dialogue continues in an extra panel (audit 49: never merged across speakers)
 r = S.parse('第1格\n小雪：一\n小雪：二\n阿明：三\n小雪：四\n阿明：五');
 const p = r.pages[0].panels[0];
-assert.equal(p.scene, '小雪和阿明在说话'); assert.equal(p.lines.length, 4); assert.equal(p.lines[3].text, '四五');
-assert(r.warnings.length === 2);
+assert.equal(p.scene, '小雪和阿明在说话'); assert.equal(p.lines.length, 4); assert.equal(p.lines[3].text, '四');
+const p2 = r.pages[0].panels[1]; assert.deepEqual(p2.lines.map(l => [l.speaker, l.text]), [['阿明', '五']]);
+assert(r.warnings.some(w => /续格/.test(w)));
 // 5) a colon inside a sentence is not a speaker; slashes in lines do not create extra balloons
 r = S.parse('第1格\n时间：下午三点，教室里\n小雪：A/B 两个选项');
 assert.equal(S.toWizard(r.pages[0].panels[0]).line, 'A・B 两个选项');

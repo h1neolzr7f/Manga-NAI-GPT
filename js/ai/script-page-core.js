@@ -30,6 +30,7 @@
 
   /** Script text -> { pages: [{ panels: [{ scene, lines: [{speaker, text}] }] }], warnings, stats }. */
   function parse(text) {
+    let lineSeq = 0;
     const src = String(text || '').replace(/\r\n?/g, '\n');
     const rows = src.split('\n');
     const explicit = rows.some(r => PANEL_RE.test(r) && !/^\s*$/.test(r.replace(PANEL_RE, '$1x')));
@@ -52,12 +53,23 @@
     }
     function addTo(p, c) {
       if (c.kind === 'scene') p.scene = p.scene ? p.scene + '；' + c.text : c.text;
-      else p.lines.push({ speaker: c.speaker, text: c.text });
+      else p.lines.push(Object.defineProperty({ speaker: c.speaker, text: c.text }, 'id', { value: 'L' + (++lineSeq) }));  // stable, non-enumerable line ID
     }
     // drop empty panels; split long pages (one page holds up to MAX_PANELS)
     const out = [];
     for (const pg of pages) {
-      const ps = pg.panels.filter(p => p.scene || p.lines.length);
+      const ps = [];
+      // Too much dialogue for one panel: continue in an extra panel of the same scene instead of
+      // merging different speakers into one bubble (audit 49).
+      pg.panels.filter(p => p.scene || p.lines.length).forEach(p => {
+        if (p.lines.length <= MAX_LINES) { ps.push(p); return; }
+        warnings.push('有一格对白超过 ' + MAX_LINES + ' 句，多的句子放进了紧接着的续格（同一场景），可以改。');
+        for (let k = 0; k < p.lines.length; k += MAX_LINES) {
+          const part = Object.assign({}, p, { lines: p.lines.slice(k, k + MAX_LINES) });
+          if (k > 0) { part.scene = p.scene ? p.scene + '（续）' : ''; part.continued = true; }
+          ps.push(part);
+        }
+      });
       for (let i = 0; i < ps.length; i += MAX_PANELS) out.push({ panels: ps.slice(i, i + MAX_PANELS) });
       if (ps.length > MAX_PANELS) warnings.push('一页最多 ' + MAX_PANELS + ' 格：多出来的格子放到了下一页。');
     }
@@ -68,7 +80,6 @@
         p.sceneGuessed = true;
         warnings.push('第 ' + (pi + 1) + ' 页第 ' + (i + 1) + ' 格没写画面，先用「' + p.scene + '」代替，可以改。');
       }
-      if (p.lines.length > MAX_LINES) { warnings.push('第 ' + (pi + 1) + ' 页第 ' + (i + 1) + ' 格对白超过 ' + MAX_LINES + ' 句，多的合并进最后一个气泡。'); const extra = p.lines.splice(MAX_LINES - 1); p.lines.push({ speaker: extra[0].speaker, text: extra.map(l => l.text).join('') }); }
     }));
     const panels = out.reduce((a, p) => a + p.panels.length, 0), lines = out.reduce((a, p) => a + p.panels.reduce((b, q) => b + q.lines.length, 0), 0);
     return { pages: out, warnings: Array.from(new Set(warnings)), stats: { pages: out.length, panels, lines, explicit } };
@@ -79,5 +90,9 @@
     const scene = panel.scene + (who.length && !panel.sceneGuessed && !who.every(w => panel.scene.includes(w)) ? '（出场：' + who.join('、') + '）' : '');
     return { scene, line: panel.lines.map(l => l.text.replace(/[/／|｜]/g, '・')).join(' / ') };
   }
-  root.ScriptPageCore = Object.freeze({ parse, toWizard, MAX_PANELS, MAX_LINES });
+  /** Stable per-line mapping (ID + speaker + text) for bubble layout, so ownership is never guessed (audit 49). */
+  function wizardLines(panel) {
+    return panel.lines.map(l => ({ id: l.id, speaker: l.speaker, text: l.text }));
+  }
+  root.ScriptPageCore = Object.freeze({ parse, toWizard, wizardLines, MAX_PANELS, MAX_LINES });
 })(typeof window !== 'undefined' ? window : globalThis);
