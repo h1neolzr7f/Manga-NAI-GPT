@@ -61,6 +61,10 @@
 | 51 | 已修复 [PR #22](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/22)：气泡尾巴在整页 faces 中查找说话人，且要求脸部位于本分格内，否则不画指向他格的尾巴 |
 | 52 | 已修复 | [PR #12](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/12)：事件过滤只在 target.saveHistory===false 时跳过；导入底图添加后清除临时抑制 |
 | 53 | 已修复 [PR #19](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/19)：重置设置保留素材索引与生成任务记录（产品决定：重置仅针对设置，不清创作数据） |
+| 54 | 已修复 [PR #23](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/23)：本机抠图服务返回 crop 框与原图尺寸；编辑器按原图像素比例和变换（缩放/旋转/翻转/origin）放置裁切结果，选区抠图同理 |
+| 55 | 已修复 [PR #23](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/23)：浏览器颜色抠图（含神经网络失败后的回退）执行羽化、裁切、只输出蒙版，与服务语义一致 |
+| 56 | 已修复 [PR #23](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/23)：抠图请求固定页面 GUID 与源对象；切页或源图已删除时结果不贴入并提示，也不再触发颜色回退（决定：丢弃并提示重做，而非自动跨页） |
+| 57 | 已修复 [PR #23](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/23)：颜色键 alpha 与原 alpha 取最小值，透明/半透明像素不会被复活（invert 同样保留） |
 | 58 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：导入前校验历史结构；加载中途失败时恢复历史、图片映射、提示词与画布尺寸 |
 | 63 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：导入素材文件名使用完整 ID 的哈希，原子写入 |
 | 67 | 已修复 [PR #21](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/21)：分页长图导出时临时隐藏无关图层和编辑网格，只渲染目标模拟器 |

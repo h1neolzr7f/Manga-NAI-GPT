@@ -177,11 +177,11 @@ class ModelManager:
                 self._sessions[model_id] = new_session(model_name=model_id)
             return model_id, self._sessions[model_id]
 
-    def remove_background(self, data: bytes, requested: str | None, options: dict[str, Any] | None = None) -> tuple[str, bytes]:
+    def remove_background(self, data: bytes, requested: str | None, options: dict[str, Any] | None = None, meta: dict[str, Any] | None = None) -> tuple[str, bytes]:
         normalized = normalize_options(options)
         requested_model = requested or normalized.get("model")
         if normalized["engine"] == "color-key" or self.resolve(requested_model) == "color-key":
-            return "color-key", color_key_remove(data, normalized)
+            return "color-key", color_key_remove(data, normalized, meta)
 
         model_id, session = self.get_session(requested_model)
         from rembg import remove
@@ -200,7 +200,7 @@ class ModelManager:
             image = bytes_to_image(bytes(result))
         else:
             raise RuntimeError("rembg returned an unsupported result type")
-        image = postprocess_rgba(image, normalized)
+        image = postprocess_rgba(image, normalized, meta)
         png = image_to_png_bytes(image)
         if png == data:
             raise RuntimeError("rembg returned an unchanged image")

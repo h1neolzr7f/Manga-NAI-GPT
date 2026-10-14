@@ -11,6 +11,7 @@ import base64
 import io
 import json
 import mimetypes
+import inspect
 import os
 import tempfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -264,8 +265,18 @@ class Handler(BaseHTTPRequestHandler):
         with tempfile.NamedTemporaryFile(prefix="manga_editor_", suffix=os.path.splitext(filename)[1][:16], delete=True) as temp:  # short temp name (audit 44)
             temp.write(content)
             temp.flush()
-            model_id, result = self.manager.remove_background(content, options.get("model") or options.get("mode"), options)
+            meta: dict[str, Any] = {}
+            remover = self.manager.remove_background
+            try:
+                takes_meta = "meta" in inspect.signature(remover).parameters
+            except (TypeError, ValueError):
+                takes_meta = False
+            if takes_meta:
+                model_id, result = remover(content, options.get("model") or options.get("mode"), options, meta=meta)
+            else:  # custom managers without crop metadata keep working
+                model_id, result = remover(content, options.get("model") or options.get("mode"), options)
         return {
+            **meta,
             "ok": True,
             "model": model_id,
             "engine": options.get("engine") or ("color-key" if model_id == "color-key" else "rembg"),
