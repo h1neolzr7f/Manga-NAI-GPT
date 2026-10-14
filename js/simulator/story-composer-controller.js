@@ -298,7 +298,8 @@ setStatus('正在用导演写各格提示词（不会生图）...',false);
 return manga.enrichPlanWithDirector(plan).then(function(result){
 return manga.createPanelsFromPlan(result.plan).then(function(created){
 var label=result.source==='api'?'导演 API':(result.source==='heuristic'?'规则拆分':'本地导演');
-setStatus('已生成 '+created.objects.length+' 个漫画分镜（'+label+'）。请到「自动生成」里验收后再出图。',false);
+var more=created.remainingPanels?' 剧情还有 '+created.remainingPanels+' 格（'+created.remainingPages+' 页）没放下：每页最多 6 格，请新建一页后删掉已用的剧情再生成。':'';
+setStatus('已生成 '+created.objects.length+' 个漫画分镜（'+label+'）。请到「自动生成」里验收后再出图。'+more,false);
 return created;
 });
 });

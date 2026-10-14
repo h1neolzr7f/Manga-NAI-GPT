@@ -70,6 +70,12 @@
     const ag = await lib(); const c = root.canvas;
     const W = c.getWidth(), H = c.getHeight();
     const children = [];
+    // Canvas background colour becomes an editable bottom layer (audit 48).
+    const bg = typeof c.backgroundColor === 'string' ? c.backgroundColor.trim() : '';
+    if (bg && !/^(transparent|rgba\([^)]*,\s*0(\.0*)?\s*\))$/i.test(bg)) {
+      const bgc = canvasOf(W, H), bgx = bgc.getContext('2d'); bgx.fillStyle = bg; bgx.fillRect(0, 0, W, H);
+      children.push({ name: '背景', canvas: bgc, left: 0, top: 0, opacity: 1, blendMode: 'normal' });
+    }
     for (const o of c.getObjects()) {
       if (o.excludeFromLayerPanel || o.isIcon) continue;
       const r = rasterize(o);
@@ -88,7 +94,7 @@
     const pg = ed && ed.pageImage ? ed.pageImage(true) : null;
     const thumb = canvasOf(Math.max(1, Math.round(W * Math.min(1, 256 / Math.max(W, H)))), Math.max(1, Math.round(H * Math.min(1, 256 / Math.max(W, H)))));
     if (pg) thumb.getContext('2d').drawImage(await loadImg(pg.image), 0, 0, thumb.width, thumb.height);
-    const comp = canvasOf(W, H), cg = comp.getContext('2d'); cg.fillStyle = '#fff'; cg.fillRect(0, 0, W, H);
+    const comp = canvasOf(W, H), cg = comp.getContext('2d'); cg.fillStyle = bg && children.length && children[0].name === '背景' ? bg : '#fff'; cg.fillRect(0, 0, W, H);
     const gray = children.every(l => !l.canvas || isGray(l.canvas)) && children.every(l => !l.text || isGrayColor(l.text.style && l.text.style.fillColor));
     return ag.writePsdUint8Array({ width: W, height: H, canvas: comp, children, colorMode: gray ? 1 : 3, imageResources: { thumbnail: thumb } },
       { invalidateTextLayers: true, generateThumbnail: false, compress: true, trimImageData: true });
