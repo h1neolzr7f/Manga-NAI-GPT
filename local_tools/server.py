@@ -11,6 +11,7 @@ import base64
 import io
 import json
 import mimetypes
+import inspect
 import os
 import tempfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -265,7 +266,15 @@ class Handler(BaseHTTPRequestHandler):
             temp.write(content)
             temp.flush()
             meta: dict[str, Any] = {}
-            model_id, result = self.manager.remove_background(content, options.get("model") or options.get("mode"), options, meta=meta)
+            remover = self.manager.remove_background
+            try:
+                takes_meta = "meta" in inspect.signature(remover).parameters
+            except (TypeError, ValueError):
+                takes_meta = False
+            if takes_meta:
+                model_id, result = remover(content, options.get("model") or options.get("mode"), options, meta=meta)
+            else:  # custom managers without crop metadata keep working
+                model_id, result = remover(content, options.get("model") or options.get("mode"), options)
         return {
             **meta,
             "ok": True,
