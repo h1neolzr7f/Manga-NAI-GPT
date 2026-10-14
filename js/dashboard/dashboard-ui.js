@@ -85,9 +85,17 @@ if(existing.dataset.dashboardLoaded==='true'||existing.readyState==='complete'){
 resolve();
 return;
 }
+// Audit 99: a prior error leaves a dead node; remove it and issue a fresh request.
+if(existing.dataset.dashboardFailed==='true'){
+if(existing.parentNode) existing.parentNode.removeChild(existing);
+}else{
 existing.addEventListener('load',function(){resolve();},{once:true});
-existing.addEventListener('error',reject,{once:true});
+existing.addEventListener('error',function(){
+existing.dataset.dashboardFailed='true';
+reject(new Error('Failed to load '+src));
+},{once:true});
 return;
+}
 }
 var script=document.createElement('script');
 script.src=src;
@@ -96,9 +104,13 @@ script.defer=true;
 script.dataset.dashboardLib=src;
 script.onload=function(){
 script.dataset.dashboardLoaded='true';
+script.dataset.dashboardFailed='false';
 resolve();
 };
-script.onerror=function(){reject(new Error('Failed to load '+src));};
+script.onerror=function(){
+script.dataset.dashboardFailed='true';
+reject(new Error('Failed to load '+src));
+};
 document.head.appendChild(script);
 });
 }
@@ -1023,7 +1035,11 @@ var div=document.createElement('div');
 div.textContent=text;
 return div.innerHTML;
 }
+var recordGenerationChain=Promise.resolve();
 async function recordGeneration(mode,timeMs,prompt,modelName){
+// Audit 100: serialize concurrent completions so read-modify-write stats do not drop increments.
+var run=async function(){
+
 var promptLength=(prompt&&typeof prompt==='string')?prompt.length:undefined;
 await PerformanceStorage.recordTime(mode,timeMs,promptLength);
 if(prompt){
@@ -1039,6 +1055,9 @@ await init();
 }
 await refresh();
 }
+};
+recordGenerationChain=recordGenerationChain.then(run,run);
+return recordGenerationChain;
 }
 async function recordFailure(mode){
 await PerformanceStorage.recordFailure(mode);

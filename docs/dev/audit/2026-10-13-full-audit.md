@@ -111,7 +111,10 @@
 | 95 | 已修复 [PR #33](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/33)：竖排 onInput 接受 Delete/WordForward/Undo/Redo/Replacement 与多字 deleteCompositionText，退出编辑前同步 textarea |
 | 96 | 已修复 [PR #33](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/33)：竖排构造克隆 keysMapRtl，不再污染已有横排 RTL 文字的方向键 |
 | 98 | 已修复 [PR #33](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/33)：composition 选区经 fromStringToGraphemeSelection 转 grapheme 索引再绘制，emoji 前缀下 IME 高亮对准正确字 |
+| 99 | 已修复 [PR #35](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/35)：仪表盘脚本加载失败标记 dashboardFailed，重试移除死节点并重新请求 |
+| 100 | 已修复 [PR #35](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/35)：recordGeneration 与 storage 写路径串行化，并行完成不再丢统计增量 |
 | 101 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：日期键按本地年月日解析；周目标与周统计统一周一为起点（产品决定） |
+| 102 | 已修复 [PR #35](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/35)：最长连续天数从持久日统计扫描得到，无当前 streak 时仍记住历史最长 |
 | 103 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：正向规则只改正向提示词，负向规则只改负向；空旧词跳过 |
 | 104 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：提示词替换改为字面替换，不再当正则 |
 | 107 | 已修复 [PR #17](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/17)：合并前收集被吸收气泡的对白，合并后的气泡正文继承原对白（多段换行拼接），新气泡仍为默认“台词” |
