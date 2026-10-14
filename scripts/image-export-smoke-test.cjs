@@ -180,7 +180,7 @@ assert.ok(projectManagement.includes("cfg.id!=='outputDpi'"),'DPI 以外を改�
 // --- P3/P4 の回帰: 重複定義を戻さない / canvas 监听を積み増さない ---
 assert.ok(!/function restoreGrid\s*\(/.test(source),'restoreGrid が再びローカル定義されていない');
 assert.ok(source.includes('function restoreGridAfterExport'),'网格復元は共通ヘルパに一本化');
-assert.equal((source.match(/restoreGridAfterExport\(\)/g)||[]).length,3,'clipCopy/cropAndDownload の2経路+ヘルパ定義の3箇所');
+assert.equal((source.match(/restoreGridAfterExport\(\)/g)||[]).length,5,'clipCopy/cropAndDownload のtry/finally restore paths + helper definition');
 assert.ok(!canvasManager.includes('function formatExportColorHex'),'formatExportColorHex の薄いラッパが残っていない');
 assert.ok(canvasManager.includes('exportEstimateCanvasBound'),'canvas イベントは 1 回だけ登録する');
 assert.ok(/if\(!exportEstimateCanvasBound&&typeof canvas/.test(canvasManager),'canvas 登録にガードがある');
