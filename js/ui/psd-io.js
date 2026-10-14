@@ -35,17 +35,20 @@
 
   /** AI 填充 layer -> opaque candidate + layer mask (= the soft alpha), so the edge stays editable. */
   async function aiFillLayer(o, base) {
-    const m = o.aiFill; const [x, y, w, h] = m.box;
+    // Audit 47: export the live placement (base from rasterize), not the original generation box.
+    const m = o.aiFill;
+    const w = Math.max(1, base.canvas.width), h = Math.max(1, base.canvas.height);
+    const left = base.left, top = base.top;
     const comp = await loadImg(o.getSrc());
     const c = canvasOf(w, h), g = c.getContext('2d');
-    if (m.candidates[m.chosen]) g.drawImage(await loadImg(m.candidates[m.chosen]), 0, 0, w, h);   // colour under the mask's zero
-    g.drawImage(comp, 0, 0, w, h);                                                              // tone-matched pixels on top
+    if (m.candidates && m.candidates[m.chosen]) g.drawImage(await loadImg(m.candidates[m.chosen]), 0, 0, w, h);
+    g.drawImage(comp, 0, 0, w, h);
     const d = g.getImageData(0, 0, w, h);
     const a = canvasOf(w, h), ag = a.getContext('2d'); ag.drawImage(comp, 0, 0, w, h); const ad = ag.getImageData(0, 0, w, h).data;
     const mask = canvasOf(w, h), mg = mask.getContext('2d'), md = mg.createImageData(w, h);
     for (let i = 0; i < w * h; i++) { const v = ad[i * 4 + 3]; md.data[i * 4] = md.data[i * 4 + 1] = md.data[i * 4 + 2] = v; md.data[i * 4 + 3] = 255; d.data[i * 4 + 3] = 255; }
     g.putImageData(d, 0, 0); mg.putImageData(md, 0, 0);
-    return Object.assign(base, { canvas: c, left: x, top: y, mask: { canvas: mask, left: x, top: y, defaultColor: 0 } });
+    return Object.assign(base, { canvas: c, left: left, top: top, mask: { canvas: mask, left: left, top: top, defaultColor: 0 } });
   }
 
   function textLayer(o, base) {

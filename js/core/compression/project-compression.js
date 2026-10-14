@@ -245,48 +245,43 @@ return loadedGuids;
 }
 
 
-async function multiLoadZip(zip) {
-const loadedGuids=[];
-const zipFiles=Object.keys(zip.files).filter(filename=>filename.endsWith('.zip'));
-
-for (let i=0;i<zipFiles.length;i++) {
-const zipContent=await zip.file(zipFiles[i]).async('blob');
-const innerZip=await JSZip.loadAsync(zipContent);
-const previewImage=innerZip.file('preview-image.jpeg');
-if (!previewImage) {
-continue;
-}
-
-const previewImageBlob=await previewImage.async('blob');
-const previewImageUrl=URL.createObjectURL(previewImageBlob);
-
-const stateFiles=Object.keys(innerZip.files).filter(filename=>filename.startsWith('state_')&&filename.endsWith('.json'));
-
+async function loadOneZipPage(pageZip,payload) {
+const previewImage=pageZip.file('preview-image.jpeg')||pageZip.file('preview-image.jpg')||pageZip.file('preview-image.png');
+if (!previewImage) return null;
+const previewImageUrl=URL.createObjectURL(new Blob([await previewImage.async('uint8array')]));
+const stateFiles=Object.keys(pageZip.files).filter(filename=>filename.startsWith('state_')&&filename.endsWith('.json'));
 var canvasGuid=null;
-
 for (const stateFile of stateFiles) {
-const stateContent=await innerZip.file(stateFile).async('text');
 try {
-const state=JSON.parse(stateContent);
+const state=JSON.parse(await pageZip.file(stateFile).async('text'));
 canvasGuid=findCanvasGuid(state);
-
-if (canvasGuid) {
-btmAddImage({href: previewImageUrl},zipContent,canvasGuid);
-loadedGuids.push(canvasGuid);
-break;
-}
+if (canvasGuid) break;
 } catch (error) {
 compressionLogger.error("Error parsing JSON:",error);
 }
 }
-
-if(canvasGuid){
-//skip
-}else{
-let guid=generateGUID();
-btmAddImage({href: previewImageUrl},zipContent,guid);
-loadedGuids.push(guid);
+if (!canvasGuid) canvasGuid=generateGUID();
+btmAddImage({href: previewImageUrl},payload,canvasGuid);
+return canvasGuid;
 }
+
+async function multiLoadZip(zip) {
+const loadedGuids=[];
+const zipFiles=Object.keys(zip.files).filter(filename=>filename.endsWith('.zip')&&!zip.files[filename].dir);
+for (let i=0;i<zipFiles.length;i++) {
+const zipContent=await zip.file(zipFiles[i]).async('blob');
+const innerZip=await JSZip.loadAsync(zipContent);
+const guid=await loadOneZipPage(innerZip,zipContent);
+if (guid) loadedGuids.push(guid);
+}
+// Audit 40: a flat single-page ZIP (state_*.json + preview at the top level) is a page, not an empty multi-page container.
+if (loadedGuids.length===0) {
+let payload=zip;
+if (typeof lz4Compressor!=='undefined'&&lz4Compressor&&typeof lz4Compressor.zipFileListToLz4Blob==='function') {
+try { payload=await lz4Compressor.zipFileListToLz4Blob(zip.files); } catch (error) { compressionLogger.error("flat zip convert:",error); }
+}
+const guid=await loadOneZipPage(zip,payload);
+if (guid) loadedGuids.push(guid);
 }
 return loadedGuids;
 }
@@ -328,8 +323,7 @@ if (!previewImage) {
 continue;
 }
 
-const previewImageBlob=await previewImage.async('blob');
-const previewImageUrl=URL.createObjectURL(previewImageBlob);
+const previewImageUrl=URL.createObjectURL(new Blob([await previewImage.async('uint8array')]));
 
 const stateFiles=Object.keys(innerZip.files).filter(filename=>filename.startsWith('state_')&&filename.endsWith('.json'));
 

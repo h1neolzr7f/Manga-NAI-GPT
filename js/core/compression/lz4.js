@@ -148,19 +148,20 @@ return lz4Blob;
 //This is a compatibility fix for old Zip projects.
 async zipFileListToLz4Blob(files) {
 const fileBufferList=[];
-
+// Audit 40: always read decompressed bytes. compressedContent is still DEFLATE for DEFLATE entries.
 for (const fileEntry of Object.values(files)) {
-if (fileEntry._data&&fileEntry._data.compressedContent) {
+if (!fileEntry || fileEntry.dir) continue;
 const name=fileEntry.name;
-const data=fileEntry._data.compressedContent;
-const size=data.length;
-
-fileBufferList.push({
-name,
-data,
-size
-});
+let data=null;
+if (typeof fileEntry.async==='function') {
+data=new Uint8Array(await fileEntry.async('uint8array'));
+} else if (fileEntry._data&&fileEntry._data.uncompressedFile) {
+data=fileEntry._data.uncompressedFile;
+} else if (fileEntry._data&&fileEntry._data.compressedContent&&fileEntry._data.compressionMethod===0) {
+data=fileEntry._data.compressedContent; // STORE only
 }
+if (!data) continue;
+fileBufferList.push({name,data,size:data.length});
 }
 return await this.buffersToLz4Blob(fileBufferList);
 }
