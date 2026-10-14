@@ -10,7 +10,7 @@ except Exception as exc:
     print("SKIP 44 local_tools.server import failed:", exc); lt_server = None
 if lt_server:
     class Mgr:
-        def remove_background(self, content, model, options):
+        def remove_background(self, content, model, options, meta=None):
             return "stub", b"png"
     class H(lt_server.Handler):
         manager = Mgr()

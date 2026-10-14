@@ -289,11 +289,77 @@ if(typeof updateLayerPanel==="function")updateLayerPanel();
 if(typeof saveStateByManual==="function")saveStateByManual();
 }
 
-function applyResult(source,result,action,placement){
+function cropInfo(result){
+var c=result&&result.crop;
+if(!c||!(c.width>0)||!(c.height>0)||!(result.source_width>0)||!(result.source_height>0))return null;
+return c;
+}
+
+// Audit 54: place a cropped cutout at its source pixels, keeping the source's pixel scale.
+function placeCropped(source,processed,result,crop){
+var k=(source.width||result.source_width)/result.source_width;
+var kY=(source.height||result.source_height)/result.source_height;
+var sx=source.scaleX||1,sy=source.scaleY||1;
+var lx=((crop.x+crop.width/2)*k-(source.width||result.source_width)/2)*sx;
+var ly=((crop.y+crop.height/2)*kY-(source.height||result.source_height)/2)*sy;
+if(source.flipX)lx=-lx;
+if(source.flipY)ly=-ly;
+var rad=(source.angle||0)*Math.PI/180,cos=Math.cos(rad),sin=Math.sin(rad);
+var center=typeof source.getCenterPoint==="function"?source.getCenterPoint():{
+x:(source.left||0)+((source.originX==="center")?0:(source.originX==="right"?-1:1))*imageSize(source,"width")/2,
+y:(source.top||0)+((source.originY==="center")?0:(source.originY==="bottom"?-1:1))*imageSize(source,"height")/2};
+processed.set({
+originX:"center",originY:"center",
+left:center.x+lx*cos-ly*sin,
+top:center.y+lx*sin+ly*cos,
+scaleX:sx*k*crop.width/(processed.width||crop.width),
+scaleY:sy*kY*crop.height/(processed.height||crop.height),
+angle:source.angle||0,flipX:!!source.flipX,flipY:!!source.flipY,
+opacity:source.opacity===undefined?1:source.opacity
+});
+if(source.guid)processed.guid=source.guid;
+if(source.name)processed.name=source.name+(source.name.indexOf("抠图")<0?"（抠图）":"");
+}
+
+function pageGuid(){
+try{return typeof getCanvasGUID==="function"?getCanvasGUID():null;}catch(_){return null;}
+}
+
+function staleError(){
+var e=new Error("等待抠图期间已切换页面或删除了原图，结果没有贴入当前页。请回到原页重新抠图。");
+e.stale=true;
+return e;
+}
+
+function applyResult(source,result,action,placement,pinnedPage){
 var current=getCanvas();
 if(!current)throw new Error("Canvas 尚未初始化。");
+// Audit 56: never paste a result onto another page or after the source was removed.
+function stillValid(){
+var c=getCanvas();
+if(c!==current)return false;
+if(pinnedPage!==undefined&&pinnedPage!==null&&pageGuid()!==pinnedPage)return false;
+var objs=typeof c.getObjects==="function"?c.getObjects():(c.objects||[]);
+return objs.indexOf(source)>=0;
+}
+if(!stillValid())return Promise.reject(staleError());
 return createFabricImage(result.image).then(function(processed){
-if(placement&&placement.width&&placement.height){
+if(!stillValid())throw staleError();
+var crop=cropInfo(result);
+if(placement&&placement.width&&placement.height&&crop&&placement.srcWidth){
+var ps=placement.width/placement.srcWidth,psy=placement.height/(placement.srcHeight||placement.srcWidth);
+processed.set({
+left:(placement.left||0)+crop.x*ps,
+top:(placement.top||0)+crop.y*psy,
+scaleX:ps*crop.width/(processed.width||crop.width),
+scaleY:psy*crop.height/(processed.height||crop.height),
+angle:source.angle||0,
+opacity:source.opacity===undefined?1:source.opacity,
+originX:"left",originY:"top"
+});
+}else if(crop&&!placement){
+placeCropped(source,processed,result,crop);
+}else if(placement&&placement.width&&placement.height){
 processed.set({
 left:placement.left||0,
 top:placement.top||0,
@@ -336,7 +402,24 @@ if(hex.length===3)hex=hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
 return{r:parseInt(hex.slice(0,2),16)||0,g:parseInt(hex.slice(2,4),16)||0,b:parseInt(hex.slice(4,6),16)||0};
 }
 
-function localColorKeyDataUrl(dataUrl,keyColor,tolerance,invert){
+// Audit 55: browser colour key honours feather, crop and mask-only like the local service.
+function featherAlpha(px,w,h,r){
+if(!(r>0))return;
+var a=new Float32Array(w*h),t=new Float32Array(w*h),i,x,y,k,sum,n;
+for(i=0;i<w*h;i++)a[i]=px[i*4+3];
+for(var pass=0;pass<2;pass++){
+for(y=0;y<h;y++)for(x=0;x<w;x++){sum=0;n=0;for(k=-r;k<=r;k++){var xx=x+k;if(xx>=0&&xx<w){sum+=a[y*w+xx];n++;}}t[y*w+x]=sum/n;}
+for(y=0;y<h;y++)for(x=0;x<w;x++){sum=0;n=0;for(k=-r;k<=r;k++){var yy=y+k;if(yy>=0&&yy<h){sum+=t[yy*w+x];n++;}}a[y*w+x]=sum/n;}
+}
+for(i=0;i<w*h;i++)px[i*4+3]=Math.round(a[i]);
+}
+
+function localColorKey(dataUrl,options){
+options=options||{};
+return localColorKeyDataUrl(dataUrl,options.key_color||"#ffffff",options.key_tolerance||28,options.invert,options);
+}
+
+function localColorKeyDataUrl(dataUrl,keyColor,tolerance,invert,post){
 return new Promise(function(resolve,reject){
 var img=new Image();
 img.onload=function(){
@@ -353,8 +436,23 @@ var match=Math.abs(px[i]-key.r)+Math.abs(px[i+1]-key.g)+Math.abs(px[i+2]-key.b)<
 if(invert)match=!match;
 if(match)px[i+3]=0;
 }
+if(!post){ctx.putImageData(data,0,0);resolve(c.toDataURL('image/png'));return;}
+var w=c.width,h=c.height,result={ok:true,model:'color-key'};
+featherAlpha(px,w,h,Math.max(0,parseInt(post.feather,10)||0));
+var x0=0,y0=0,x1=w,y1=h;
+if(post.crop){
+var minX=w,minY=h,maxX=-1,maxY=-1,xx,yy;
+for(yy=0;yy<h;yy++)for(xx=0;xx<w;xx++)if(px[(yy*w+xx)*4+3]>0){if(xx<minX)minX=xx;if(xx>maxX)maxX=xx;if(yy<minY)minY=yy;if(yy>maxY)maxY=yy;}
+if(maxX<0){reject(new Error('颜色抠图结果全透明，请调整背景色或容差。'));return;}
+x0=Math.max(0,minX-2);y0=Math.max(0,minY-2);x1=Math.min(w,maxX+3);y1=Math.min(h,maxY+3);
+result.crop={x:x0,y:y0,width:x1-x0,height:y1-y0};result.source_width=w;result.source_height=h;
+}
+if(post.only_mask){for(i=0;i<px.length;i+=4){px[i]=px[i+1]=px[i+2]=px[i+3];px[i+3]=255;}}
 ctx.putImageData(data,0,0);
-resolve(c.toDataURL('image/png'));
+var out=c;
+if(x0!==0||y0!==0||x1!==w||y1!==h){out=document.createElement('canvas');out.width=x1-x0;out.height=y1-y0;out.getContext('2d').drawImage(c,x0,y0,x1-x0,y1-y0,0,0,x1-x0,y1-y0);}
+result.image=out.toDataURL('image/png');
+resolve(result);
 };
 img.onerror=function(){reject(new Error('颜色抠图读图失败。'));};
 img.src=dataUrl;
@@ -369,13 +467,14 @@ if(!dataUrl){var noDataError=new Error("选中图层没有可读取的图片数�
 var options=collectOptions();
 if(mode)options.model=mode;
 var selectedAction=action||options.action||"new";
+var pinned=pageGuid();
 setStatus("正在处理选中图层，原图会保持可撤销…",false);
-function finishLocal(url){
-setPreview(dataUrl,url);
-return applyResult(image,{ok:true,image:url,model:'color-key'},selectedAction);
+function finishLocal(res){
+setPreview(dataUrl,res.image);
+return applyResult(image,res,selectedAction,null,pinned);
 }
 if(options.engine==='color-key'||options.model==='color-key'){
-return localColorKeyDataUrl(dataUrl,options.key_color,options.key_tolerance,options.invert).then(finishLocal).then(function(result){
+return localColorKey(dataUrl,options).then(finishLocal).then(function(result){
 setStatus("颜色抠图完成，可继续编辑或撤销。",false);
 if(typeof createToast==="function")createToast("抠图完成","浏览器颜色抠图，没有花 NovelAI 积分。",2500);
 return result;
@@ -390,14 +489,15 @@ return getClient().removeBackground(blob,options.model,options);
 }).then(function(data){
 if(!data||!data.ok||!data.image)throw new Error("抠图服务没有返回有效透明 PNG。");
 setPreview(dataUrl,data.image);
-return applyResult(image,data,selectedAction);
+return applyResult(image,data,selectedAction,null,pinned);
 }).then(function(result){
 setStatus("抠图完成："+(result.backgroundRemovalModel||options.model)+"，可继续编辑或撤销。",false);
 if(typeof createToast==="function")createToast("抠图完成","本地抠图，没有花 NovelAI 积分。",2500);
 return result;
 }).catch(function(error){
+if(error&&error.stale){setStatus(error.message,true);if(typeof createToastError==="function")createToastError("抠图结果未贴入",error.message);throw error;}
 setStatus("神经网络抠图不可用，改用颜色抠图…",false);
-return localColorKeyDataUrl(dataUrl,options.key_color||'#ffffff',options.key_tolerance||28,options.invert).then(finishLocal).then(function(result){
+return localColorKey(dataUrl,options).then(finishLocal).then(function(result){
 setStatus("已用浏览器颜色抠图完成。白底/绿幕最合适。",false);
 if(typeof createToast==="function")createToast("已改用颜色抠图","本机抠图服务未开。白底可直接抠，不花积分。",3200);
 return result;
@@ -425,14 +525,16 @@ return Promise.reject(noDataError);
 }
 var options=collectOptions();
 var selectedAction=action||options.action||"new";
+var pinned=pageGuid();
+var place={left:rect.left,top:rect.top,width:rect.width,height:rect.height,srcWidth:extracted.width,srcHeight:extracted.height};
 setStatus("正在抠选区，原图会保持可撤销…",false);
 if(typeof createToast==="function")createToast("框选抠图","正在处理选区，不花积分。",2200);
-function finishLocal(url){
-setPreview(extracted.dataUrl,url);
-return applyResult(image,{ok:true,image:url,model:"color-key"},selectedAction,rect);
+function finishLocal(res){
+setPreview(extracted.dataUrl,res.image);
+return applyResult(image,res,selectedAction,place,pinned);
 }
 if(options.engine==="color-key"||options.model==="color-key"){
-return localColorKeyDataUrl(extracted.dataUrl,options.key_color,options.key_tolerance,options.invert).then(finishLocal).then(function(result){
+return localColorKey(extracted.dataUrl,options).then(finishLocal).then(function(result){
 setStatus("选区颜色抠图完成。",false);
 if(typeof createToast==="function")createToast("选区抠图完成","浏览器颜色抠图，没有花积分。",2500);
 return result;
@@ -447,14 +549,15 @@ return getClient().removeBackground(blob,options.model,options);
 }).then(function(data){
 if(!data||!data.ok||!data.image)throw new Error("抠图服务没有返回有效透明 PNG。");
 setPreview(extracted.dataUrl,data.image);
-return applyResult(image,data,selectedAction,rect);
+return applyResult(image,data,selectedAction,place,pinned);
 }).then(function(result){
 setStatus("选区抠图完成："+(result.backgroundRemovalModel||options.model)+"。",false);
 if(typeof createToast==="function")createToast("选区抠图完成","新图层已放在框选位置。",2500);
 return result;
 }).catch(function(error){
+if(error&&error.stale){setStatus(error.message,true);if(typeof createToastError==="function")createToastError("抠图结果未贴入",error.message);throw error;}
 setStatus("神经网络抠图不可用，选区改用颜色抠图…",false);
-return localColorKeyDataUrl(extracted.dataUrl,options.key_color||"#ffffff",options.key_tolerance||28,options.invert).then(finishLocal).then(function(result){
+return localColorKey(extracted.dataUrl,options).then(finishLocal).then(function(result){
 setStatus("已用浏览器颜色抠图完成选区。",false);
 if(typeof createToast==="function")createToast("已改用颜色抠图","本机抠图服务未开。白底可直接抠，不花积分。",3200);
 return result;

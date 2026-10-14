@@ -74,7 +74,9 @@ return this;
 
 AssetStore.prototype.save=function(){
 var storage=safeStorage();
-if(storage){try{storage.setItem(this.storageKey,JSON.stringify(this.toJSON()));}catch(error){}}
+// Audit 61: report index write failures so callers that need durability can react.
+this.lastSaveError=null;
+if(storage){try{storage.setItem(this.storageKey,JSON.stringify(this.toJSON()));}catch(error){this.lastSaveError=error||new Error('save failed');}}
 return this;
 };
 
@@ -178,6 +180,7 @@ current.missing=false;
 // Neither IndexedDB nor /user-assets took the file: it only lives in memory (audit 19).
 if(persisted)delete current.memoryOnly;else current.memoryOnly=true;
 self.save();
+if(opts.required&&self.lastSaveError)throw new Error('素材索引保存失败（浏览器存储可能已满），生成结果未入库。');
 self.emit();
 }
 return self.get(asset.id)||asset;
@@ -318,10 +321,22 @@ AssetStore.prototype.importPack=function(pack){
 if(!pack||pack.type!=='nai-comic-asset-pack')throw new Error('素材包格式不受支持。');
 var imported=0;
 var self=this;
+// Audit 62: all-or-nothing import. Work silently, roll back on any invalid record, commit once.
+var snapshot=this.assets.map(manifest.clone);
+var filesBefore=new Map(this.files);
+try{
 (pack.assets||[]).forEach(function(asset){
-var result=self.register(asset,null);
+var result=self.register(asset,null,{silent:true});
 if(!result.duplicate)imported+=1;
 });
+}catch(error){
+this.assets=snapshot;
+this.files=filesBefore;
+this.rebuildIndex();
+throw error;
+}
+this.save();
+this.emit();
 return {imported:imported,total:Array.isArray(pack.assets)?pack.assets.length:0};
 };
 
