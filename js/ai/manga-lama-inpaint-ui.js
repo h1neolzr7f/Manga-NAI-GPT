@@ -258,7 +258,7 @@
     sfxBox.addEventListener('change',()=>{setPref('mnai.lama.keepSfx',sfxBox.checked);if(prepared)refreshMask();});
     const eng=node('label');eng.append(document.createTextNode('修复引擎 '));
     const engSel=node('select');engSel.id='mangaLamaEngine';
-    [['auto','自动（有漫画模型用漫画）'],['lama-manga','漫画微调 LaMa'],['lama','通用 LaMa']].forEach(([v,t])=>{
+    [['auto','自动（气泡填底 → 漫画LaMa）'],['bubble','气泡填底色（纯色气泡）'],['lama-manga','漫画微调 LaMa'],['lama','通用 LaMa']].forEach(([v,t])=>{
       const o=node('option',t);o.value=v;engSel.append(o);
     });
     try{engSel.value=localStorage.getItem('mnai.lama.engine')||'auto';}catch(_){engSel.value='auto';}
@@ -344,7 +344,7 @@
     $('mangaLamaGenerate').disabled=true;
     $('mangaLamaConfirm').disabled=true;
     $('mangaLamaPreviewImg').hidden=true;
-    show('开始本地 LaMa 推理（可点「取消」中止）。模型未下载时会先询问是否下载。');
+    show('开始本机去字（自动会先试气泡填底色；不行再用 LaMa）。可点「取消」中止。');
     controller=typeof AbortController==='function'?new AbortController():null;
     try{
       const engine=(($('mangaLamaEngine')||{}).value)||'auto';

@@ -1,0 +1,18 @@
+{
+  "version": "1.6.4",
+  "bundled": [
+    {
+      "id": "ctd",
+      "file": "comictextdetector.pt.onnx",
+      "bytes": 94669756,
+      "sha256": "1a86ace74961413cbd650002e7bb4dcec4980ffa21b2f19b86933372071d718f",
+      "license": "GPL-3.0",
+      "url": "https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/comictextdetector.pt.onnx"
+    }
+  ],
+  "download_only": ["lama-manga", "lama", "sam2", "manga-ocr"],
+  "skipped": [
+    {"id": "ccip", "reason": "OpenRAIL 使用限制，不随包装发"},
+    {"id": "mobile-sam", "reason": "需另改推理路径，本版仍用 SAM 2.1 tiny（按需下载）"}
+  ]
+}

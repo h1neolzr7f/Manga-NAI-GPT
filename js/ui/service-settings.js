@@ -137,9 +137,67 @@ async function testLocal(){
 setStatus('svcLocalStatus','','正在检查…');
 try{
 var d=await ServiceRequest.request('local','/manga-smart/status',{body:{},timeoutMs:20000});
-var parts=['文字识别 '+(d.ocr&&d.ocr.ready?'✓':'✗'),'LaMa 去字 '+(d.lama&&d.lama.ready?'✓':'✗'),'漫画LaMa '+(d.lamaManga&&d.lamaManga.cached?'✓缓存':'○'),'Manga OCR '+(d.mangaOcr&&d.mangaOcr.ready?'✓':'✗')+(d.mangaOcr&&d.mangaOcr.cached?'缓存':'')];
+var parts=['文字识别 '+(d.ocr&&d.ocr.ready?'✓':'✗'),
+  '气泡填底 '+(d.bubbleFill&&d.bubbleFill.ready?'✓':'✗'),
+  'LaMa '+(d.lama&&d.lama.ready?'✓':'✗'),
+  '漫画LaMa '+(d.lamaManga&&d.lamaManga.cached?'✓缓存':'○'),
+  'Manga OCR '+(d.mangaOcr&&d.mangaOcr.ready?'✓':'✗')+(d.mangaOcr&&d.mangaOcr.cached?'·缓存':''),
+  '文字检测 '+(d.textDetector&&d.textDetector.cached?'✓':'○'),
+  '智能点选 '+(d.samSelect&&d.samSelect.cached?'✓':'○')];
 setStatus('svcLocalStatus',d.ocr&&d.ocr.ready?'ok':'warn',parts.join(' · '));
+refreshModelPanel(d.models);
 }catch(error){setStatus('svcLocalStatus','error',error.userMessage||error.message);}
+}
+async function refreshModelPanel(models){
+var box=$('svcModelList'); if(!box)return;
+if(!models){
+  try{var r=await ServiceRequest.request('local','/manga-smart/models',{body:{},timeoutMs:15000}); models=r.models||[];}
+  catch(_){box.innerHTML='<p class="ui-muted">无法读取模型列表（本机服务未就绪）。</p>';return;}
+}
+box.innerHTML='';
+var note=el('p',{class:'ui-muted'},'安装包默认只带「漫画文字检测」（约 91MB）。纯色气泡去字用气泡填底色，不用下载。较重的模型请按需下载（可断点续传，失败会试镜像）。');
+box.appendChild(note);
+(models||[]).forEach(function(m){
+  var row=el('div',{class:'svc-model-row','data-id':m.id});
+  var st=m.bundled?'已内置':(m.ready?'已下载':'未下载');
+  var badge=el('span',{class:'ui-badge'},st+(m.busy?' · 下载中':''));
+  var title=el('div',{class:'svc-model-title'});
+  title.appendChild(el('strong',{},m.label+'（'+m.size+'）'));
+  title.appendChild(badge);
+  row.appendChild(title);
+  row.appendChild(el('p',{class:'ui-muted'},m.benefit+(m.license?' · 许可 '+m.license:'')));
+  if(!m.ready){
+    var btn=el('button',{type:'button',class:'ui-btn ui-btn-primary'},'下载');
+    btn.addEventListener('click',function(){downloadModel(m.id,btn);});
+    row.appendChild(btn);
+  }
+  box.appendChild(row);
+});
+}
+async function downloadModel(id,btn){
+if(btn){btn.disabled=true;btn.textContent='准备中…';}
+var hide=window.MangaModelRequest&&MangaModelRequest.showProgress
+  ?MangaModelRequest.showProgress('/manga-smart/model-download')
+  :(function(){var c=document.createElement('div');c.className='ui-card model-download-card';c.innerHTML='<strong>正在下载…</strong>';document.body.appendChild(c);return function(){c.remove();};})();
+try{
+  // First call without allow → 428 with message; then confirm and retry with allow_download.
+  var first=await fetch('/manga-smart/model-download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id})});
+  var data=await first.json().catch(function(){return {};});
+  if(first.status===428||(data&&data.needs_download)){
+    var msg=(data.error||'模型尚未下载。')+'\n\n点击“确定”开始下载（支持断点续传与镜像）；点击“取消”不下载。';
+    if(!confirm(msg)){if(btn){btn.disabled=false;btn.textContent='下载';}return;}
+  }else if(first.ok&&data.ok){
+    await refreshModelPanel(); if(btn)btn.textContent='已完成'; return;
+  }
+  var second=await fetch('/manga-smart/model-download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id,allow_download:true})});
+  data=await second.json().catch(function(){return {};});
+  if(!second.ok||!data.ok)throw new Error((data&&data.error)||('下载失败 HTTP '+second.status));
+  await refreshModelPanel();
+  if(btn)btn.textContent='已完成';
+}catch(e){
+  alert(e.message||String(e));
+  if(btn){btn.disabled=false;btn.textContent='下载';}
+}finally{hide();}
 }
 async function testCutout(){
 setStatus('svcCutoutStatus','','正在检查…');
@@ -246,11 +304,12 @@ smi.addEventListener('change',function(){if(window.NaiEngine)NaiEngine.setSafeMo
 nr.appendChild(el('span',{class:'ui-badge',id:'svcNaiStatus'},'未测试'));
 nr.appendChild(el('button',{type:'button',class:'ui-btn ui-btn-ghost',id:'svcNaiAdvanced'},'NovelAI 高级设置…'));
 
-var local=section('svcLocal','本机文字识别 / 去字（改字幕）','在这台电脑上运行，免费、不联网。');
+var local=section('svcLocal','本机文字识别 / 去字（改字幕）','在这台电脑上运行。纯色气泡去字免费且不用下载模型；较重的 AI 模型可在下方按需下载。');
 card.appendChild(local);
 var lr=row(local);
 lr.appendChild(el('button',{type:'button',class:'ui-btn ui-btn-primary',id:'svcLocalTest'},'检查状态'));
 lr.appendChild(el('span',{class:'ui-badge',id:'svcLocalStatus'},'未检查'));
+local.appendChild(el('div',{id:'svcModelList',class:'svc-model-list'},'<p class="ui-muted">点「检查状态」后显示可下载的本机模型。</p>'));
 
 var dir=section('svcDirector','提示词助手 / AI 导演（可选）','任意 OpenAI 兼容的聊天模型（例如 DeepSeek）。用于「润色 / 扩写」和 AI 生图前优化提示词。不填就不使用；Key 只存在本机。');
 card.appendChild(dir);

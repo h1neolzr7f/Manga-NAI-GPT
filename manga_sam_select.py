@@ -32,11 +32,11 @@ MAX_POINTS = 24
 
 
 def weights_path():
+    from manga_bundle import bundled_file, prefer
     explicit = (os.environ.get("SAM2_MODEL") or "").strip()
-    if explicit:
-        return os.path.abspath(os.path.expanduser(explicit))
     cache = os.environ.get("XDG_CACHE_HOME") or os.path.join("~", ".cache")
-    return os.path.abspath(os.path.expanduser(os.path.join(cache, "manga-editor", "sam2.1_hiera_tiny.pt")))
+    cached = os.path.abspath(os.path.expanduser(os.path.join(cache, "manga-editor", "sam2.1_hiera_tiny.pt")))
+    return prefer(explicit, bundled_file("sam2.1_hiera_tiny.pt"), cached)
 
 
 def cached():

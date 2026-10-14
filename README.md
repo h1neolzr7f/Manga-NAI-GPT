@@ -117,6 +117,8 @@ Manga-NAI-GPT 是基于 [Manga Editor Desu](https://github.com/new-sankaku/manga
 
 **要显卡吗？** 不需要。
 
+**1.6.4 去字**：纯色气泡优先「气泡填底色」（不用下载模型）；复杂背景再下漫画 LaMa。一键包默认只带文字检测（约 91MB），其余在「服务设置」下载。
+
 **模型放哪？** `~/.cache/manga-editor/`（Windows：`%USERPROFILE%\.cache\manga-editor\`）；设置 `XDG_CACHE_HOME` 可换盘。
 
 **提示词助手的缩略图是空的？** 打开提示词助手点「下载示例图」（逐张校验）；不下载也能正常用提示词。

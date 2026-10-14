@@ -24,11 +24,11 @@ def _xdg_cache():
 
 
 def lama_weights_path():
+    from manga_bundle import bundled_file, prefer
     explicit = (os.environ.get("LAMA_MODEL") or "").strip()
-    if explicit:
-        return _expand(explicit)
     torch_home = os.environ.get("TORCH_HOME") or os.path.join(_xdg_cache(), "torch")
-    return _expand(os.path.join(torch_home, "hub", "checkpoints", "big-lama.pt"))
+    cache = _expand(os.path.join(torch_home, "hub", "checkpoints", "big-lama.pt"))
+    return prefer(explicit, bundled_file("big-lama.pt"), cache)
 
 
 def manga_ocr_cache_dir():
@@ -53,11 +53,11 @@ def manga_ocr_cached():
 
 
 def lama_manga_weights_path():
+    from manga_bundle import bundled_file, prefer
     explicit = (os.environ.get("LAMA_MANGA_MODEL") or "").strip()
-    if explicit:
-        return _expand(explicit)
     torch_home = os.environ.get("TORCH_HOME") or os.path.join(_xdg_cache(), "torch")
-    return _expand(os.path.join(torch_home, "hub", "checkpoints", "anime-manga-big-lama.pt"))
+    cache = _expand(os.path.join(torch_home, "hub", "checkpoints", "anime-manga-big-lama.pt"))
+    return prefer(explicit, bundled_file("anime-manga-big-lama.pt"), cache)
 
 
 def lama_manga_cached():

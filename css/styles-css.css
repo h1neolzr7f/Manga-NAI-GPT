@@ -34,3 +34,9 @@ footer {
   bottom: 0;
   width: 100%;
 }
+
+/* 本机模型下载列表（服务设置） */
+.svc-model-list{margin-top:.75rem;display:flex;flex-direction:column;gap:.6rem}
+.svc-model-row{border:1px solid rgba(0,0,0,.08);border-radius:8px;padding:.6rem .75rem;background:rgba(255,255,255,.6)}
+.svc-model-title{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.25rem}
+.svc-model-row .ui-btn{margin-top:.35rem}

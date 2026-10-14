@@ -116,4 +116,25 @@ try {
     if (Test-Path -LiteralPath $tempDir) { Remove-Item -LiteralPath $tempDir -Recurse -Force }
 }
 
+# ---- Lightweight bundled model (comic-text-detector ~91MB). Heavier models download in-app. ----
+$bundleDir = Join-Path $StagingDir "bundled_models"
+New-Item -ItemType Directory -Force -Path $bundleDir | Out-Null
+$ctdName = "comictextdetector.pt.onnx"
+$ctdPath = Join-Path $bundleDir $ctdName
+$ctdUrl = "https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/comictextdetector.pt.onnx"
+$ctdSha = "1a86ace74961413cbd650002e7bb4dcec4980ffa21b2f19b86933372071d718f"
+$ctdBytes = 94669756
+if (-not (Test-Path -LiteralPath $ctdPath) -or (Get-Item -LiteralPath $ctdPath).Length -ne $ctdBytes) {
+    Write-Host "Downloading bundled model $ctdName ..."
+    $tmp = Join-Path $bundleDir ($ctdName + ".part")
+    Invoke-WebRequest -UseBasicParsing -Uri $ctdUrl -OutFile $tmp
+    $actual = (Get-FileHash -LiteralPath $tmp -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($actual -ne $ctdSha) { throw "SHA-256 mismatch for $ctdName" }
+    if ((Get-Item -LiteralPath $tmp).Length -ne $ctdBytes) { throw "Size mismatch for $ctdName" }
+    Move-Item -LiteralPath $tmp -Destination $ctdPath -Force
+}
+Copy-Item -LiteralPath (Join-Path $SourceRoot "bundled_models\MANIFEST.json") -Destination (Join-Path $bundleDir "MANIFEST.json") -Force -ErrorAction SilentlyContinue
+Copy-Item -LiteralPath (Join-Path $SourceRoot "bundled_models\README.md") -Destination (Join-Path $bundleDir "README.md") -Force -ErrorAction SilentlyContinue
+Write-Host "Bundled model ready: $ctdPath ($ctdBytes bytes)"
+
 Write-Host "Installer staging prepared: $StagingDir"

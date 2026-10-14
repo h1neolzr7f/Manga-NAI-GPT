@@ -1,0 +1,69 @@
+{
+  "version": "1.6.4",
+  "page": "docs/images/comic-page.jpg",
+  "crop_box": [
+    760,
+    60,
+    960,
+    240
+  ],
+  "engines": {
+    "bubble:glyph": {
+      "ok": true,
+      "engine": "bubble-fill-local",
+      "engineName": "bubble",
+      "sec": 0.196,
+      "maskInBubble": 0.713,
+      "ink_cleared_ratio": 0.72,
+      "ink_total": 2759,
+      "changed": 3000,
+      "luma_std_mask": 71.54
+    },
+    "auto:glyph": {
+      "engineName": "bubble",
+      "sec": 0.3,
+      "maskInBubble": 0.713,
+      "engine": "bubble-fill-local"
+    },
+    "lama-manga:glyph": {
+      "ok": true,
+      "engine": "simple-lama-manga-local",
+      "engineName": "lama-manga",
+      "sec": 8.864,
+      "maskInBubble": null,
+      "ink_cleared_ratio": 0.156,
+      "ink_total": 2759,
+      "changed": 4744,
+      "luma_std_mask": 92.63
+    },
+    "bubble:loose": {
+      "ok": true,
+      "engine": "bubble-fill-local",
+      "engineName": "bubble",
+      "sec": 0.289,
+      "maskInBubble": 0.436,
+      "ink_cleared_ratio": 0.03,
+      "ink_total": 8474,
+      "changed": 1691,
+      "luma_std_mask": 103.01
+    },
+    "auto:loose": {
+      "engineName": "lama-manga",
+      "sec": 11.91,
+      "maskInBubble": null,
+      "engine": "simple-lama-manga-local"
+    },
+    "lama-manga:loose": {
+      "ok": true,
+      "engine": "simple-lama-manga-local",
+      "engineName": "lama-manga",
+      "sec": 18.22,
+      "note": "from earlier run"
+    }
+  },
+  "baseline_163": {
+    "lama_manga_mae_inside": 38.43,
+    "lama_manga_sec": 7.99,
+    "lama_sec": 3.83
+  }
+}

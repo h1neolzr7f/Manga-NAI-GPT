@@ -4,6 +4,19 @@ Version numbers apply to **this fork only**, not to upstream Manga Editor Desu.
 
 ## Unreleased
 
+## 1.6.4 — 2026-10-15（气泡填底色 + 轻量内置模型）
+
+### 中文
+- **气泡填底色**：纯色气泡内去字默认先走确定性路径（描边保留、中位气泡纸色填墨迹），约 0.2–0.3s，不加载 LaMa；蒙版大量盖在画面上或非均匀底时自动回退漫画/通用 LaMa。
+- **轻量一键包**：安装包/便携版默认只带文字检测 CTD（约 91MB）。漫画 LaMa、Manga OCR、SAM、通用 LaMa 在「服务设置 → 本机」按需下载（断点续传、官方+镜像、SHA-256）。
+- **不打包**：CCIP（OpenRAIL）；未接入 MobileSAM（仍可下载 SAM 2.1 tiny）。
+- **回归**：`docs/dev/smoke-164/`；气泡单元测试 + 模型目录测试。
+
+### English
+- Deterministic bubble paper fill first on `auto`/`bubble`; neural LaMa fallback for SFX/art.
+- Installer ships only comic-text-detector (~91MB); heavier models download in-app with resume/mirrors/hash.
+- Smoke: `docs/dev/smoke-164/`.
+
 ## 1.6.3 — 2026-10-14（实机质量抛光）
 
 ### 中文
