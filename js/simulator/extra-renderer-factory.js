@@ -207,6 +207,10 @@ simulatorType:root.simulatorType,
 customType:'simulatorExtra',
 getBoundingRect:function(){return {left:bounds.left,top:bounds.top,width:bounds.width,height:bounds.height};},
 getObjects:function(){return objects;},
+layoutObjects:function(){return objects.map(function(item){
+var box=typeof item.getBoundingRect==='function'?item.getBoundingRect(true,true):{top:Number(item.top)||0,height:Number(item.height)||0};
+return {top:box.top-bounds.top,height:box.height,getScaledHeight:function(){return box.height;}};
+}).sort(function(a,b){return a.top-b.top;});},
 getScaledHeight:function(){return bounds.height;}
 };
 }

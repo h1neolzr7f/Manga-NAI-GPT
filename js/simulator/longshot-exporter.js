@@ -11,7 +11,8 @@ function paginateGroup(group,pageHeight){
 var height=Number(group&&group.height)||0;
 var limit=Math.max(1,Number(pageHeight)||1800);
 if(height<=limit)return [{top:0,height:height,index:0}];
-var objects=group&&typeof group.getObjects==='function'?group.getObjects():[];
+// Page views give object boxes relative to the page, so a moved page paginates the same (audit 42).
+var objects=group&&typeof group.layoutObjects==='function'?group.layoutObjects():(group&&typeof group.getObjects==='function'?group.getObjects():[]);
 var pages=[];
 var start=0;
 var boundary=limit;
@@ -32,10 +33,26 @@ var link=document.createElement('a');link.href=dataUrl;link.download=filename;li
 function capturePages(canvas,group,pageHeight,baseName,download){
 if(!canvas||!group)throw new Error('Canvas 或模拟器对象不可用。');
 var bounds=group.getBoundingRect(true,true),scale=Number(group.scaleY)||1,pages=paginateGroup(group,pageHeight),name=baseName||'simulator';
-var outputs=pages.map(function(page){
-var data=canvas.toDataURL({format:'png',left:Math.max(0,bounds.left),top:Math.max(0,bounds.top+page.top*scale),width:bounds.width,height:Math.max(1,page.height*scale),multiplier:1});
+// Render only the target simulator (its own objects), without other layers or the edit grid (audit 67).
+var all=typeof canvas.getObjects==='function'?canvas.getObjects():[];
+var keep=all.indexOf(group)>=0?[group]:(typeof group.getObjects==='function'?group.getObjects():[group]);
+var hidden=[];
+all.forEach(function(object){if(keep.indexOf(object)<0&&object.visible!==false){hidden.push(object);object.visible=false;}});
+var gridWasVisible=typeof isGridVisible!=='undefined'&&isGridVisible&&typeof removeGrid==='function';
+if(gridWasVisible)removeGrid();
+var outputs;
+try{
+outputs=pages.map(function(page){
+var top=Math.max(bounds.top,bounds.top+page.top*scale);
+var height=Math.max(1,Math.min(page.height*scale,bounds.top+bounds.height-top));
+var data=canvas.toDataURL({format:'png',left:Math.max(0,bounds.left),top:Math.max(0,top),width:bounds.width,height:height,multiplier:1});
 return {index:page.index,top:page.top,height:page.height,dataUrl:data,filename:name+'_'+String(page.index+1).padStart(3,'0')+'.png'};
 });
+}finally{
+hidden.forEach(function(object){object.visible=true;});
+if(gridWasVisible&&typeof drawGrid==='function'){drawGrid();isGridVisible=true;}
+if(typeof canvas.requestRenderAll==='function')canvas.requestRenderAll();
+}
 if(download)outputs.forEach(function(item){downloadDataUrl(item.dataUrl,item.filename);});
 return outputs;
 }

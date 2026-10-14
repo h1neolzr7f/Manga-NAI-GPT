@@ -45,6 +45,8 @@
 | 37 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：0 为合法固定种子（0..4294967295），随机仅用于缺失/非法/-1 |
 | 38 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：PS 工具原位 setElement 替换像素，保留图层顺序/clipPath/混合/GUID |
 | 39 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：localToImage 使用完整逆变换（旋转/原点/翻转/缩放） |
+| 41 | 已修复 [PR #21](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/21)：分页插入图层使用宽高统一的 fit 缩放（回归为源码断言，完整交互待浏览器验收） |
+| 42 | 已修复 [PR #21](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/21)：pageView 提供相对页面的 layoutObjects，分页与裁切不随页面位置变化并夹到页面边界 |
 | 44 | 已修复 [PR #19](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/19)：本机抠图临时文件只用短随机名+扩展名，不再拼完整文件名 |
 | 45 | 已修复 [PR #19](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/19)：示例图包写入使用每个写入者唯一的临时文件再原子替换 |
 | 46 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：网络字体 family 先 URL 解码（+/%20）再保存与应用 |
@@ -53,6 +55,7 @@
 | 53 | 已修复 [PR #19](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/19)：重置设置保留素材索引与生成任务记录（产品决定：重置仅针对设置，不清创作数据） |
 | 58 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：导入前校验历史结构；加载中途失败时恢复历史、图片映射、提示词与画布尺寸 |
 | 63 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：导入素材文件名使用完整 ID 的哈希，原子写入 |
+| 67 | 已修复 [PR #21](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/21)：分页长图导出时临时隐藏无关图层和编辑网格，只渲染目标模拟器 |
 | 80 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：glfxReset 锁定原目标并在原索引恢复，不再替换当前选中对象 |
 | 82 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：刀切比例校验失败时回滚子图变换/clipPath/绑定与图层顺序 |
 | 86 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：旧版角色卡就地规范化，输入回调写入当前对象 |
@@ -65,7 +68,12 @@
 | 107 | 已修复 [PR #17](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/17)：合并前收集被吸收气泡的对白，合并后的气泡正文继承原对白（多段换行拼接），新气泡仍为默认“台词” |
 | 112 | 已修复 [PR #19](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/19)：切换侧栏时关闭所有带工具栏开关的面板（含画具） |
 | 113 | 已修复 [PR #17](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/17)：三种聊天布局的消息行 Group 不再强制 left/top=0，保留 Fabric 计算出的行位置 |
+| 114 | 已修复 [PR #21](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/21)：Discord 图片消息与社交动态实际加载图片并等比放置；失败显示“图片加载失败” |
 | 116 | 已修复 [PR #17](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/17)：站点零件文字带稳定字段 ID；readSelected 从画布回读最新文字并同步 simulatorScene，重新应用不再覆盖 |
+| 117 | 已修复 [PR #21](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/21)：Studio 以载入的完整场景为底，只 patch 用户改动字段，列表项按索引保留原有隐藏属性 |
+| 118 | 已修复 [PR #21](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/21)：姓名字段同时写 name/author/sender/user，论坛/手机渲染器都能显示 |
+| 119 | 已修复 [PR #21](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/21)：视觉小说按节点 id 把剧情索引换算到去背景后的对白索引 |
+| 120 | 已修复 [PR #21](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/21)：Studio 文本视图背后保留完整剧情；未改动时原样返回（独白/选项/目标保留），改动后提示纯文本无法承载分支（产品决定） |
 
 <!-- audit-status-end -->
 
