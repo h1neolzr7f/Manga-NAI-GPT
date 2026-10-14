@@ -26,16 +26,16 @@
 | 11 | 已修复 | [PR #5](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/5) |
 | 12 | 已修复 | [PR #5](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/5) |
 | 13 | 已修复 | [PR #9](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/9)：前端最大边与本机代理统一为 1536；代理保留编辑器已适配的合法尺寸，参数与图/蒙版一致 |
-| 14 | 已修复 | PR_MODELS：人物模型先在局部完整加载再原子发布；就绪判断要求全部会话 |
-| 15 | 已修复 | PR_MODELS：_get_extra 返回会话快照，空闲清理清空共享字典不影响进行中的请求（会话由快照引用保持存活） |
-| 16 | 已修复 | PR_MODELS：检测缓存键包含 refine；精修模型不可用时的降级结果不缓存 |
-| 24 | 已修复 | PR_SEC：无系统代理时，Director/tagger/NovelAI 出站连接在连接时解析、校验并固定到已校验地址（与 GPT 图像代理同一规则）；有系统代理时由代理解析。另：_start_tool_job 不再回退读取服务端 NOVELAI_API_KEY |
-| 25 | 已修复 | PR_HIST：文字属性按钮/滑杆记录历史（250ms 合并为一步），侧栏翻转保存历史 |
-| 26 | 已修复 | PR_HIST：复制图层重建 GUID，清空子层 guids 引用 |
-| 27 | 已修复 | PR_FILL：首个 await 前同步占用会话，双击只生成一轮 |
-| 28 | 已修复 | PR_FILL：会话记录来源页；应用前与解码后核对页面，切页时保留候选并提示 |
-| 29 | 已修复 | PR_FILL：生成流程绑定会话对象，旧会话完成不写入新会话、不清理新会话的 busy/controller |
-| 52 | 已修复 | PR_HIST：事件过滤只在 target.saveHistory===false 时跳过；导入底图添加后清除临时抑制 |
+| 14 | 已修复 | [PR #10](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/10)：人物模型先在局部完整加载再原子发布；就绪判断要求全部会话 |
+| 15 | 已修复 | [PR #10](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/10)：_get_extra 返回会话快照，空闲清理清空共享字典不影响进行中的请求（会话由快照引用保持存活） |
+| 16 | 已修复 | [PR #10](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/10)：检测缓存键包含 refine；精修模型不可用时的降级结果不缓存 |
+| 24 | 已修复 | [PR #11](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/11)：无系统代理时，Director/tagger/NovelAI 出站连接在连接时解析、校验并固定到已校验地址（与 GPT 图像代理同一规则）；有系统代理时由代理解析。另：_start_tool_job 不再回退读取服务端 NOVELAI_API_KEY |
+| 25 | 已修复 | [PR #12](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/12)：文字属性按钮/滑杆记录历史（250ms 合并为一步），侧栏翻转保存历史 |
+| 26 | 已修复 | [PR #12](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/12)：复制图层重建 GUID，清空子层 guids 引用 |
+| 27 | 已修复 | [PR #13](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/13)：首个 await 前同步占用会话，双击只生成一轮 |
+| 28 | 已修复 | [PR #13](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/13)：会话记录来源页；应用前与解码后核对页面，切页时保留候选并提示 |
+| 29 | 已修复 | [PR #13](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/13)：生成流程绑定会话对象，旧会话完成不写入新会话、不清理新会话的 busy/controller |
+| 52 | 已修复 | [PR #12](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/12)：事件过滤只在 target.saveHistory===false 时跳过；导入底图添加后清除临时抑制 |
 
 <!-- audit-status-end -->
 
