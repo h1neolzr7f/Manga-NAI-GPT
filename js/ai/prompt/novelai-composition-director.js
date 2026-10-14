@@ -427,7 +427,7 @@ enabled:getCheckboxValue('naiDirectorUseApi',false),
 useProxy:getCheckboxValue('naiDirectorUseProxy',true),
 apiUrl:stripTrailingSlash(getInputValue('naiDirectorApiUrl','')),
 apiKey:getInputValue('naiDirectorApiKey',''),
-model:(getInputValue('naiDirectorModel','deepseek-v4-flash')||'deepseek-v4-flash').toLowerCase(),
+model:getInputValue('naiDirectorModel','deepseek-v4-flash')||'deepseek-v4-flash',
 timeoutMs:clampInt(getInputValue('naiDirectorTimeout','30'),5,180,30)*1000
 };
 }

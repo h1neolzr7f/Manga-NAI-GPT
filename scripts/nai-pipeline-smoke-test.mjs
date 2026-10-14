@@ -181,7 +181,7 @@ async function testDirectorArmorFirst(creds) {
   ];
   const upstream = creds.directorUrl.replace(/\/chat\/completions$/i, "") + "/chat/completions";
   const body = {
-    model: creds.directorModel.toLowerCase(),
+    model: creds.directorModel,
     messages,
     temperature: 0.5,
     response_format: { type: "json_object" }

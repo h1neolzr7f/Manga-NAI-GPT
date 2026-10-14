@@ -1043,11 +1043,14 @@ async function main() {
     await openPage(0);
     await page.waitForFunction(() => !document.getElementById('mangaGptApply').disabled, null, { timeout: 10000 }).catch(() => {});
     // slow CI: the page swap can still be settling; a person who sees "switch back first" just clicks 应用 again
+    // Page 1 may already hold a 'GPT 局部改图' layer from an earlier flow, so wait for the count
+    // to grow; otherwise a wrong-page rejection (page swap still settling) looks like success.
+    const gptLayersBefore = await page.evaluate(() => canvas.getObjects().filter(o => o.name === 'GPT 局部改图').length);
     let applyTries = 0, page1Status = '';
     for (; applyTries < 3; applyTries++) {
       await page.waitForTimeout(applyTries ? 2500 : 300);
       await op.click(page.locator('#mangaGptApply'), '应用（回到第 1 页）');
-      const ok = await page.waitForFunction(() => canvas.getObjects().filter(o => o.name === 'GPT 局部改图').length >= 1, null, { timeout: 20000 }).then(() => true).catch(() => false);
+      const ok = await page.waitForFunction(n => canvas.getObjects().filter(o => o.name === 'GPT 局部改图').length > n, gptLayersBefore, { timeout: applyTries ? 20000 : 8000 }).then(() => true).catch(() => false);
       page1Status = (await page.locator('#mangaGptStatus').textContent()).trim().slice(0, 80);
       if (ok) break;
     }

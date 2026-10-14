@@ -1,6 +1,5 @@
 
 document.addEventListener('DOMContentLoaded',()=>{
-migrateSavedDirectorModel();
 providerRegistry.register(new NovelAIProvider());
 providerRegistry.mapApiMode(apis.NOVELAI,'novelai');
 apiMode=apis.NOVELAI;
@@ -37,7 +36,7 @@ return url+'/chat/completions';
 function setDirectorModel(value){
 var input=$('naiDirectorModel');
 if(!input)return;
-input.value=(value||'').toString().trim().toLowerCase();
+input.value=(value||'').toString().trim();
 input.dispatchEvent(new Event('input',{bubbles:true,cancelable:true}));
 renderDirectorModelChips(window.naiDirectorAvailableModels||DIRECTOR_FALLBACK_MODELS);
 }
@@ -45,27 +44,7 @@ renderDirectorModelChips(window.naiDirectorAvailableModels||DIRECTOR_FALLBACK_MO
 function normalizeDirectorModelValue(){
 var input=$('naiDirectorModel');
 if(!input)return;
-var value=(input.value||'').trim().toLowerCase();
-if(!value||value==='qwen3.5-flash'||value.indexOf('gpt-')===0||value.indexOf('chatgpt-')===0){
-value='deepseek-v4-flash';
-}
-input.value=value;
-}
-
-function migrateSavedDirectorModel(){
-try{
-var stored=localStorage.getItem('localSettingsData');
-if(!stored)return;
-var data=JSON.parse(stored);
-if(!data)return;
-var current=(data.naiDirectorModel||'').toString().trim().toLowerCase();
-if(!current||current==='qwen3.5-flash'||current.indexOf('gpt-')===0||current.indexOf('chatgpt-')===0){
-data.naiDirectorModel='deepseek-v4-flash';
-localStorage.setItem('localSettingsData',JSON.stringify(data));
-}
-}catch(error){
-if(typeof logger!=='undefined')logger.warn('Failed to migrate director model',error);
-}
+input.value=(input.value||'').trim();
 }
 
 function renderDirectorModelChips(models){
@@ -75,17 +54,21 @@ models=(models&&models.length?models:DIRECTOR_FALLBACK_MODELS).map(function(item
 return typeof item==='string'?{id:item,name:item}:item;
 }).filter(function(item){return item&&item.id;});
 window.naiDirectorAvailableModels=models;
-var current=(($('naiDirectorModel')&&$('naiDirectorModel').value)||'').trim().toLowerCase();
-box.innerHTML=models.slice(0,32).map(function(item){
-var id=(item.id||'').toString().trim().toLowerCase();
-var title=(item.name||id)+'\n'+(item.description||'');
-return '<button type="button" class="nai-director-model-chip '+(id===current?'active':'')+'" data-model="'+id.replace(/"/g,'&quot;')+'" title="'+title.replace(/"/g,'&quot;')+'">'+id+'</button>';
-}).join('');
-box.querySelectorAll('.nai-director-model-chip').forEach(function(btn){
+var current=(($('naiDirectorModel')&&$('naiDirectorModel').value)||'').trim();
+box.innerHTML='';
+models.slice(0,32).forEach(function(item){
+var id=(item.id||'').toString().trim();
+var btn=document.createElement('button');
+btn.type='button';
+btn.className='nai-director-model-chip '+(id===current?'active':'');
+btn.dataset.model=id;
+btn.title=(item.name||id)+'\n'+(item.description||'');
+btn.textContent=id;
 btn.addEventListener('click',function(event){
 event.stopPropagation();
 setDirectorModel(this.dataset.model);
 });
+box.appendChild(btn);
 });
 }
 
@@ -106,15 +89,16 @@ var response=await fetch(getDirectorProxyBaseUrl()+'/director-proxy/models',{hea
 var json=await response.json();
 if(!response.ok)throw new Error(json.error||('模型列表读取失败：'+response.status));
 var models=(json.data||[]).map(function(item){return {
-id:(item.id||'').toString().trim().toLowerCase(),
+id:(item.id||'').toString().trim(),
 name:item.name||item.id,
 description:item.description||''
 };}).filter(function(item){return item.id;});
 renderDirectorModelChips(models);
-var current=(($('naiDirectorModel')&&$('naiDirectorModel').value)||'').trim().toLowerCase();
-var hasCurrent=models.some(function(item){return item.id===current;});
-if((!current||current.indexOf('gpt-')===0||current.indexOf('chatgpt-')===0||!hasCurrent)&&models[0]){
-setDirectorModel((json.default||models[0].id).toString().toLowerCase());
+var current=(($('naiDirectorModel')&&$('naiDirectorModel').value)||'').trim();
+// Model lists are suggestions: private deployments may not be listed.
+if(!current&&models[0]){
+var defaultModel=models.find(function(item){return item.id===json.default;});
+setDirectorModel(defaultModel?defaultModel.id:models[0].id);
 }
 if(showNotice){
 createToast('AI 导演',(json.fallback?'使用内置兜底模型列表：':'已刷新模型列表：')+models.length+' 个可用模型',json.fallback?4200:2200);
@@ -148,8 +132,8 @@ event.stopPropagation();
 refreshDirectorModels(true);
 });
 if($('naiDirectorModel'))$('naiDirectorModel').addEventListener('blur',function(){
-this.value=(this.value||'').trim().toLowerCase();
-if(!this.value||this.value==='qwen3.5-flash'||this.value.indexOf('gpt-')===0||this.value.indexOf('chatgpt-')===0)this.value='deepseek-v4-flash';
+normalizeDirectorModelValue();
+this.dispatchEvent(new Event('input',{bubbles:true}));
 renderDirectorModelChips(window.naiDirectorAvailableModels||DIRECTOR_FALLBACK_MODELS);
 });
 if($('naiDirectorTestApi'))$('naiDirectorTestApi').addEventListener('click',async function(event){

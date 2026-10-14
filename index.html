@@ -2410,7 +2410,7 @@ const b = `<svg viewBox="0 0 100 100" width="100%" height="100%" style="position
 </tr>
 <tr>
 <td class="us-field-label">导演 API</td>
-<td><div class="nai-director-api-row"><input type="text" id="naiDirectorApiUrl" value="" placeholder="自行填写 OpenAI 兼容网关，例如 https://your-gateway.example/v1"><div class="nai-director-model-row"><input type="text" id="naiDirectorModel" value="deepseek-v4-flash" placeholder="deepseek-v4-flash"><button id="naiDirectorRefreshModels" class="us-btn-s" type="button">刷新</button></div></div><div class="nai-setting-help">OpenAI-compatible /chat/completions 接口（无默认第三方地址，不填则不调用导演 API；请使用该网关自己的 key，NovelAI 令牌不会发往这里）；NovelAI 仍只负责最终生图。模型名必须小写。</div><div id="naiDirectorModelList" class="nai-director-model-list"></div></td>
+<td><div class="nai-director-api-row"><input type="text" id="naiDirectorApiUrl" value="" placeholder="自行填写 OpenAI 兼容网关，例如 https://your-gateway.example/v1"><div class="nai-director-model-row"><input type="text" id="naiDirectorModel" value="deepseek-v4-flash" placeholder="例如 gpt-4.1-mini 或自定义模型名"><button id="naiDirectorRefreshModels" class="us-btn-s" type="button">刷新</button></div></div><div class="nai-setting-help">OpenAI-compatible /chat/completions 接口（无默认第三方地址，不填则不调用导演 API；请使用该网关自己的 key，NovelAI 令牌不会发往这里）；NovelAI 仍只负责最终生图。模型名可自行填写，按服务要求保留大小写；刷新列表不会覆盖手填模型。</div><div id="naiDirectorModelList" class="nai-director-model-list"></div></td>
 <td><label class="nai-inline-check"><input type="checkbox" id="naiDirectorUseProxy" checked> 本地代理</label></td>
 </tr>
 <tr>
