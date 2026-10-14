@@ -1,4 +1,4 @@
-/* exported createSpinner, removeSpinner, renderAiTaskIndicators, setCurrentAiTask */
+/* exported createSpinner, removeSpinner, isAiTaskCancelled, forgetCancelledAiTask, renderAiTaskIndicators, setCurrentAiTask */
 // AI進捗表示（レイヤー上インジケータ、キャンセル）
 
 var aiProgressState={
@@ -32,9 +32,15 @@ if(name==='novelai'&&typeof novelaiQueue!=='undefined')return novelaiQueue;
 return null;
 }
 
+// Audit 59: a running request cannot be recalled, but its result must not be pasted after ×.
+var cancelledAiTaskIds=new Set();
+function isAiTaskCancelled(taskId){return cancelledAiTaskIds.has(taskId);}
+function forgetCancelledAiTask(taskId){cancelledAiTaskIds.delete(taskId);}
+
 function cancelAiTask(taskId){
 spinnerLogger.debug("cancelAiTask:"+taskId);
 var task=getAiTask(taskId);
+if(task&&task.status==='running')cancelledAiTaskIds.add(taskId);
 if(!task){
 spinnerLogger.debug("cancelAiTask: task not found, removing spinner only");
 removeAiTask(taskId);

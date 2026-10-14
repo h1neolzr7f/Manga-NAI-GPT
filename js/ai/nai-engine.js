@@ -83,8 +83,13 @@
     if (!configured()) return Promise.reject(Object.assign(new Error('还没填 NovelAI Token：请在「服务设置」里填写。'), { needsConfig: true }));
     const body = C.payload(Object.assign({ model: modelId(), ucPreset: ucPreset(), quality: quality(), safeMode: safeMode() }, opts));
     queued++; if (queued > 1 && onStatus) onStatus('排队中（NovelAI 一次只生成一张，前面还有 ' + (queued - 1) + ' 张）…');
-    const p = chain.then(() => (lastEnd && Date.now() - lastEnd < C.SPACING_MS ? new Promise(r => setTimeout(r, C.SPACING_MS - (Date.now() - lastEnd))) : null)).then(() => once(body, signal, onStatus)).then(img => ({ image: img, seed: body.parameters.seed, width: body.parameters.width, height: body.parameters.height, model: body.model }));
-    chain = p.catch(() => {}).then(() => { queued--; lastEnd = Date.now(); });
+    const job = () => Promise.resolve(lastEnd && Date.now() - lastEnd < C.SPACING_MS ? new Promise(r => setTimeout(r, C.SPACING_MS - (Date.now() - lastEnd))) : null).then(() => once(body, signal, onStatus));
+    // Audit 60: share the editor's NovelAI queue so legacy layer generation and AI Fill never run at once
+    // on the same account, and existsWaitQueue/clearAllQueues see every request.
+    const shared = typeof novelaiQueue !== 'undefined' && novelaiQueue && typeof novelaiQueue.add === 'function' ? novelaiQueue : null;
+    const p = (shared ? shared.add(job) : chain.then(job)).then(img => ({ image: img, seed: body.parameters.seed, width: body.parameters.width, height: body.parameters.height, model: body.model }));
+    const done = p.catch(() => {}).then(() => { queued--; lastEnd = Date.now(); });
+    if (!shared) chain = done;
     return p;
   }
   // Engine preference per task: remembered; NovelAI is the default when GPT is not configured.
