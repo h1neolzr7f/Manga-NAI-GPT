@@ -89,6 +89,8 @@ top: 0,
 });
 setNotSave(img);
 canvas.add(img);
+// The suppression only covers the initial add; later moves/scales of this image are user edits.
+delete img.saveHistory;
 
 canvas.setActiveObject(img);
 saveInitialState(img);
