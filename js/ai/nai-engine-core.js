@@ -26,13 +26,15 @@
   /** Which controls make sense for a model (per-model parameter visibility). */
   function features(id) { const m = model(id); return { characters: m.v4, positions: m.v4, inpaint: !!m.inpaint, inpaintNative: !/^nai-diffusion-5/.test(m.id), noiseSchedule: m.v4 ? 'karras' : 'native', smea: !m.v4 }; }
   function model(id) { return MODELS.find(m => m.id === id) || MODELS[0]; }
+  const MAX_EDGE = 1536;
   function r64(v) { return Math.max(64, Math.round(v / 64) * 64); }
   /** Largest 64-multiple size with the target aspect that stays within the free pixel budget. */
   function sizeFor(w, h, maxPixels) {
     maxPixels = maxPixels || FREE.maxPixels;
     const a = (w > 0 && h > 0) ? w / h : 1;
     let H = Math.sqrt(maxPixels / a), W = H * a;
-    const maxEdge = 1600; if (W > maxEdge) { W = maxEdge; H = W / a; } if (H > maxEdge) { H = maxEdge; W = H * a; }
+    // Same edge limit as 99_server.py _safe_nai_size (NAI_MAX_EDGE) so image/mask and parameters agree (audit 13).
+    const maxEdge = MAX_EDGE; if (W > maxEdge) { W = maxEdge; H = W / a; } if (H > maxEdge) { H = maxEdge; W = H * a; }
     W = r64(W); H = r64(H);
     while (W * H > maxPixels) { if (W / H > a && W > 64) W -= 64; else if (H > 64) H -= 64; else break; }
     return { width: W, height: H };
