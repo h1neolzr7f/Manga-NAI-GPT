@@ -53,11 +53,14 @@
 | 37 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：0 为合法固定种子（0..4294967295），随机仅用于缺失/非法/-1 |
 | 38 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：PS 工具原位 setElement 替换像素，保留图层顺序/clipPath/混合/GUID |
 | 39 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：localToImage 使用完整逆变换（旋转/原点/翻转/缩放） |
+| 40 | 已修复 [PR #27](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/27)：单页扁平 ZIP 在无页容器为空时按本页加载；zip→lz4 转换始终解压条目（DEFLATE 不再把压缩字节当 JSON） |
 | 41 | 已修复 [PR #21](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/21)：分页插入图层使用宽高统一的 fit 缩放（回归为源码断言，完整交互待浏览器验收） |
 | 42 | 已修复 [PR #21](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/21)：pageView 提供相对页面的 layoutObjects，分页与裁切不随页面位置变化并夹到页面边界 |
+| 43 | 已修复 [PR #27](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/27)：隐私模式覆盖真实图层预览 DIV.layer-preview、素材卡 .asset-library-card img 及角色/历史缩略图（悬停仍可看清） |
 | 44 | 已修复 [PR #19](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/19)：本机抠图临时文件只用短随机名+扩展名，不再拼完整文件名 |
 | 45 | 已修复 [PR #19](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/19)：示例图包写入使用每个写入者唯一的临时文件再原子替换 |
 | 46 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：网络字体 family 先 URL 解码（+/%20）再保存与应用 |
+| 47 | 已修复 [PR #27](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/27)：AI Fill 导出 PSD 使用 live 位置与尺寸（rasterize 结果），不再回退到生成时的 aiFill.box |
 | 48 | 已修复 [PR #20](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/20)：PSD 导出把画布背景色作为底层“背景”，合成图使用同色；透明背景保持原样 |
 | 49 | 已修复 [PR #16](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/16)：超容量对白放入同场景续格，不跨说话人合并；每句带稳定 line ID/speaker（wizardLines，写入 data-script-lines） |
 | 50 | 已修复 [PR #20](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/20)：显式多行文字也检查跨行方向总高度，放不下时进入换行/overflow 分支 |

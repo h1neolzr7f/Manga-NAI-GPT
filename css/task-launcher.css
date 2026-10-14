@@ -159,8 +159,9 @@ body.ui-beginner #mangaPageOpen, body.ui-beginner #mangaCharacterOpen { display:
 .ai-fill-cost,.task-engine-cost{font-size:12px}
 .ai-fill-cost[data-free="true"],.task-engine-cost[data-free="true"]{color:var(--ui-ok,#3fb950)}
 /* 隐私模式: thumbnails blurred until hovered */
-body.privacy-blur .nai-history-panel img,body.privacy-blur .btm-image-container img,body.privacy-blur .ai-fill-cand img,body.privacy-blur .layer-item img,body.privacy-blur #layers-container img{filter:blur(10px)}
-body.privacy-blur .nai-history-panel img:hover,body.privacy-blur .btm-image-container img:hover,body.privacy-blur .ai-fill-cand img:hover,body.privacy-blur #layers-container img:hover{filter:none}
+/* Audit 43: layer previews are DIV.layer-preview (background-image); asset cards use .asset-library-card img */
+body.privacy-blur .nai-history-panel img,body.privacy-blur .btm-image-container img,body.privacy-blur .ai-fill-cand img,body.privacy-blur .layer-item img,body.privacy-blur #layers-container img,body.privacy-blur .layer-preview,body.privacy-blur .asset-library-card img,body.privacy-blur .manga-character-panel img,body.privacy-blur .nai-history-item img{filter:blur(10px)}
+body.privacy-blur .nai-history-panel img:hover,body.privacy-blur .btm-image-container img:hover,body.privacy-blur .ai-fill-cand img:hover,body.privacy-blur #layers-container img:hover,body.privacy-blur .layer-preview:hover,body.privacy-blur .asset-library-card img:hover,body.privacy-blur .manga-character-panel img:hover,body.privacy-blur .nai-history-item img:hover{filter:none}
 /* 1.6 prompt assist (optional) */
 .pa-bar{display:none;flex-wrap:wrap;gap:4px;align-items:center;margin:2px 0 4px}
 body.pa-on .pa-bar{display:flex}
