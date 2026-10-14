@@ -4,11 +4,22 @@ Version numbers apply to **this fork only**, not to upstream Manga Editor Desu.
 
 ## Unreleased
 
-### 本机 OCR / 去字后端
-- 检测本页文字后可自动用 **manga-ocr** 精修每条候选（默认勾选；后台预取仍只用 Tesseract，避免偷下模型）。也可「全部精修」或单条精修。
-- 本地 LaMa 增加可选引擎 **漫画微调**（`df1412/anime-big-lama` TorchScript，MIT；SHA-256 校验 + 首次确认下载）；UI 可选「自动 / 漫画 / 通用」。
-- 实机对比：`docs/dev/smoke-162-backends/`（样例页 rough CER 约 0.56→0.41；漫画 LaMa 蒙版内 MAE 更低）。
-- 本轮未接入：PP-OCRv6_manga、Baberu OCR、AOT（理由见该目录 README）。
+## 1.6.3 — 2026-10-14（实机质量抛光）
+
+### 中文
+- **OCR**：manga-ocr 精修仍为检测后的默认可靠路径；竖排气泡加大左右留白；可疑结果黄标「建议核对」；已缓存时后台预热模型；UI 默认与 smoke 一致。本轮仍不接入 PP-OCR（避免 NC / 重依赖）。
+- **去字 / AI 填充**：去掉杂物默认走 `engine=auto`（有漫画 LaMa 用漫画，否则通用）；蒙版边缘略膨胀 2px 便于接缝。
+- **UX**：启动页「Sun network」改为 Standby（不再吓人 Failed）；换角色在打开服务设置前说明需 GPT；人物识别未就绪时不再刷 501。
+- **SAM**：导入页后若权重已缓存，可选预热页面 embedding。
+- **回归**：`docs/dev/smoke-163/` 对 `comic-page.jpg` 复测；审计状态仍为 120/120。
+
+### English
+- OCR: manga-ocr refine remains the default post-detect path; better vertical crop padding; suspect yellow flags; warm when cached. No PP-OCR this release.
+- Inpaint: AI Fill「去掉杂物」uses `engine=auto` (manga LaMa when cached); +2px mask soften.
+- UX: softer splash; swap explains GPT before settings; no characters 501 spam when runtime missing.
+- SAM: optional page-import embedding preload when weights cached.
+- Smoke: `docs/dev/smoke-163/`. Audit table still 120/120 fixed.
+
 
 ## 1.6.2 — 2026-10-14（全面审计修复）
 

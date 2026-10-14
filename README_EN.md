@@ -19,7 +19,9 @@ Manga-NAI-GPT is built on [Manga Editor Desu](https://github.com/new-sankaku/man
 
 ## Features
 
-Current version **1.6.2**: six tasks on the home screen, plus a character library, automatic speech balloons, a Ctrl+K command palette, a history panel with thumbnails, and PSD import/export. Since 1.6, *Edit an area* and *Draw a page* can also use NovelAI (V5 supported), with the Anlas cost shown before generating. This repair adds stable canvas layout, bounded character replacement masks, context review, cancellation guards and per-panel cast controls. Local Windows startup, offline regressions and browser layout checks were verified; real image-service inference was not configured for this repair. See [CHANGELOG](CHANGELOG.md).
+Current version **1.6.3**: six tasks on the home screen, plus a character library, automatic speech balloons, a Ctrl+K command palette, a history panel with thumbnails, and PSD import/export. Since 1.6, *Edit an area* and *Draw a page* can also use NovelAI (V5 supported), with the Anlas cost shown before generating. This repair adds stable canvas layout, bounded character replacement masks, context review, cancellation guards and per-panel cast controls. Local Windows startup, offline regressions and browser layout checks were verified; real image-service inference was not configured for this repair. See [CHANGELOG](CHANGELOG.md).
+
+**Local backends (1.6.3):** Caption OCR defaults to post-detect manga-ocr refine when weights are cached (first use asks before ~400MB download). Remove-object / erase-text defaults to LaMa `auto` (manga-finetuned weights when present, else stock). The 1.6.2 audit closed 120/120 findings; this release is quality polish — see `docs/dev/smoke-163/`.
 
 | Task | What it does | Needs |
 |---|---|---|

@@ -264,13 +264,15 @@
     S.ctrl = new AbortController();
     const model = (($('mangaGptModel') || {}).value || '').trim();
     const pa = root.PanelAuto ? await root.PanelAuto.get().catch(() => null) : null;
-    const meta = { engine: S.engine, preset: S.preset, typed, prompt: sentence, model: S.engine === 'gpt' ? model : S.engine === 'nai' ? root.NaiEngine.modelId() : 'lama', box: [r.x, r.y, r.w, r.h], mask, source, candidates: [], chosen: 0, edge: F.edgeFor(F.maskBox(hard, S.W, S.H).map((v, i) => v - (i % 2 ? r.y : r.x))), created: new Date().toISOString(), clip: F.panelClip(pa && pa.panels && pa.panels.length > 1 ? pa.panels : [], r, S.W) };
+    const meta = { engine: S.engine, preset: S.preset, typed, prompt: sentence, model: S.engine === 'gpt' ? model : S.engine === 'nai' ? root.NaiEngine.modelId() : (function(){ try { return localStorage.getItem('mnai.lama.engine') || 'auto'; } catch (_) { return 'auto'; } })(), box: [r.x, r.y, r.w, r.h], mask, source, candidates: [], chosen: 0, edge: F.edgeFor(F.maskBox(hard, S.W, S.H).map((v, i) => v - (i % 2 ? r.y : r.x))), created: new Date().toISOString(), clip: F.panelClip(pa && pa.panels && pa.panels.length > 1 ? pa.panels : [], r, S.W) };
     $('aiFillResults').innerHTML = '';
     const t0 = performance.now();
     try {
       if (S.engine === 'lama') {
         status('本机 LaMa 修复中…');
-        const d = await root.MangaModelRequest.post('/manga-smart/lama-inpaint', { image: source, mask }, { signal: S.ctrl.signal });
+        let lamaEngine = 'auto';
+        try { lamaEngine = localStorage.getItem('mnai.lama.engine') || 'auto'; } catch (_) {}
+        const d = await root.MangaModelRequest.post('/manga-smart/lama-inpaint', { image: source, mask, engine: lamaEngine }, { signal: S.ctrl.signal });
         if (!d || !d.ok) throw new Error((d && d.error) || 'LaMa 没有返回结果。');
         meta.candidates.push(d.image);
       } else if (S.engine === 'nai') {

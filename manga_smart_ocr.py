@@ -147,6 +147,21 @@ def find_tesseract():
     return None
 
 
+
+def _flag_suspect_regions(result):
+    """Attach cheap suspect flags for UI yellow highlight (never drops regions)."""
+    try:
+        from manga_ocr_refiner import _looks_suspect
+    except Exception:
+        return result
+    for reg in result.get("regions") or []:
+        if "suspect" in reg:
+            continue
+        reg["suspect"] = _looks_suspect(
+            reg.get("text"), reg.get("confidence") or 0, bool(reg.get("vertical")))
+    return result
+
+
 def _maybe_refine(result, image_bytes, refine, allow_download):
     """Optionally re-recognize each region with manga-ocr.
 
@@ -156,22 +171,23 @@ def _maybe_refine(result, image_bytes, refine, allow_download):
     """
     if refine is False or not result.get("regions"):
         result.setdefault("refined", False)
+        _flag_suspect_regions(result)
         return result
     try:
         from manga_ocr_refiner import package_ready, refine_page_regions
         from manga_model_guard import manga_ocr_cached
     except Exception:
         result["refined"] = False
-        return result
+        return _flag_suspect_regions(result)
     if not package_ready():
         result["refined"] = False
         if refine is True:
             raise SmartOcrError(
                 "未安装 Manga OCR。请在本地 Python 环境执行 pip install manga-ocr。", 503)
-        return result
+        return _flag_suspect_regions(result)
     if refine is None and not manga_ocr_cached():
         result["refined"] = False
-        return result
+        return _flag_suspect_regions(result)
     try:
         regions, count = refine_page_regions(
             image_bytes, result["width"], result["height"], result["regions"], allow_download)
@@ -180,19 +196,19 @@ def _maybe_refine(result, image_bytes, refine, allow_download):
             raise
         result["refined"] = False
         result["refineSkipped"] = str(exc)
-        return result
+        return _flag_suspect_regions(result)
     except Exception as exc:
         if refine is True:
             raise SmartOcrError("Manga OCR 精修失败：" + str(exc), 502) from exc
         result["refined"] = False
         result["refineSkipped"] = "manga-ocr refine skipped"
-        return result
+        return _flag_suspect_regions(result)
     result["regions"] = regions
     result["refined"] = count > 0
     result["refinedCount"] = count
     if count:
         result["engine"] = (result.get("engine") or "tesseract-local") + "+manga-ocr"
-    return result
+    return _flag_suspect_regions(result)
 
 
 def ocr_image(data_url, language="auto", refine=None, allow_download=False):
@@ -299,6 +315,14 @@ def _run_tesseract(executable, image, language, psm):
     return stdout
 
 
+def _characters_runtime_ready():
+    try:
+        from manga_character_detect import runtime_available
+        return runtime_available()
+    except Exception:
+        return False
+
+
 def _chars_cached():
     try:
         from manga_character_detect import cached
@@ -356,12 +380,12 @@ def local_model_status():
             "mangaOcr": {"ready": has("manga_ocr"), "cached": __import__("manga_model_guard").manga_ocr_cached()},
             "textDetector": {"ready": has("onnxruntime") and has("cv2"), "cached": _ctd_cached()},
             "samSelect": {"ready": has("torch") and has("sam2") and has("cv2"), "cached": _sam_cached()},
-            "characters": {"ready": has("onnxruntime") and has("cv2"), "cached": _chars_cached(), "identityCached": _id_cached()}}
+            "characters": {"ready": _characters_runtime_ready(), "cached": _chars_cached(), "identityCached": _id_cached()}}
 
 
 def handle_smart_ocr_post(handler):
     route = handler.path.split("?", 1)[0]
-    if route not in ("/manga-smart/ocr", "/manga-smart/manga-ocr", "/manga-smart/lama-inpaint", "/manga-smart/status", "/manga-smart/text-mask", "/manga-smart/sam-click", "/manga-smart/characters", "/manga-smart/faces", "/manga-smart/character-embed", "/manga-smart/character-identify", "/manga-smart/download-progress", "/manga-smart/prompt-helper-status", "/manga-smart/prompt-helper-download"):
+    if route not in ("/manga-smart/ocr", "/manga-smart/manga-ocr", "/manga-smart/lama-inpaint", "/manga-smart/status", "/manga-smart/text-mask", "/manga-smart/sam-click", "/manga-smart/sam-warm", "/manga-smart/ocr-warm", "/manga-smart/characters", "/manga-smart/faces", "/manga-smart/character-embed", "/manga-smart/character-identify", "/manga-smart/download-progress", "/manga-smart/prompt-helper-status", "/manga-smart/prompt-helper-download"):
         return False
     if not _authorized_local_request(handler):
         handler.close_connection = True
@@ -377,15 +401,29 @@ def handle_smart_ocr_post(handler):
         if not isinstance(data, dict):
             raise SmartOcrError("OCR 请求必须是对象。")
         allow_download = data.get("allow_download") is True
-        _idle_kind = {"/manga-smart/characters": "sam2", "/manga-smart/sam-click": "sam2", "/manga-smart/text-mask": "ctd",
-                      "/manga-smart/lama-inpaint": "lama", "/manga-smart/manga-ocr": "manga-ocr"}.get(route)
+        _idle_kind = {"/manga-smart/characters": "sam2", "/manga-smart/sam-click": "sam2", "/manga-smart/sam-warm": "sam2", "/manga-smart/text-mask": "ctd",
+                      "/manga-smart/lama-inpaint": "lama", "/manga-smart/manga-ocr": "manga-ocr", "/manga-smart/ocr-warm": "manga-ocr"}.get(route)
         if _idle_kind:
             try:
                 from manga_model_guard import touch
                 touch(_idle_kind)
             except Exception:
                 pass
-        if route == "/manga-smart/status":
+        if route == "/manga-smart/ocr-warm":
+            from manga_ocr_refiner import warm as warm_ocr
+            from manga_model_guard import manga_ocr_cached
+            if not manga_ocr_cached() and not allow_download:
+                result = {"ok": True, "warmed": False, "skipped": "not-cached"}
+            else:
+                result = warm_ocr(allow_download)
+        elif route == "/manga-smart/sam-warm":
+            from manga_sam_select import warm as warm_sam
+            from manga_sam_select import cached as sam_cached
+            if not sam_cached() and not allow_download:
+                result = {"ok": True, "warmed": False, "skipped": "not-cached"}
+            else:
+                result = warm_sam(data)
+        elif route == "/manga-smart/status":
             result = local_model_status()
         elif route in ("/manga-smart/prompt-helper-status", "/manga-smart/prompt-helper-download"):
             import prompt_helper_images as phi

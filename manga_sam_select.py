@@ -137,6 +137,36 @@ def _clean_points(points, w, h):
     return out
 
 
+
+def warm(payload):
+    """Preload the page embedding only (no click). Low-risk: requires cached weights
+    unless allow_download is true; skips when imageId already embedded.
+    """
+    image_id = str((payload or {}).get("imageId") or "")[:80]
+    if not image_id:
+        raise SmartOcrError("缺少 imageId。", 400)
+    if image_id in _embeds:
+        return {"ok": True, "warmed": True, "cached": True, "imageId": image_id}
+    if not (payload or {}).get("image"):
+        raise SmartOcrError("缺少页面图像，无法预热智能点选。", 400)
+    # Reuse select with a discarded center point after embed — prefer embed-only path.
+    from manga_model_guard import exclusive
+    with exclusive("sam2", wait=60):
+        pred = _get_predictor((payload or {}).get("allow_download") is True)
+        import numpy as np
+        import time as _time
+        from PIL import Image
+        t0 = _time.time()
+        raw, _w, _h = read_image(payload["image"])
+        rgb = np.array(Image.open(io.BytesIO(raw)).convert("RGB"))
+        pred.set_image(rgb)
+        _embeds[image_id] = (pred._features, pred._orig_hw)
+        while len(_embeds) > MAX_EMBEDS:
+            _embeds.popitem(last=False)
+        return {"ok": True, "warmed": True, "cached": False, "imageId": image_id,
+                "embedSeconds": round(_time.time() - t0, 2)}
+
+
 def select(payload):
     from manga_model_guard import exclusive
     image_id = str(payload.get("imageId") or "")[:80]

@@ -249,7 +249,12 @@ function start(id){
 var t=task(id);if(!t)return;
 if(id==='page'&&window.NaiEngine&&NaiEngine.configured()){startNow(id);return;}
 if(NEEDS_GPT[id]&&window.ServiceSettings&&ServiceSettings.ensureReady&&(t.kind==='page'||hasPage())){
-ServiceSettings.ensureReady('gpt').then(function(ok){if(ok)startNow(id);});
+ServiceSettings.ready('gpt').then(function(ok){
+if(ok){startNow(id);return;}
+if(id==='swap')toast('换角色需要 GPT 图像服务','请先在「服务设置」里选服务、填 API 地址和 Key，点「测试连接」后再回来。换角色会改画面，本机模型不够用。');
+else if(id==='custom')toast('自定义改图需要 GPT','请先配置 GPT 图像服务，再回来做这块修改。');
+ServiceSettings.ensureReady('gpt').then(function(ready){if(ready)startNow(id);});
+});
 return;
 }
 startNow(id);

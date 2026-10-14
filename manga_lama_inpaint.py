@@ -225,12 +225,27 @@ def match_tone(source, generated, mask):
     return importlib.import_module("PIL.Image").merge("RGB", bands)
 
 
+
+def _soften_mask(mask, pad_px=2):
+    """Expand the inpaint mask by a few pixels so hard edges near strokes blend better.
+
+    Cheap MaxFilter; keeps coverage under the existing percent cap (caller re-checks).
+    """
+    try:
+        from PIL import ImageFilter
+        size = max(3, int(pad_px) * 2 + 1)
+        return mask.filter(ImageFilter.MaxFilter(size))
+    except Exception:
+        return mask
+
+
 def inpaint(image_url, mask_url, allow_download=False, engine="auto"):
     raw, w, h = read_image(image_url)
     mask_raw, mw, mh = read_image(mask_url)
     if w != mw or h != mh or w * h > MAX_CROP_PIXELS:
         raise SmartOcrError("LaMa 原图和蒙版尺寸必须一致且不超过 300 万像素。", 413)
     source, mask = decode_pair(raw, mask_raw, w, h)
+    mask = _soften_mask(mask, 2)
     covered = sum(v >= 128 for v in mask.getdata())
     if covered < 4 or covered / (w * h) > MAX_MASK_PERCENT:
         raise SmartOcrError("去字蒙版为空或超过区域的 66%，请缩小蒙版。")

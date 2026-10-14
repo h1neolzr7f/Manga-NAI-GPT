@@ -35,3 +35,11 @@
 @media(max-width:550px) {
   .manga-smart-panel { top:38px; right:8px; max-height:calc(100vh - 46px); }
 }
+.manga-smart-item.is-suspect {
+  border-color: #c9a227;
+  background: #3a3420;
+}
+.manga-smart-item.is-suspect .manga-smart-line span:first-of-type,
+.manga-smart-item.is-suspect > .manga-smart-line > span {
+  color: #f0d56a;
+}
