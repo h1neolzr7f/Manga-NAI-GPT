@@ -32,6 +32,9 @@
 | 24 | 已修复 | PR_SEC：无系统代理时，Director/tagger/NovelAI 出站连接在连接时解析、校验并固定到已校验地址（与 GPT 图像代理同一规则）；有系统代理时由代理解析。另：_start_tool_job 不再回退读取服务端 NOVELAI_API_KEY |
 | 25 | 已修复 | PR_HIST：文字属性按钮/滑杆记录历史（250ms 合并为一步），侧栏翻转保存历史 |
 | 26 | 已修复 | PR_HIST：复制图层重建 GUID，清空子层 guids 引用 |
+| 27 | 已修复 | PR_FILL：首个 await 前同步占用会话，双击只生成一轮 |
+| 28 | 已修复 | PR_FILL：会话记录来源页；应用前与解码后核对页面，切页时保留候选并提示 |
+| 29 | 已修复 | PR_FILL：生成流程绑定会话对象，旧会话完成不写入新会话、不清理新会话的 busy/controller |
 | 52 | 已修复 | PR_HIST：事件过滤只在 target.saveHistory===false 时跳过；导入底图添加后清除临时抑制 |
 
 <!-- audit-status-end -->

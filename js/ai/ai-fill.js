@@ -90,7 +90,7 @@
     // 改一块: one entry, three presets. Default 去掉杂物 (local LaMa: free, works before any GPT is set up).
     const preset = opts.preset || (opts.engine === 'gpt' ? 'free' : 'remove');
     S = { W: pg.width, H: pg.height, page: pg.image, tool: 'brush', size: Math.max(12, Math.round(pg.width / 40)), preset, engine: PRESETS[preset].engine,
-      count: 3, layer: opts.layer || null, results: [], busy: false, ai: root.NaiEngine ? root.NaiEngine.preferred('fill', gptReady) : 'gpt' };
+      count: 3, layer: opts.layer || null, results: [], busy: false, pageGuid: pageGuidNow(), ai: root.NaiEngine ? root.NaiEngine.preferred('fill', gptReady) : 'gpt' };
     S.mask = canvasOf(S.W, S.H); S.tint = canvasOf(S.W, S.H);
     const meta = opts.layer && opts.layer.aiFill;
     if (meta) {   // regenerate: start from the stored mask and prompt
@@ -162,6 +162,7 @@
     const t = await root.NaiEngine.costText({ width: r.w, height: r.h, action: 'infill' }, S.count); if (S && S.engine === 'nai') { c.textContent = t.text.replace(/^/, S.count + ' 张 · '); c.dataset.free = String(t.free); }
   }
   async function naiCandidates(r, source, mask, sentence) {
+    const S = current();
     const N = root.NaiEngineCore, size = N.sizeFor(r.w, r.h);
     const fit = async (url, bg) => { const im = await loadImg(url), c = canvasOf(size.width, size.height), g = c.getContext('2d'); g.fillStyle = bg; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height); return c.toDataURL('image/png'); };
     const image = await fit(source, '#fff'), m = await fit(mask, '#000'); const seeds = [];
@@ -227,8 +228,17 @@
   }
   function maskBoxOf(hard, w, h) { return F.maskBox(hard, w, h) || [0, 0, w, h]; }
 
+  // The session is occupied before the first await (a double click must not start two rounds,
+  // audit 27) and every write/cleanup is scoped to that session object (audit 29).
   async function generate() {
     if (!S || S.busy) return;
+    const sess = S;
+    sess.busy = true; updateButtons();
+    try { await generateIn(sess); }
+    finally { if (S === sess) { sess.busy = false; sess.ctrl = null; updateButtons(); } }
+  }
+  async function generateIn(sess) {
+    const S = sess;
     const hard = maskData(); const box = F.maskBox(hard, S.W, S.H);
     if (!box) return status('先在画面上涂出要改的地方（笔刷、框选或智能点选）。', true);
     const typed = S.preset === 'remove' ? '' : $('aiFillPrompt').value.trim();
@@ -251,7 +261,7 @@
     const md = mg.getImageData(0, 0, r.w, r.h); let cover = 0; for (let i = 0; i < md.data.length; i += 4) { const v = md.data[i + 3] && md.data[i] >= 128 ? 255 : 0; md.data[i] = md.data[i + 1] = md.data[i + 2] = v; md.data[i + 3] = 255; cover += v ? 1 : 0; }
     mg.putImageData(md, 0, 0); const mask = mc.toDataURL('image/png');
     if (S.engine === 'lama' && cover / (r.w * r.h) > 0.6) return status('要去掉的区域太大了（超过裁切范围的 60%），请分几次涂。', true);
-    S.busy = true; updateButtons(); S.ctrl = new AbortController();
+    S.ctrl = new AbortController();
     const model = (($('mangaGptModel') || {}).value || '').trim();
     const pa = root.PanelAuto ? await root.PanelAuto.get().catch(() => null) : null;
     const meta = { engine: S.engine, preset: S.preset, typed, prompt: sentence, model: S.engine === 'gpt' ? model : S.engine === 'nai' ? root.NaiEngine.modelId() : 'lama', box: [r.x, r.y, r.w, r.h], mask, source, candidates: [], chosen: 0, edge: F.edgeFor(F.maskBox(hard, S.W, S.H).map((v, i) => v - (i % 2 ? r.y : r.x))), created: new Date().toISOString(), clip: F.panelClip(pa && pa.panels && pa.panels.length > 1 ? pa.panels : [], r, S.W) };
@@ -278,17 +288,20 @@
         settled.forEach(s => { if (s.status === 'fulfilled') meta.candidates.push(s.value); });
         if (!meta.candidates.length) throw settled.find(s => s.status === 'rejected').reason;
       }
+      if (current() !== sess) return;   // closed/reopened while decoding: results belong to the old session
       S.meta = F.normalizeMeta(meta); S.ms = Math.round(performance.now() - t0);
       await showResults();
       status('生成好了（' + (S.ms / 1000).toFixed(1) + ' 秒）。点一张看大图，满意就「用这张」。');
     } catch (e) {
+      if (current() !== sess) return;
       const msg = e.name === 'AbortError' ? '已取消。' : (e.message || String(e));
       if (S && S.engine === 'gpt' && root.NaiEngine && root.NaiEngine.isRefusal(msg)) {
         status('这个 GPT 服务按它自己的内容规则拒绝了这次请求（不是本编辑器的限制）。可以改用 NovelAI 再试，提示词只发给 NovelAI。', true);
         $('aiFillUseNai').hidden = false;
       } else status(msg, true);
-    } finally { if (S) { S.busy = false; S.ctrl = null; updateButtons(); } }
+    }
   }
+  function current() { return S; }
 
   async function showResults() {
     const box = $('aiFillResults'); box.innerHTML = '';
@@ -310,19 +323,28 @@
   function pick(k) { S.pick = k; document.querySelectorAll('#aiFillResults .ai-fill-cand').forEach(b => b.classList.toggle('is-active', b.dataset.k === String(k))); }
 
   /** Chosen candidate -> layer (new, or replaces the regenerated one); one undo step. */
+  function pageGuidNow() { return typeof getCanvasGUID === 'function' ? getCanvasGUID() : null; }
+  const WRONG_PAGE = '这些候选是为另一页生成的。请切回原页再点「用这张」（候选已保留）。';
+  /** Candidates belong to the page they were made for (audit 28): checked before and after decoding. */
   function apply(k) {
-    const meta = Object.assign({}, S.meta, { chosen: k }); const url = S.layers[k]; const target = S.layer;
+    if (S.pageGuid && pageGuidNow() !== S.pageGuid) { status(WRONG_PAGE, true); return Promise.resolve(null); }
+    const meta = Object.assign({}, S.meta, { chosen: k }); const url = S.layers[k]; const target = S.layer; const pageGuid = S.pageGuid;
     close();
-    return putLayer(target, meta, url);
+    return putLayer(target, meta, url, pageGuid);
   }
-  function putLayer(target, meta, url) {
+  function putLayer(target, meta, url, pageGuid) {
     const c = fc();
+    const stale = () => pageGuid && pageGuidNow() !== pageGuid;
+    const refuse = resolve => { if (typeof createToastError === 'function') createToastError('改一块', '页面已切换，结果没有贴到当前页。请回到原页重新生成或应用。'); resolve(null); };
     return new Promise(resolve => {
       if (target) {
-        target.setSrc(url, () => { target.set({ aiFill: meta, left: meta.box[0], top: meta.box[1], scaleX: 1, scaleY: 1, name: layerName(meta) }); c.requestRenderAll(); if (typeof saveStateByManual === 'function') saveStateByManual(); showChip(target); resolve(target); });
+        if (stale()) return refuse(resolve);
+        target.setSrc(url, () => {
+          if (stale()) return refuse(resolve); target.set({ aiFill: meta, left: meta.box[0], top: meta.box[1], scaleX: 1, scaleY: 1, name: layerName(meta) }); c.requestRenderAll(); if (typeof saveStateByManual === 'function') saveStateByManual(); showChip(target); resolve(target); });
         return;
       }
       fabric.Image.fromURL(url, obj => {
+        if (stale()) return refuse(resolve);
         obj.set({ left: meta.box[0], top: meta.box[1], name: layerName(meta), aiFill: meta });
         c.add(obj);
         const api = ed(); if (api && api.letteringInsertIndex) { const i = api.letteringInsertIndex(c.getObjects(), obj); if (i < c.getObjects().indexOf(obj)) obj.moveTo(i); }
