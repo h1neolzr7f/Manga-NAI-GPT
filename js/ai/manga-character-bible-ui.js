@@ -139,7 +139,7 @@
       await refresh();
       message('角色「'+card.name+'」已保存在本机浏览器。可跨分镜复用。');
       // 2.0: build the identity (CCIP features + colours) so the character is recognised on pages
-      if(window.CharacterLibrary)window.CharacterLibrary.buildIdentity(card).then(ok=>{if(ok){refresh();message('角色「'+card.name+'」已建立识别特征，之后能在页面上自动认出。');}}).catch(()=>{});
+      if(window.CharacterLibrary)window.CharacterLibrary.buildIdentity(card).then(ok=>{if(ok){refresh();message('角色「'+card.name+'」已建立识别特征，之后能在页面上自动认出。');}}).catch(e=>message('角色「'+card.name+'」已保存，但没能建立识别特征：'+((e&&e.message)||e),true));
     }catch(e){message(e.message||String(e),true);}
     finally{button.disabled=false;}
   }

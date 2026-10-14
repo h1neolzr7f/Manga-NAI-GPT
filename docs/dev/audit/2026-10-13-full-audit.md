@@ -35,7 +35,12 @@
 | 27 | 已修复 | [PR #13](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/13)：首个 await 前同步占用会话，双击只生成一轮 |
 | 28 | 已修复 | [PR #13](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/13)：会话记录来源页；应用前与解码后核对页面，切页时保留候选并提示 |
 | 29 | 已修复 | [PR #13](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/13)：生成流程绑定会话对象，旧会话完成不写入新会话、不清理新会话的 busy/controller |
+| 33 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：角色库嵌入接受 JPEG/WebP（校验格式与像素上限）；建立识别特征失败时界面提示 |
+| 34 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：旧批处理只重试明确拒绝（429/502/503/504）；结果未知与写盘失败不重发付费请求，写盘单独重试 |
 | 52 | 已修复 | [PR #12](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/12)：事件过滤只在 target.saveHistory===false 时跳过；导入底图添加后清除临时抑制 |
+| 58 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：导入前校验历史结构；加载中途失败时恢复历史、图片映射、提示词与画布尺寸 |
+| 63 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：导入素材文件名使用完整 ID 的哈希，原子写入 |
+| 86 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：旧版角色卡就地规范化，输入回调写入当前对象 |
 
 <!-- audit-status-end -->
 

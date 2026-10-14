@@ -297,7 +297,9 @@ function extractFirstImageFromZip(bytes) {
 async function generateImage({ token, prompt, negativePrompt, outputPath, width, height, seed, steps, scale, model, endpoint }) {
   const payload = buildRequest({ prompt, negativePrompt, width, height, seed, steps, scale, model });
   console.log(`NovelAI request size: ${payload.parameters.width}x${payload.parameters.height}, samples=1`);
-  const response = await fetch(endpoint, {
+  let response;
+  try {
+    response = await fetch(endpoint, {
     method: "POST",
     headers: {
       Authorization: /^Bearer\s+/i.test(token) ? token : `Bearer ${token}`,
@@ -305,15 +307,35 @@ async function generateImage({ token, prompt, negativePrompt, outputPath, width,
       "Content-Type": "application/json"
     },
     body: JSON.stringify(payload)
-  });
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`NovelAI failed ${response.status}: ${text.slice(0, 500)}`);
+    });
+  } catch (error) {
+    // The request may have been accepted (and charged): result unknown, never resent automatically.
+    throw Object.assign(new Error(`NovelAI request result unknown, not retried: ${error.message || error}`), { retryable: false });
   }
-  const image = await responseToImageBuffer(response);
-  await fs.mkdir(path.dirname(outputPath), { recursive: true });
-  await fs.writeFile(outputPath, image);
-  return { seed: payload.parameters.seed, outputPath };
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    // Only rejections that clearly did not generate anything are retried.
+    throw Object.assign(new Error(`NovelAI failed ${response.status}: ${text.slice(0, 500)}`), { retryable: [429, 502, 503, 504].includes(response.status) });
+  }
+  let image;
+  try {
+    image = await responseToImageBuffer(response);
+  } catch (error) {
+    throw Object.assign(new Error(`NovelAI response could not be read (result unknown, not retried): ${error.message || error}`), { retryable: false });
+  }
+  // The image exists now: only the local save is retried, never the paid request (audit 34).
+  let lastWriteError = null;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      await fs.mkdir(path.dirname(outputPath), { recursive: true });
+      await fs.writeFile(outputPath, image);
+      return { seed: payload.parameters.seed, outputPath };
+    } catch (error) {
+      lastWriteError = error;
+      await sleep(250 * attempt);
+    }
+  }
+  throw Object.assign(new Error(`Generated image could not be saved to ${outputPath}: ${lastWriteError && lastWriteError.message}`), { retryable: false });
 }
 
 function sleep(ms) {
@@ -328,7 +350,7 @@ async function generateImageWithRetry(options, retries = Number(process.env.NAI_
     } catch (error) {
       lastError = error;
       const message = (error && error.message) || String(error);
-      if (attempt >= retries) break;
+      if (!error || error.retryable !== true || attempt >= retries) break;
       const delay = Math.min(60000, 3500 * attempt);
       console.log(`Retry ${attempt}/${retries - 1} after error: ${message.slice(0, 180)}`);
       await sleep(delay);
