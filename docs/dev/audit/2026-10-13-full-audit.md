@@ -48,6 +48,9 @@
 | 80 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：glfxReset 锁定原目标并在原索引恢复，不再替换当前选中对象 |
 | 82 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：刀切比例校验失败时回滚子图变换/clipPath/绑定与图层顺序 |
 | 86 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：旧版角色卡就地规范化，输入回调写入当前对象 |
+| 107 | 已修复 [PR #17](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/17)：合并前收集被吸收气泡的对白，合并后的气泡正文继承原对白（多段换行拼接），新气泡仍为默认“台词” |
+| 113 | 已修复 [PR #17](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/17)：三种聊天布局的消息行 Group 不再强制 left/top=0，保留 Fabric 计算出的行位置 |
+| 116 | 已修复 [PR #17](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/17)：站点零件文字带稳定字段 ID；readSelected 从画布回读最新文字并同步 simulatorScene，重新应用不再覆盖 |
 
 <!-- audit-status-end -->
 

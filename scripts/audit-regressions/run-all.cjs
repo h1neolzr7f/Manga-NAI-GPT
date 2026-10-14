@@ -2,7 +2,7 @@
 const {execFileSync}=require('child_process'),fs=require('fs'),path=require('path');
 const dir=__dirname;let failed=0;
 for(const f of fs.readdirSync(dir).sort()){
-  if(f==='run-all.cjs')continue;
+  if(f==='run-all.cjs'||f.startsWith('_'))continue;   // _*.cjs are shared helpers
   const cmd=f.endsWith('.py')?(process.platform==='win32'?'python':'python3'):f.endsWith('.cjs')?process.execPath:null;
   if(!cmd)continue;
   try{process.stdout.write(execFileSync(cmd,[path.join(dir,f)],{encoding:'utf8',stdio:['ignore','pipe','inherit']}));}
