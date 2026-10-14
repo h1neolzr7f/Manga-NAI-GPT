@@ -22,10 +22,10 @@
 | 06 | 已修复 | [PR #8](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/8)：任务 ID 单调递增，只重排显示序号 |
 | 07 | 已修复 | [PR #7](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/7)：项目签名包含页序与每页 blob 身份 |
 | 08 | 已修复 | [PR #7](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/7)：写入全部成功后才提交标记；失败与清除都会失效 |
-| 09 | 已修复 | PR_TIMEOUTS：ServiceRequest 与 NaiEngine 的超时/取消覆盖到响应体读取与解包；响应体超时仍按“结果未知”处理，不自动重发 |
+| 09 | 已修复 | [PR #9](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/9)：ServiceRequest 与 NaiEngine 的超时/取消覆盖到响应体读取与解包；响应体超时仍按“结果未知”处理，不自动重发 |
 | 11 | 已修复 | [PR #5](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/5) |
 | 12 | 已修复 | [PR #5](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/5) |
-| 13 | 已修复 | PR_TIMEOUTS：前端最大边与本机代理统一为 1536；代理保留编辑器已适配的合法尺寸，参数与图/蒙版一致 |
+| 13 | 已修复 | [PR #9](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/9)：前端最大边与本机代理统一为 1536；代理保留编辑器已适配的合法尺寸，参数与图/蒙版一致 |
 
 <!-- audit-status-end -->
 
