@@ -143,7 +143,10 @@ def _same_glyph(a, b):
         return True
     # a glyph split in two (e.g. the dakuten of が read as a second が right next to it)
     # Needs real overlap: two identical glyphs merely close together are normal text like 「ああ」 (audit 68).
-    overlap = ix >= 0.3 * min(a["w"], b["w"])
+    gap = max(a["x"], b["x"]) - min(a["x"] + a["w"], b["x"] + b["w"])
+    # ...or a narrow fragment touching a full glyph (a split が), never two full-size neighbours.
+    fragment = gap <= 2 and min(a["w"], b["w"]) <= 0.6 * max(a["w"], b["w"])
+    overlap = ix >= 0.3 * min(a["w"], b["w"]) or fragment
     return a["text"] == b["text"] and overlap and iy >= 0.5 * min(a["h"], b["h"])
 
 
@@ -228,10 +231,10 @@ def read_bubble(run_tesseract, parse_tsv, bubble):
     vertical = (ty1 - ty0) > (tx1 - tx0) * 1.3
     # The winning mode's structure decides when it has several columns / lines (audit 70);
     # the block's shape only settles single-column/single-line results.
-    if best[4] and len(_columns(words)) >= 2:
-        vertical = True
-    elif not best[4] and len(_lines(words)) >= 2:
-        vertical = False
+    # Only real structure counts: several groups, at least one holding 2+ words side by side.
+    groups = _columns(words) if best[4] else _lines(words)
+    if len(groups) >= 2 and any(len(g) >= 2 for g in groups):
+        vertical = bool(best[4])
     return {"text": best[1][:500], "x": x + tx0, "y": y + ty0, "width": max(1, tx1 - tx0), "height": max(1, ty1 - ty0),
             "confidence": round(best[2], 1), "vertical": vertical,
             # median single-glyph size (cross direction): caps the replacement font (audit 72)
