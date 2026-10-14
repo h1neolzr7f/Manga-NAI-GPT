@@ -110,6 +110,7 @@
 | 94 | 已修复 [PR #19](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/19)：工具模式记录并恢复图层原选中状态；用户移动锁显式记为 userMoveLock 并持久化 |
 | 95 | 已修复 [PR #33](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/33)：竖排 onInput 接受 Delete/WordForward/Undo/Redo/Replacement 与多字 deleteCompositionText，退出编辑前同步 textarea |
 | 96 | 已修复 [PR #33](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/33)：竖排构造克隆 keysMapRtl，不再污染已有横排 RTL 文字的方向键 |
+| 97 | 已修复 [PR #34](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/34)：字体上传/本机/web 仅在持久化成功后改列表与清输入；删除失败保留选择器与 durable；失败 toast；成功卸载时尽力移除 FontFace |
 | 98 | 已修复 [PR #33](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/33)：composition 选区经 fromStringToGraphemeSelection 转 grapheme 索引再绘制，emoji 前缀下 IME 高亮对准正确字 |
 | 101 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：日期键按本地年月日解析；周目标与周统计统一周一为起点（产品决定） |
 | 103 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：正向规则只改正向提示词，负向规则只改负向；空旧词跳过 |

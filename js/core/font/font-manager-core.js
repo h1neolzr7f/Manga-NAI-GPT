@@ -371,6 +371,7 @@ let fmFontData = {
         .split("\n")
         .filter((name) => name.trim());
 
+    let anySaved = false;
     for (const fontName of fontNames) {
         if (this.existsFont(fontName)) {
             createToastError(getText("alreadyRegisteredFont"), fontName);
@@ -392,9 +393,15 @@ let fmFontData = {
                 const fontFace = new FontFace(fontName, `local("${variant}")`);
                 await fontFace.load();
                 document.fonts.add(fontFace);
-                await fmFontRepository.saveLocalFont(fontName);
+                const saved = await fmFontRepository.saveLocalFont(fontName);
+                if (!saved) {
+                  try { document.fonts.delete(fontFace); } catch (_) {}
+                  createToastError(getText("error") || "Font save failed", fontName);
+                  break;
+                }
                 this.addFontOption({ name: fontName, type: "local" });
                 loaded = true;
+                anySaved = true;
             } catch (error) {
                 fontLogger.error(`${variant}`, error);
                 if (variant === fontVariants[fontVariants.length - 1]) {
@@ -407,7 +414,8 @@ let fmFontData = {
     await this.setUserFontData();
     FontSelectorManager.reloadAll();
     fmUserFontManager.updateFontList();
-    $("fm-localFontInput").value = "";
+    // Audit 97: keep input when nothing persisted so the user can retry.
+    if (anySaved) $("fm-localFontInput").value = "";
 },
 
 
@@ -419,6 +427,7 @@ let fmFontData = {
         .value.trim()
         .split("\n")
         .filter((url) => url.trim());
+    let anyWebSaved = false;
     for (const fontUrl of urls) {
       try {
         const fontMatch = fontUrl.match(/family=([^&]+)/);
@@ -434,16 +443,23 @@ let fmFontData = {
         }
 
         await this.loadWebFontStylesheet(fontUrl);
-        await fmFontRepository.saveWebFont(fontName, fontUrl);
+        const saved = await fmFontRepository.saveWebFont(fontName, fontUrl);
+        if (!saved) {
+          createToastError(getText("error") || "Font save failed", fontName);
+          continue;
+        }
         this.addFontOption({ name: fontName, type: "web", url: fontUrl });
+        anyWebSaved = true;
       } catch (error) {
         fontLogger.error(fontUrl, error);
+        createToastError("Register font is error", error);
       }
     }
     await this.setUserFontData();
     FontSelectorManager.reloadAll();
     fmUserFontManager.updateFontList();
-    if (!url) $("fm-webFontUrlInput").value = "";
+    // Audit 97: clear URL box only after at least one durable save (manual form path).
+    if (!url && anyWebSaved) $("fm-webFontUrlInput").value = "";
   },
 
   async loadWebFontStylesheet(url) {
@@ -467,25 +483,43 @@ let fmFontData = {
       const fontFace = new FontFace(fontName, buffer);
       const loadedFont = await fontFace.load();
       document.fonts.add(loadedFont);
-      await fmFontRepository.saveUploadedFont(fontName, buffer);
+      const saved = await fmFontRepository.saveUploadedFont(fontName, buffer);
+      if (!saved) {
+        try { document.fonts.delete(loadedFont); } catch (_) {}
+        createToastError(getText("error") || "Font save failed", fontName);
+        return;
+      }
       this.addFontOption({ name: fontName, type: "upload" });
       await this.setUserFontData();
       FontSelectorManager.reloadAll();
       fmUserFontManager.updateFontList();
     } catch (error) {
       fontLogger.error(fontName, error);
+      createToastError("Register font is error", error);
     }
   },
 
   async unregisterFont(fontData) {
     // console.log("unregisterFont fontData", JSON.stringify(fontData));
-    await fmFontRepository.deleteFont(fontData.value);
+    const deleted = await fmFontRepository.deleteFont(fontData.value);
+    if (!deleted) {
+      createToastError(getText("error") || "Font delete failed", fontData.value);
+      return;
+    }
 
     const userFonts = fmFontData["UserFont"].fonts;
     const index = userFonts.findIndex(font => font.name === fontData.value);
     if (index !== -1) {
       userFonts.splice(index, 1);
     }
+    // Best-effort unload so a re-register of the same name is not shadowed.
+    try {
+      document.fonts.forEach(function(face){
+        if (face && face.family === fontData.value) {
+          try { document.fonts.delete(face); } catch (_) {}
+        }
+      });
+    } catch (_) {}
     FontSelectorManager.reloadAll();
   },
 
