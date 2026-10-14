@@ -115,6 +115,8 @@
 | 101 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：日期键按本地年月日解析；周目标与周统计统一周一为起点（产品决定） |
 | 103 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：正向规则只改正向提示词，负向规则只改负向；空旧词跳过 |
 | 104 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：提示词替换改为字面替换，不再当正则 |
+| 105 | 已修复 [PR #36](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/36)：导演等待期间若提示词已改则保留用户编辑；回显仅当仍显示同一分镜，切到他层不改 textarea |
+| 106 | 已修复 [PR #36](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/36)：仅当“保存草稿”开关显式勾选时写入 naiDirectorDraft（产品：默认不存，避免取消仍留草稿） |
 | 107 | 已修复 [PR #17](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/17)：合并前收集被吸收气泡的对白，合并后的气泡正文继承原对白（多段换行拼接），新气泡仍为默认“台词” |
 | 112 | 已修复 [PR #19](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/19)：切换侧栏时关闭所有带工具栏开关的面板（含画具） |
 | 113 | 已修复 [PR #17](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/17)：三种聊天布局的消息行 Group 不再强制 left/top=0，保留 Fabric 计算出的行位置 |

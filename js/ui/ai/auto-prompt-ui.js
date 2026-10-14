@@ -1,3 +1,5 @@
+var currentDirectorLayerGuid=null;
+
 function escapePromptHtml(value){
 return (value||'').toString()
 .replace(/&/g,'&amp;')
@@ -37,6 +39,7 @@ if(!window.NovelAICompositionDirector||typeof window.NovelAICompositionDirector.
 createToastError('AI 导演','导演模块还没有加载完成。',2500);
 return null;
 }
+var requestGuid=layer&&layer.guid;
 var roughPrompt=$("text2img_prompt")?$("text2img_prompt").value:layer.text2img_prompt;
 var button=$("naiDirectorDraft");
 if(button){
@@ -57,11 +60,26 @@ button.textContent='AI 导演写提示词';
 }
 }
 if(!result)return null;
+var stillShowing=currentDirectorLayerGuid===requestGuid;
+if(result.stale){
+createToast('AI 导演',['提示词已在等待期间被修改','已保留你的编辑，未覆盖'],2800);
+if(stillShowing) renderDirectorPlan(result.plan);
+}else if(stillShowing){
 if($("text2img_prompt"))$("text2img_prompt").value=layer.text2img_prompt||'';
 if($("text2img_negative"))$("text2img_negative").value=layer.text2img_negative||'';
 renderDirectorPlan(result.plan);
+var detail=result.plan?[
+'模式：'+result.plan.mode,
+'画幅：'+result.plan.canvas_fit,
+result.plan.api_director?'来源：导演 API':'来源：本地导演'
+]:['已生成当前分镜提示词'];
+createToast('AI 导演',detail,2400);
+}else{
+createToast('AI 导演',['已写回原分镜（当前已切换）'],2400);
+}
+// Audit 106 / product: only persist a draft when the toggle is explicitly on.
 var storeDrafts=$("naiDirectorStoreDrafts");
-if(!storeDrafts||storeDrafts.checked){
+if(storeDrafts&&storeDrafts.checked){
 layer.naiDirectorDraft={
 prompt:result.prompt,
 negative_prompt:result.negative_prompt,
@@ -69,17 +87,14 @@ plan:result.plan,
 source_prompt:roughPrompt,
 created_at:new Date().toISOString()
 };
+}else if(layer&&layer.naiDirectorDraft&&storeDrafts&&!storeDrafts.checked){
+// leave any prior draft untouched when toggle is off
 }
-var detail=result.plan?[
-'模式：'+result.plan.mode,
-'画幅：'+result.plan.canvas_fit,
-result.plan.api_director?'来源：导演 API':'来源：本地导演'
-]:['已生成当前分镜提示词'];
-createToast('AI 导演',detail,2400);
 return result;
 }
 
 function renderNovelAILayerPrompt(layer,type){
+currentDirectorLayerGuid=layer&&layer.guid;
 var otherControlsMini=$("other-controls-mini");
 if(!otherControlsMini)return;
 var isImage=type==='I2I';
