@@ -69,21 +69,27 @@ def extra_cached():
 def _get_extra(allow_download):
     """face detector + CCIP sessions, or None when the user has not downloaded them (optional upgrade)."""
     from manga_model_guard import require_download_consent
-    if "face" in _extra:
-        return _extra
+    # Callers get a snapshot: idle release may clear the shared dict while a request is still
+    # using its sessions (audit 15). Readiness means every session is present (audit 14).
+    if all(k in _extra for k in EXTRA):
+        return dict(_extra)
     if not extra_cached():
         require_download_consent("charid", False, allow_download)
     with _lock:
-        if "face" not in _extra:
+        if not all(k in _extra for k in EXTRA):
             import onnxruntime as ort
+            ready = {}
             for k, v in EXTRA.items():
                 path = extra_path(k)
                 if not (os.path.isfile(path) and os.path.getsize(path) == v["bytes"]):
                     _download_to(v["url"], path, v["sha"])
                 elif _sha256(path) != v["sha"]:
                     raise SmartOcrError("本机的人物识别模型文件校验不通过，请删除后重新下载：" + path, 500)
-                _extra[k] = ort.InferenceSession(path, providers=["CPUExecutionProvider"])
-    return _extra
+                ready[k] = ort.InferenceSession(path, providers=["CPUExecutionProvider"])
+            # publish only a complete set; a failure above leaves _extra untouched
+            _extra.clear()
+            _extra.update(ready)
+        return dict(_extra)
 
 
 def runtime_available():
@@ -559,7 +565,9 @@ def detect(payload):
     import numpy as np
     from PIL import Image
     raw, _w, _h = read_image(payload.get("image"))
-    key = hashlib.sha1(raw).hexdigest() + ("+id" if extra else "")
+    refine = payload.get("refine", True) is not False
+    # The cache key covers every input that changes the result (audit 16).
+    key = hashlib.sha1(raw).hexdigest() + ("+id" if extra else "") + ("+refine" if refine else "")
     if key in _cache:
         hit = dict(_cache[key]); hit["cached"] = True
         return hit
@@ -568,7 +576,7 @@ def detect(payload):
     face_boxes = faces(rgb, extra["face"]) if extra else []
     # a background prefetch never queues behind (or blocks) a user action: busy → 429, the client just skips it
     with exclusive("sam2", wait=0 if payload.get("background") is True else 90):
-        if payload.get("refine", True) is not False:
+        if refine:
             try:
                 from manga_sam_select import _get_predictor, _embeds
                 predictor = _get_predictor(allow)
@@ -595,6 +603,8 @@ def detect(payload):
                     "cluster": cluster_identities(ids, [chars[i]["panel"] for i in idx], diff)}
     res = {"ok": True, "width": int(rgb.shape[1]), "height": int(rgb.shape[0]), "panels": pans, "faces": face_boxes,
            "characters": chars, "refined": predictor is not None, "identity": identity}
+    if refine and predictor is None:
+        return res   # degraded (refine model unavailable): don't cache, retry once it is installed
     _cache[key] = res
     while len(_cache) > 3:
         _cache.pop(next(iter(_cache)))

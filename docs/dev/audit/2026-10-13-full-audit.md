@@ -26,6 +26,9 @@
 | 11 | 已修复 | [PR #5](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/5) |
 | 12 | 已修复 | [PR #5](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/5) |
 | 13 | 已修复 | [PR #9](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/9)：前端最大边与本机代理统一为 1536；代理保留编辑器已适配的合法尺寸，参数与图/蒙版一致 |
+| 14 | 已修复 | PR_MODELS：人物模型先在局部完整加载再原子发布；就绪判断要求全部会话 |
+| 15 | 已修复 | PR_MODELS：_get_extra 返回会话快照，空闲清理清空共享字典不影响进行中的请求（会话由快照引用保持存活） |
+| 16 | 已修复 | PR_MODELS：检测缓存键包含 refine；精修模型不可用时的降级结果不缓存 |
 
 <!-- audit-status-end -->
 
