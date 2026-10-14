@@ -7,6 +7,8 @@ storeName:'tagFrequency',
 });
 var MAX_TAGS=500;
 var MAX_COOCCURRENCE=500;
+var writeChain=Promise.resolve();
+function enqueueWrite(fn){writeChain=writeChain.then(fn,fn);return writeChain;}
 function parsePrompt(prompt){
 if(!prompt||typeof prompt!=='string') return[];
 var tags=prompt
@@ -26,6 +28,7 @@ return{};
 }
 }
 async function recordPrompt(prompt){
+return enqueueWrite(async function(){
 try{
 var tags=parsePrompt(prompt);
 if(tags.length===0) return null;
@@ -66,7 +69,9 @@ return frequencies;
 dashboardTagLogger.error('Error recording prompt:',error);
 return null;
 }
+});
 }
+
 async function recordCoOccurrence(tags){
 try{
 var coData=(await store.getItem('cooccurrence'))||{};

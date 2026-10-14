@@ -15,6 +15,8 @@ storeName:'timeBasedStats',
 var MODES=['T2I','I2I'];
 var MAX_HISTORY_PER_MODE=100;
 var MAX_DAILY_RECORDS=365;
+var writeChain=Promise.resolve();
+function enqueueWrite(fn){writeChain=writeChain.then(fn,fn);return writeChain;}
 function getDefaultStats(){
 return{
 count:0,
@@ -42,6 +44,7 @@ allStats[MODES[i]]=await getStats(MODES[i]);
 return allStats;
 }
 async function recordTime(mode,timeMs,promptLength){
+return enqueueWrite(async function(){
 try{
 var stats=await getStats(mode);
 var now=Date.now();
@@ -60,7 +63,9 @@ return stats;
 dashboardPerfLogger.error('Error recording time:',error);
 return null;
 }
+});
 }
+
 async function addToHistory(mode,timeMs,promptLength){
 try{
 var history=(await historyStore.getItem('history_'+mode))||[];
@@ -291,6 +296,21 @@ globalMin:globalMin,
 globalMax:globalMax,
 };
 }
+function computeLongestStreak(dailyData){
+var dates=Object.keys(dailyData||{}).filter(function(k){return (dailyData[k]||0)>0;}).sort();
+if(dates.length===0) return 0;
+var longest=1,run=1;
+for(var i=1;i<dates.length;i++){
+var prev=dates[i-1].split('-').map(Number);
+var cur=dates[i].split('-').map(Number);
+var prevDate=new Date(prev[0],prev[1]-1,prev[2]);
+var curDate=new Date(cur[0],cur[1]-1,cur[2]);
+var diff=Math.round((curDate-prevDate)/86400000);
+if(diff===1){run++;if(run>longest)longest=run;}
+else run=1;
+}
+return longest;
+}
 function getDateKey(date){
 return date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');
 }
@@ -310,7 +330,13 @@ checkDate.setDate(checkDate.getDate()-1);
 checkDate.setDate(checkDate.getDate()-1);
 var yesterdayKey=getDateKey(checkDate);
 if(!dailyData[yesterdayKey]){
+// Audit 102: still derive historical longest from retained daily stats when current streak is 0.
 var longestStreak=(await timeStore.getItem('longestStreak'))||0;
+var historical=computeLongestStreak(dailyData);
+if(historical>longestStreak){
+longestStreak=historical;
+await timeStore.setItem('longestStreak',longestStreak);
+}
 return{currentStreak:0,longestStreak:longestStreak,todayCount:todayCount};
 }
 currentStreak=1;
@@ -326,10 +352,10 @@ break;
 }
 }
 longestStreak=(await timeStore.getItem('longestStreak'))||0;
-if(currentStreak>longestStreak){
-longestStreak=currentStreak;
+var historical=computeLongestStreak(dailyData);
+if(historical>longestStreak) longestStreak=historical;
+if(currentStreak>longestStreak) longestStreak=currentStreak;
 await timeStore.setItem('longestStreak',longestStreak);
-}
 return{currentStreak:currentStreak,longestStreak:longestStreak,todayCount:todayCount};
 }catch(error){
 dashboardPerfLogger.error('Error getting streak:',error);
@@ -397,6 +423,7 @@ return null;
 }
 }
 async function recordSessionGeneration(){
+return enqueueWrite(async function(){
 try{
 var currentSession=await timeStore.getItem('currentSession');
 if(!currentSession) return;
@@ -405,6 +432,7 @@ await timeStore.setItem('currentSession',currentSession);
 }catch(error){
 dashboardPerfLogger.error('Error recording session generation:',error);
 }
+});
 }
 async function endSession(){
 try{
@@ -450,6 +478,7 @@ return{currentDuration:0,currentGenCount:0,avgSessionDuration:0,avgGenPerSession
 }
 }
 async function recordModel(modelName){
+return enqueueWrite(async function(){
 try{
 if(!modelName) return null;
 var modelStats=(await store.getItem('modelStats'))||{};
@@ -464,6 +493,7 @@ return modelStats;
 dashboardPerfLogger.error('Error recording model:',error);
 return null;
 }
+});
 }
 async function getModelStats(){
 try{
