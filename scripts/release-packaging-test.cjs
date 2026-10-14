@@ -17,3 +17,12 @@ assert.match(zip, /\[string\]\$SourceRoot/, 'portable packager accepts prepared 
 assert.match(zip, /\$robocopyArgs = @\(\$SourceRoot,/, 'portable packager copies the supplied prepared source');
 assert.match(installer, /https:\/\/github\.com\/h1neolzr7f\/Manga-NAI-GPT"/, 'installer support links use this repository');
 console.log('PASS release packaging: tag trigger, installer information, runtime payload and support links');
+const manifest = JSON.parse(fs.readFileSync(path.join(root, 'bundled_models/MANIFEST.json'), 'utf8'));
+assert.equal(manifest.bundled.length, 1, 'installer ships exactly one light weight by default');
+assert.equal(manifest.bundled[0].id, 'ctd');
+assert.ok(manifest.download_only.includes('manga-ocr'));
+assert.ok(manifest.download_only.includes('lama-manga'));
+const prep = read('scripts/prepare-installer.ps1');
+assert.match(prep, /comictextdetector\.pt\.onnx/, 'prepare-installer downloads CTD into staging');
+assert.doesNotMatch(prep, /anime-manga-big-lama\.pt/, 'prepare-installer does not bundle manga LaMa');
+console.log('PASS bundled_models policy: CTD only in installer, heavy models download-only');

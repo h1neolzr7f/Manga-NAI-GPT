@@ -635,7 +635,7 @@
       '<div id="mangaSmartRegions" class="manga-smart-regions"></div>',
       '<button id="mangaSmartApply" type="button" disabled>应用为可编辑图层</button>',
       '<p class="manga-smart-hint" data-adv="1">自动去字仅适合纯色气泡。复杂背景请先用 GPT 改图擦字，或取消勾选仅插入文字。',
-      '基础 OCR 需要本机 Tesseract 及所选语言包。勾选「检测后用 Manga OCR 精修」后，检测完成会自动用 manga-ocr 重认每条（推荐）；也可点「全部精修」或单条「Manga OCR 精修」。首次可能联网下载约 400MB，之后离线。精修结果须人工确认。去字可用通用 LaMa 或漫画微调 LaMa。</p>',
+      '基础 OCR 需要本机 Tesseract 及所选语言包。勾选「检测后用 Manga OCR 精修」后，检测完成会自动用 manga-ocr 重认每条（推荐）；也可点「全部精修」或单条「Manga OCR 精修」。首次可能联网下载约 400MB，之后离线。精修结果须人工确认。纯色气泡优先气泡填底色；复杂背景再用通用 / 漫画 LaMa。</p>',
       '<div id="mangaSmartStatus" role="status"></div>'
     ].join('');
     document.body.appendChild(panel);

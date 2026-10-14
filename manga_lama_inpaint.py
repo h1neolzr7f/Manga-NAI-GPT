@@ -4,10 +4,11 @@ Upstream: enesmsahin/simple-lama-inpainting (PyPI ``simple-lama-inpainting``, mo
 ``simple_lama_inpainting``), documented SimpleLama()(PIL image, PIL L mask).
 
 Engines:
+* ``bubble`` — deterministic speech-bubble paper fill (no neural net).
 * ``lama`` — stock big-lama.pt (~200MB), default SimpleLama download.
 * ``lama-manga`` — anime/manga-finetuned TorchScript weights (df1412/anime-big-lama,
   MIT; ~196MB), SHA-256 pinned, downloaded only after allow_download consent.
-* ``auto`` — prefer lama-manga when its weights are already cached, else stock lama.
+* ``auto`` — try bubble fill first; on failure prefer lama-manga when cached, else stock lama.
 
 No external API credentials or editable filesystem path from the HTTP caller.
 Heavy optional model only initialized on the first explicit preview request.
@@ -36,7 +37,7 @@ MAX_MASK_PERCENT = .66
 _models = {}  # engine -> SimpleLama instance
 _lock = threading.RLock()
 
-ENGINES = frozenset(("lama", "lama-manga", "auto"))
+ENGINES = frozenset(("lama", "lama-manga", "auto", "bubble"))
 
 
 def _import_upstream():
@@ -53,13 +54,13 @@ def _import_upstream():
 
 
 def manga_weights_path():
+    from manga_bundle import bundled_file, prefer
     explicit = (os.environ.get("LAMA_MANGA_MODEL") or "").strip()
-    if explicit:
-        return os.path.abspath(os.path.expanduser(explicit))
     torch_home = os.environ.get("TORCH_HOME") or os.path.join(
         os.environ.get("XDG_CACHE_HOME") or os.path.join("~", ".cache"), "torch")
-    return os.path.abspath(os.path.expanduser(
+    cache = os.path.abspath(os.path.expanduser(
         os.path.join(torch_home, "hub", "checkpoints", "anime-manga-big-lama.pt")))
+    return prefer(explicit, bundled_file("anime-manga-big-lama.pt"), cache)
 
 
 def manga_cached():
@@ -142,7 +143,10 @@ def get_model(allow_download=False, engine="lama"):
         else:
             require_download_consent("lama", False, allow_download)
             try:
-                _models[chosen] = _load_simple_lama(None)
+                from manga_bundle import bundled_file
+                bundled = bundled_file("big-lama.pt")
+                use = bundled if bundled and not (os.environ.get("LAMA_MODEL") or "").strip() else None
+                _models[chosen] = _load_simple_lama(use)
             except SmartOcrError:
                 raise
             except Exception as exc:
@@ -245,12 +249,43 @@ def inpaint(image_url, mask_url, allow_download=False, engine="auto"):
     if w != mw or h != mh or w * h > MAX_CROP_PIXELS:
         raise SmartOcrError("LaMa 原图和蒙版尺寸必须一致且不超过 300 万像素。", 413)
     source, mask = decode_pair(raw, mask_raw, w, h)
+    covered = sum(v >= 128 for v in mask.getdata())
+    if covered < 4 or covered / (w * h) > MAX_MASK_PERCENT:
+        raise SmartOcrError("去字蒙版为空或超过区域的 66%，请缩小蒙版。")
+
+    name = (engine or "auto").strip().lower()
+    if name not in ENGINES:
+        raise SmartOcrError("不支持的 LaMa 引擎：" + str(engine))
+
+    # Deterministic bubble paper fill first (auto / bubble). Soften only for neural path.
+    if name in ("auto", "bubble"):
+        from manga_bubble_fill import detect_and_fill
+        filled, meta = detect_and_fill(source, mask)
+        if filled is not None:
+            out = io.BytesIO()
+            filled.save(out, format="PNG")
+            if out.tell() > 12 * 1024 * 1024:
+                raise SmartOcrError("修复图超过 12MB 限制。", 413)
+            return {
+                "ok": True, "engine": "bubble-fill-local", "engineName": "bubble",
+                "width": w, "height": h,
+                "image": "data:image/png;base64," + base64.b64encode(out.getvalue()).decode("ascii"),
+                "applied": False, "verified": False,
+                "paper": meta.get("paper"), "paperStd": meta.get("paperStd"),
+                "maskInBubble": meta.get("maskInBubble"),
+                "warning": "气泡填底色预览未修改原画。纯色气泡内的字已涂成气泡纸色；描边保留。请人工确认后再添加图层。",
+            }
+        if name == "bubble":
+            raise SmartOcrError(
+                "这块不像纯色气泡内的字（" + str(meta.get("reason") or "不适用") +
+                "）。请改用自动 / 漫画 LaMa，或收紧蒙版只盖住气泡里的字。", 422)
+
     mask = _soften_mask(mask, 2)
     covered = sum(v >= 128 for v in mask.getdata())
     if covered < 4 or covered / (w * h) > MAX_MASK_PERCENT:
         raise SmartOcrError("去字蒙版为空或超过区域的 66%，请缩小蒙版。")
     with exclusive("lama"):
-        chosen, model = get_model(allow_download, engine)
+        chosen, model = get_model(allow_download, "auto" if name == "auto" else name)
         try:
             with _lock:
                 generated = model(source, mask)

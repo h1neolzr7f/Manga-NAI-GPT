@@ -27,11 +27,11 @@ _lock = threading.Lock()
 
 
 def weights_path():
+    from manga_bundle import bundled_file, prefer
     explicit = (os.environ.get("CTD_MODEL") or "").strip()
-    if explicit:
-        return os.path.abspath(os.path.expanduser(explicit))
     cache = os.environ.get("XDG_CACHE_HOME") or os.path.join("~", ".cache")
-    return os.path.abspath(os.path.expanduser(os.path.join(cache, "manga-editor", "comictextdetector.pt.onnx")))
+    cached = os.path.abspath(os.path.expanduser(os.path.join(cache, "manga-editor", "comictextdetector.pt.onnx")))
+    return prefer(explicit, bundled_file("comictextdetector.pt.onnx"), cached)
 
 
 def cached():

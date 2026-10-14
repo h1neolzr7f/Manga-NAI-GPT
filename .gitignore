@@ -212,3 +212,9 @@ models/
 *.safetensors
 # local test output
 artifacts/
+
+# Bundled model weights (downloaded at package time; never commit binaries)
+bundled_models/**
+!bundled_models/README.md
+!bundled_models/MANIFEST.json
+!bundled_models/.gitkeep

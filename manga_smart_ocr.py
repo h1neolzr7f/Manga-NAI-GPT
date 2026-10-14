@@ -372,20 +372,28 @@ def local_model_status():
         except (ImportError, ValueError):
             return False
     lama = any(has(m) for m in ("simple_lama_inpainting", "simple_lama")) and has("torch")
+    bubble = True  # pure Pillow; no weights
+    try:
+        from manga_model_catalog import list_models as _list_models
+        catalog = _list_models()
+    except Exception:
+        catalog = {"models": []}
     return {"ok": True,
             "ocr": {"ready": bool(executable) and ("jpn" in langs or "jpn_vert" in langs), "tesseract": bool(executable),
                     "languages": [x for x in langs if x in ("jpn", "jpn_vert", "eng", "chi_sim", "chi_tra")]},
+            "bubbleFill": {"ready": bubble},
             "lama": {"ready": lama},
             "lamaManga": {"ready": lama, "cached": __import__("manga_model_guard").lama_manga_cached()},
             "mangaOcr": {"ready": has("manga_ocr"), "cached": __import__("manga_model_guard").manga_ocr_cached()},
             "textDetector": {"ready": has("onnxruntime") and has("cv2"), "cached": _ctd_cached()},
             "samSelect": {"ready": has("torch") and has("sam2") and has("cv2"), "cached": _sam_cached()},
-            "characters": {"ready": _characters_runtime_ready(), "cached": _chars_cached(), "identityCached": _id_cached()}}
+            "characters": {"ready": _characters_runtime_ready(), "cached": _chars_cached(), "identityCached": _id_cached()},
+            "models": catalog.get("models") or []}
 
 
 def handle_smart_ocr_post(handler):
     route = handler.path.split("?", 1)[0]
-    if route not in ("/manga-smart/ocr", "/manga-smart/manga-ocr", "/manga-smart/lama-inpaint", "/manga-smart/status", "/manga-smart/text-mask", "/manga-smart/sam-click", "/manga-smart/sam-warm", "/manga-smart/ocr-warm", "/manga-smart/characters", "/manga-smart/faces", "/manga-smart/character-embed", "/manga-smart/character-identify", "/manga-smart/download-progress", "/manga-smart/prompt-helper-status", "/manga-smart/prompt-helper-download"):
+    if route not in ("/manga-smart/ocr", "/manga-smart/manga-ocr", "/manga-smart/lama-inpaint", "/manga-smart/status", "/manga-smart/text-mask", "/manga-smart/sam-click", "/manga-smart/sam-warm", "/manga-smart/ocr-warm", "/manga-smart/characters", "/manga-smart/faces", "/manga-smart/character-embed", "/manga-smart/character-identify", "/manga-smart/download-progress", "/manga-smart/prompt-helper-status", "/manga-smart/prompt-helper-download", "/manga-smart/models", "/manga-smart/model-download"):
         return False
     if not _authorized_local_request(handler):
         handler.close_connection = True
@@ -431,6 +439,12 @@ def handle_smart_ocr_post(handler):
                 result = phi.status() if route.endswith("status") else phi.download(str(data.get("pack") or ""))
             except phi.PromptHelperError as error:
                 raise SmartOcrError(str(error), error.status)
+        elif route == "/manga-smart/models":
+            from manga_model_catalog import list_models
+            result = list_models()
+        elif route == "/manga-smart/model-download":
+            from manga_model_catalog import download as download_model
+            result = download_model(str(data.get("id") or data.get("model") or ""), allow_download)
         elif route == "/manga-smart/download-progress":
             from manga_model_guard import progress_snapshot
             result = {"ok": True, "downloads": progress_snapshot()}

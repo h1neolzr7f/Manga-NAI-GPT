@@ -1,0 +1,46 @@
+{
+  "bubble:loose": {
+    "ok": true,
+    "engine": "bubble-fill-local",
+    "engineName": "bubble",
+    "sec": 0.1,
+    "mae_vs_src": 114.55,
+    "mae_vs_white": 1.23,
+    "luma_std": 8.65,
+    "maskInBubble": 0.979,
+    "n": 15506
+  },
+  "auto:loose": {
+    "ok": true,
+    "engine": "bubble-fill-local",
+    "engineName": "bubble",
+    "sec": 0.099,
+    "mae_vs_src": 114.55,
+    "mae_vs_white": 1.23,
+    "luma_std": 8.65,
+    "maskInBubble": 0.979,
+    "n": 15506
+  },
+  "bubble:tight": {
+    "ok": true,
+    "engine": "bubble-fill-local",
+    "engineName": "bubble",
+    "sec": 0.129,
+    "mae_vs_src": 104.96,
+    "mae_vs_white": 33.37,
+    "luma_std": 66.25,
+    "maskInBubble": 0.741,
+    "n": 9621
+  },
+  "auto:tight": {
+    "ok": true,
+    "engine": "bubble-fill-local",
+    "engineName": "bubble",
+    "sec": 0.118,
+    "mae_vs_src": 104.96,
+    "mae_vs_white": 33.37,
+    "luma_std": 66.25,
+    "maskInBubble": 0.741,
+    "n": 9621
+  }
+}
