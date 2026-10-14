@@ -15,7 +15,7 @@ else "$VPY" -m pip install torch torchvision --index-url https://download.pytorc
 echo "== 2/3 AI 依赖"
 "$VPY" -m pip install -r requirements-ai.txt
 echo "== 3/3 LaMa + SAM 2"
-SAM2_BUILD_CUDA=0 "$VPY" -m pip install --no-deps simple-lama-inpainting "sam2>=1.0"
+SAM2_BUILD_CUDA=0 "$VPY" -m pip install --no-deps --no-build-isolation simple-lama-inpainting "sam2>=1.0"
 if ! command -v tesseract >/dev/null; then
   echo
   echo "还差 Tesseract（文字识别）："

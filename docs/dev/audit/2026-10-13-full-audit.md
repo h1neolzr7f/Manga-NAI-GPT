@@ -96,6 +96,9 @@
 | 80 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：glfxReset 锁定原目标并在原索引恢复，不再替换当前选中对象 |
 | 81 | 已修复 [PR #30](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/30)：切线交点按刀向参数排序取两端；等距时不再得到零长线，矩形横/竖模板可切分 |
 | 82 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：刀切比例校验失败时回滚子图变换/clipPath/绑定与图层顺序 |
+| 83 | 已修复 [PR #31](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/31)：install-ai.sh/ps1 在已安装 CPU torch 后对 sam2 使用 --no-deps --no-build-isolation，构建依赖不再另开隔离环境拉 CUDA torch |
+| 84 | 已修复 [PR #31](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/31)：prepare-installer.ps1 图标转换用 sys.argv 传路径，含单引号/中文的目录不再造成 Python 语法错误 |
+| 85 | 已修复 [PR #31](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/31)：Windows 启动器从 LOCAL_TOOLS_PORT 取抠图端口（默认 8765）并写回环境变量；启动后探测 /health，提示使用同一地址（决定：客户端默认仍 8765，自定义端口在服务设置填写） |
 | 86 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：旧版角色卡就地规范化，输入回调写入当前对象 |
 | 88 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：标签补全保留 ::、}、]、) 等关闭权重标记 |
 | 91 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：辉光尺寸按十进制解析 |

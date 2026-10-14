@@ -45,7 +45,7 @@ Write-Host "== 2/3 AI 依赖" -ForegroundColor Cyan
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 Write-Host "== 3/3 LaMa + SAM 2" -ForegroundColor Cyan
 $env:SAM2_BUILD_CUDA = "0"
-& $VenvPy -m pip install --no-deps simple-lama-inpainting "sam2>=1.0"
+& $VenvPy -m pip install --no-deps --no-build-isolation simple-lama-inpainting "sam2>=1.0"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 if (-not (Get-Command tesseract -ErrorAction SilentlyContinue) -and -not (Test-Path "C:\Program Files\Tesseract-OCR\tesseract.exe")) {
