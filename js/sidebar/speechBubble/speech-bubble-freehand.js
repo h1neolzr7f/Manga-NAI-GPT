@@ -237,7 +237,19 @@ return geometry1;
 }
 }
 
+// Dialogue of bubbles absorbed by a merge; the merged bubble starts with it instead of the
+// default placeholder (audit 107).
+var pendingMergedDialogue=[];
+function mergedBubbleDialogue(obj){
+var textbox=null;
+try{
+if(typeof isFreehandBubblePath==='function'&&isFreehandBubblePath(obj))textbox=getFreehandBubbleTextByPath(obj);
+else if(typeof isSpeechBubbleSVG==='function'&&isSpeechBubbleSVG(obj)&&typeof getSpeechBubbleTextBySVG==='function')textbox=getSpeechBubbleTextBySVG(obj);
+}catch(error){textbox=null;}
+return textbox&&typeof textbox.text==='string'&&textbox.text.trim()?textbox.text:null;
+}
 function mergeOverlappingShapes(newGeometry) {
+pendingMergedDialogue=[];
 let envelope=newGeometry.getEnvelopeInternal();
 let newLeft=envelope.getMinX();
 let newTop=envelope.getMinY();
@@ -279,6 +291,8 @@ newTop=envelope.getMinY();
 newRight=envelope.getMaxX();
 newBottom=envelope.getMaxY();
 
+var dialogue=mergedBubbleDialogue(obj);
+if(dialogue)pendingMergedDialogue.push(dialogue);
 removeByNotSave(obj);
 }
 }
@@ -684,10 +698,10 @@ evented:true,
 renderOnAddRemove:true,
 targetObject:bubble
 };
-var initialText="台词";
+var initialText=pendingMergedDialogue.length?pendingMergedDialogue.join('\n'):"台词";
 newTextbox=new VerticalTextbox(initialText,style);
 } else {
-initialText="台词";
+initialText=pendingMergedDialogue.length?pendingMergedDialogue.join('\n'):"台词";
 newTextbox=new fabric.Textbox(initialText,{
 left:rectX+rectWidth/2,
 top:rectY+rectHeight/2,
@@ -714,6 +728,7 @@ renderOnAddRemove:true,
 targetObject:bubble
 });
 }
+pendingMergedDialogue=[];
 bubble.guid=generateGUID();
 newRect.guid=generateGUID();
 if(newTextbox){

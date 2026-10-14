@@ -238,7 +238,7 @@ await appendBubbleContent(rowItems,message,participant,missing,bubbleX,bubbleWid
 theme=Object.assign({},theme,{primaryColor:savedPrimary});
 if(message.time)rowItems.push(makeText(message.time,{left:side==='right'?bubbleX+20:bubbleX+bubbleWidth-100,top:y+rowHeight-42,width:80,textAlign:side==='right'?'left':'right',fontFamily:theme.fontFamily,fontSize:15,fill:theme.secondaryColor}));
 }
-var messageGroup=new fabric.Group(rowItems,{left:0,top:0,originX:'left',originY:'top',subTargetCheck:true,interactive:true,simulatorMessageId:message.id,simulatorMessageIndex:i});
+var messageGroup=new fabric.Group(rowItems,{originX:'left',originY:'top',subTargetCheck:true,interactive:true,simulatorMessageId:message.id,simulatorMessageIndex:i});
 items.push(messageGroup);
 y+=rowHeight+18;
 }
@@ -289,7 +289,7 @@ rowItems.push(makeText('图片资源加载失败',{left:110,top:y+46,fontFamily:
 rowItems.push(makeText(textValue(message.content,'（空）'),{left:110,top:y+42,width:820,fontFamily:theme.fontFamily,fontSize:message.type==='aside'?22:26,fill:message.type==='aside'?theme.secondaryColor:theme.primaryColor,fontStyle:message.type==='aside'?'italic':'normal',lineHeight:1.25}));
 }
 }
-var messageGroup=new fabric.Group(rowItems,{left:0,top:0,originX:'left',originY:'top',subTargetCheck:true,interactive:true,simulatorMessageId:message.id,simulatorMessageIndex:i});
+var messageGroup=new fabric.Group(rowItems,{originX:'left',originY:'top',subTargetCheck:true,interactive:true,simulatorMessageId:message.id,simulatorMessageIndex:i});
 items.push(messageGroup);
 y+=rowHeight+16;
 }
@@ -327,7 +327,7 @@ rowItems.push(makeText(message.time||'',{left:520,top:y+8,fontFamily:theme.fontF
 rowItems.push(makeText(textValue(message.content,'（空）'),{left:378,top:y+34,width:560,fontFamily:theme.fontFamily,fontSize:22,fill:theme.primaryColor,lineHeight:1.2}));
 rowHeight=108;
 }
-var messageGroup=new fabric.Group(rowItems,{left:0,top:0,originX:'left',originY:'top',subTargetCheck:true,interactive:true,simulatorMessageId:message.id,simulatorMessageIndex:i});
+var messageGroup=new fabric.Group(rowItems,{originX:'left',originY:'top',subTargetCheck:true,interactive:true,simulatorMessageId:message.id,simulatorMessageIndex:i});
 items.push(messageGroup);
 y+=rowHeight+10;
 }

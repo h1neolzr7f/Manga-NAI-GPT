@@ -140,7 +140,15 @@ name:field.label||field.key
 },extra||{});
 if(field.width)opts.width=field.width;
 if(field.align)opts.textAlign=field.align;
-items.push(api.text(String(text||''),opts));
+// Stable field ID on every text object so direct canvas edits can be read back (audit 116).
+opts.simulatorFieldKey=field.key;
+opts.simulatorFieldType=field.type||'text';
+opts.simulatorFieldIndex=extra&&extra.__index!=null?extra.__index:0;
+if(extra&&extra.__placeholder)opts.simulatorFieldPlaceholder=String(text||'');
+delete opts.__index;delete opts.__placeholder;
+var label=api.text(String(text||''),opts);
+['simulatorFieldKey','simulatorFieldType','simulatorFieldIndex','simulatorFieldPlaceholder'].forEach(function(key){if(opts[key]!==undefined)label[key]=opts[key];});
+items.push(label);
 }
 
 function render(id,values){
@@ -190,7 +198,7 @@ width:(Number(field.chipWidth)||68)-12,
 textAlign:'center',
 fill:on?(field.activeColor||'#111'):(field.color||'#9ca3af'),
 fontWeight:on?(field.activeWeight||'bold'):'normal',
-name:label
+name:label,__index:index
 });
 });
 return;
@@ -202,7 +210,7 @@ rows.forEach(function(title,index){
 var y=(Number(thumb.y)||36)+index*(Number(field.rowHeight)||64);
 items.push(api.rect({left:thumb.x||12,top:y,width:thumb.w||88,height:thumb.h||52,rx:6,ry:6,fill:thumb.fill||'#242424',name:'相关封面 '+(index+1)}));
 items.push(api.rect({left:thumb.x||12,top:y+(thumb.h||52)-8,width:40,height:6,rx:2,ry:2,fill:'#f97316',name:'相关进度 '+(index+1)}));
-addLabel(items,api,title,field,{left:Number(field.x)||110,top:y+8,width:field.width||96,name:'相关标题 '+(index+1)});
+addLabel(items,api,title,field,{left:Number(field.x)||110,top:y+8,width:field.width||96,name:'相关标题 '+(index+1),__index:index});
 });
 return;
 }
@@ -210,7 +218,7 @@ if(type==='comments'){
 splitLines(raw).forEach(function(line,index){
 var y=(Number(field.y)||80)+index*(Number(field.rowHeight)||32);
 items.push(api.rect({left:16,top:y,width:16,height:16,rx:8,ry:8,fill:'#242424',name:'头像 '+(index+1)}));
-addLabel(items,api,line,field,{left:Number(field.x)||38,top:y,width:field.width||300,name:'评论 '+(index+1)});
+addLabel(items,api,line,field,{left:Number(field.x)||38,top:y,width:field.width||300,name:'评论 '+(index+1),__index:index});
 });
 return;
 }
@@ -218,7 +226,7 @@ if(type==='flying'){
 var spots=field.spots||[];
 splitLines(raw).forEach(function(line,index){
 var spot=spots[index]||{x:24+index*18,y:28+index*28,fill:field.fill||'#e2e8f0'};
-addLabel(items,api,line,field,{left:spot.x,top:spot.y,fill:spot.fill||field.fill,name:'弹幕 '+(index+1)});
+addLabel(items,api,line,field,{left:spot.x,top:spot.y,fill:spot.fill||field.fill,name:'弹幕 '+(index+1),__index:index});
 });
 return;
 }
@@ -239,7 +247,7 @@ top:y+(field.titleY!=null?field.titleY:h+6),
 width:w-8,
 fill:field.fill||'#f8fafc',
 fontSize:field.fontSize||12,
-name:'卡片标题 '+(index+1)
+name:'卡片标题 '+(index+1),__index:index,__placeholder:!titles[index]
 });
 });
 return;
@@ -303,14 +311,49 @@ if(typeof saveStateByManual==='function')saveStateByManual();
 return Promise.resolve(placed.root);
 }
 
+function liveFieldValues(current,part){
+var api=factory();
+var objects=part.simulatorPageId&&api&&typeof api.pageObjects==='function'?api.pageObjects(current,part.simulatorPageId):[];
+if(typeof part.getObjects==='function')objects=objects.concat(part.getObjects());
+var byKey={},found=false;
+objects.forEach(function(obj){
+if(!obj||!obj.simulatorFieldKey||typeof obj.text!=='string')return;
+found=true;
+var slot=byKey[obj.simulatorFieldKey]=byKey[obj.simulatorFieldKey]||{type:obj.simulatorFieldType,items:[]};
+var value=obj.text;
+if(obj.simulatorFieldPlaceholder!==undefined&&value===obj.simulatorFieldPlaceholder)value='';
+slot.items[Number(obj.simulatorFieldIndex)||0]=value;
+});
+if(!found)return null;
+var out={};
+Object.keys(byKey).forEach(function(key){
+var slot=byKey[key],items=slot.items.map(function(v){return v==null?'':v;});
+if(slot.type==='text')out[key]=items[0]||'';
+else if(slot.type==='chips')out[key]=items.filter(Boolean).join('，');
+else out[key]=items.filter(Boolean).join('\n');
+});
+return out;
+}
+
 function readSelected(current){
 var part=currentPart(current||canvas());
 if(!part)return null;
 var scene={};
 try{scene=root.NaiComicSceneSerializer?root.NaiComicSceneSerializer.deserialize(part.simulatorScene||'{}'):JSON.parse(part.simulatorScene||'{}');}catch(error){scene={};}
+var values=Object.assign(defaults(part.simulatorTemplateId),scene.fields||{});
+var live=liveFieldValues(current||canvas(),part);
+if(live){
+Object.keys(live).forEach(function(key){values[key]=live[key];});
+// Keep the stored scene in step with the canvas so playback / re-apply use the latest text.
+scene.fields=values;
+var serialized=root.NaiComicSceneSerializer?root.NaiComicSceneSerializer.serialize(scene):JSON.stringify(scene);
+var api=factory();
+var peers=part.simulatorPageId&&api&&typeof api.pageObjects==='function'?api.pageObjects(current||canvas(),part.simulatorPageId):[];
+peers.concat([part]).forEach(function(obj){if(obj&&obj.simulatorScene!==undefined)obj.simulatorScene=serialized;});
+}
 return {
 id:part.simulatorTemplateId||part.assetId||'',
-values:scene.fields||defaults(part.simulatorTemplateId),
+values:values,
 object:part
 };
 }
