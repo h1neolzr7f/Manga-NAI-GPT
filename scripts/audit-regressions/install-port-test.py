@@ -1,6 +1,9 @@
 """Audit 83/84/85: install scripts and Windows tools port contract."""
 import pathlib, re, subprocess, sys, tempfile
-from PIL import Image
+try:
+    from PIL import Image
+except ImportError:
+    print("SKIP 83/84/85 (no PIL)"); raise SystemExit(0)
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 sh = (ROOT / "scripts/install-ai.sh").read_text(encoding="utf-8")
