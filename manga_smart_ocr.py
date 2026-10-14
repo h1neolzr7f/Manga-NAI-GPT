@@ -147,7 +147,55 @@ def find_tesseract():
     return None
 
 
-def ocr_image(data_url, language="auto"):
+def _maybe_refine(result, image_bytes, refine, allow_download):
+    """Optionally re-recognize each region with manga-ocr.
+
+    refine=True  -> always try (may raise 428 for download consent)
+    refine=False -> never
+    refine=None  -> only when package is installed AND weights are already cached
+    """
+    if refine is False or not result.get("regions"):
+        result.setdefault("refined", False)
+        return result
+    try:
+        from manga_ocr_refiner import package_ready, refine_page_regions
+        from manga_model_guard import manga_ocr_cached
+    except Exception:
+        result["refined"] = False
+        return result
+    if not package_ready():
+        result["refined"] = False
+        if refine is True:
+            raise SmartOcrError(
+                "未安装 Manga OCR。请在本地 Python 环境执行 pip install manga-ocr。", 503)
+        return result
+    if refine is None and not manga_ocr_cached():
+        result["refined"] = False
+        return result
+    try:
+        regions, count = refine_page_regions(
+            image_bytes, result["width"], result["height"], result["regions"], allow_download)
+    except SmartOcrError as exc:
+        if refine is True:
+            raise
+        result["refined"] = False
+        result["refineSkipped"] = str(exc)
+        return result
+    except Exception as exc:
+        if refine is True:
+            raise SmartOcrError("Manga OCR 精修失败：" + str(exc), 502) from exc
+        result["refined"] = False
+        result["refineSkipped"] = "manga-ocr refine skipped"
+        return result
+    result["regions"] = regions
+    result["refined"] = count > 0
+    result["refinedCount"] = count
+    if count:
+        result["engine"] = (result.get("engine") or "tesseract-local") + "+manga-ocr"
+    return result
+
+
+def ocr_image(data_url, language="auto", refine=None, allow_download=False):
     if language not in LANGUAGES:
         raise SmartOcrError("OCR 语言不受支持。")
     image, width, height = read_image(data_url)
@@ -161,9 +209,10 @@ def ocr_image(data_url, language="auto"):
     psm = "5" if language.startswith("jpn_vert") else "11"
     if language == "auto":
         try:
-            return _ocr_auto(executable, image, width, height)
+            result = _ocr_auto(executable, image, width, height)
         finally:
             _TESSERACT_SLOTS.release()
+        return _maybe_refine(result, image, refine, allow_download)
     try:
         # Tesseract ignores text enclosed by a closed bubble outline; OCR a copy with
         # outlines/borders whitened as well (same coordinates), then the original.
@@ -180,8 +229,9 @@ def ocr_image(data_url, language="auto"):
         regions = merge_regions(regions, original)
     finally:
         _TESSERACT_SLOTS.release()
-    return {"ok": True, "width": width, "height": height, "regions": regions,
-            "engine": "tesseract-local", "preclean": bool(cleaned)}
+    result = {"ok": True, "width": width, "height": height, "regions": regions,
+              "engine": "tesseract-local", "preclean": bool(cleaned)}
+    return _maybe_refine(result, image, refine, allow_download)
 
 
 def _ocr_auto(executable, image, width, height):
@@ -302,7 +352,8 @@ def local_model_status():
             "ocr": {"ready": bool(executable) and ("jpn" in langs or "jpn_vert" in langs), "tesseract": bool(executable),
                     "languages": [x for x in langs if x in ("jpn", "jpn_vert", "eng", "chi_sim", "chi_tra")]},
             "lama": {"ready": lama},
-            "mangaOcr": {"ready": has("manga_ocr")},
+            "lamaManga": {"ready": lama, "cached": __import__("manga_model_guard").lama_manga_cached()},
+            "mangaOcr": {"ready": has("manga_ocr"), "cached": __import__("manga_model_guard").manga_ocr_cached()},
             "textDetector": {"ready": has("onnxruntime") and has("cv2"), "cached": _ctd_cached()},
             "samSelect": {"ready": has("torch") and has("sam2") and has("cv2"), "cached": _sam_cached()},
             "characters": {"ready": has("onnxruntime") and has("cv2"), "cached": _chars_cached(), "identityCached": _id_cached()}}
@@ -362,13 +413,22 @@ def handle_smart_ocr_post(handler):
             result = detect(data.get("image"), allow_download)
         elif route == "/manga-smart/lama-inpaint":
             from manga_lama_inpaint import inpaint
-            result = inpaint(data.get("image"), data.get("mask"), allow_download)
+            result = inpaint(data.get("image"), data.get("mask"), allow_download,
+                             engine=data.get("engine") or "auto")
         elif route == "/manga-smart/manga-ocr":
             # Heavy optional model only imported after same-origin, length and JSON guards.
             from manga_ocr_refiner import refine_region
             result = refine_region(data.get("image"), allow_download)
         else:
-            result = ocr_image(data.get("image"), data.get("language") or "jpn+eng")
+            refine = data.get("refine")
+            if refine is True:
+                refine_flag = True
+            elif refine is False:
+                refine_flag = False
+            else:
+                refine_flag = None
+            result = ocr_image(data.get("image"), data.get("language") or "jpn+eng",
+                               refine=refine_flag, allow_download=allow_download)
         handler._send_json(result)
     except SmartOcrError as exc:
         payload = {"ok": False, "error": str(exc)}

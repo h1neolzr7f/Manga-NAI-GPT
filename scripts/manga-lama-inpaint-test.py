@@ -35,15 +35,34 @@ class Tests(unittest.TestCase):
 
     @mock.patch.object(lama,"compose_masked",return_value=FakeImage())
     @mock.patch.object(lama,"decode_pair",return_value=(FakeImage(),FakeImage()))
-    @mock.patch.object(lama,"get_model",return_value=lambda image,mask:FakeImage())
+    @mock.patch.object(lama,"get_model",return_value=("lama", lambda image,mask:FakeImage()))
     def test_returned_image_is_explicit_local_preview_only(self,model,decode,compose):
-        result=lama.inpaint(URL,URL)
+        result=lama.inpaint(URL,URL,engine="lama")
         self.assertEqual(result["engine"],"simple-lama-local")
+        self.assertEqual(result["engineName"],"lama")
         self.assertEqual(result["width"],300)
         self.assertEqual(result["height"],200)
         self.assertTrue(result["image"].startswith("data:image/png;base64,"))
         self.assertFalse(result["applied"])
         self.assertFalse(result["verified"])
+
+    @mock.patch.object(lama,"compose_masked",return_value=FakeImage())
+    @mock.patch.object(lama,"decode_pair",return_value=(FakeImage(),FakeImage()))
+    @mock.patch.object(lama,"get_model",return_value=("lama-manga", lambda image,mask:FakeImage()))
+    def test_manga_engine_labeled(self,model,decode,compose):
+        result=lama.inpaint(URL,URL,engine="lama-manga")
+        self.assertEqual(result["engine"],"simple-lama-manga-local")
+        self.assertEqual(result["engineName"],"lama-manga")
+
+    def test_resolve_engine_auto_prefers_cached_manga(self):
+        with mock.patch.object(lama,"manga_cached",return_value=True):
+            self.assertEqual(lama.resolve_engine("auto"),"lama-manga")
+        with mock.patch.object(lama,"manga_cached",return_value=False):
+            self.assertEqual(lama.resolve_engine("auto"),"lama")
+
+    def test_rejects_unknown_engine(self):
+        with self.assertRaises(SmartOcrError):
+            lama.resolve_engine("aot")
 
     @mock.patch.object(lama.importlib,"import_module",side_effect=ModuleNotFoundError("simple_lama"))
     def test_missing_package_actionable(self,module):
@@ -58,7 +77,10 @@ class Tests(unittest.TestCase):
             def __call__(self,image,mask):return FakeImage()
         with mock.patch.object(lama.importlib,"import_module",
                                return_value=type("Shim",(),{"SimpleLama":FakeLama})):
-            self.assertIs(lama.get_model(allow_download=True),lama.get_model())
+            a=lama.get_model(allow_download=True,engine="lama")
+            b=lama.get_model(engine="lama")
+        self.assertEqual(a[0],"lama")
+        self.assertIs(a[1],b[1])
         self.assertEqual(FakeLama.initialized,1)
 
 if __name__=="__main__":unittest.main(verbosity=2)

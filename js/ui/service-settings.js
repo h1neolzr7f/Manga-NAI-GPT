@@ -137,7 +137,7 @@ async function testLocal(){
 setStatus('svcLocalStatus','','正在检查…');
 try{
 var d=await ServiceRequest.request('local','/manga-smart/status',{body:{},timeoutMs:20000});
-var parts=['文字识别 '+(d.ocr&&d.ocr.ready?'✓':'✗'),'LaMa 去字 '+(d.lama&&d.lama.ready?'✓':'✗'),'Manga OCR 精修 '+(d.mangaOcr&&d.mangaOcr.ready?'✓':'✗')];
+var parts=['文字识别 '+(d.ocr&&d.ocr.ready?'✓':'✗'),'LaMa 去字 '+(d.lama&&d.lama.ready?'✓':'✗'),'漫画LaMa '+(d.lamaManga&&d.lamaManga.cached?'✓缓存':'○'),'Manga OCR '+(d.mangaOcr&&d.mangaOcr.ready?'✓':'✗')+(d.mangaOcr&&d.mangaOcr.cached?'缓存':'')];
 setStatus('svcLocalStatus',d.ocr&&d.ocr.ready?'ok':'warn',parts.join(' · '));
 }catch(error){setStatus('svcLocalStatus','error',error.userMessage||error.message);}
 }

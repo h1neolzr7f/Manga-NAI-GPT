@@ -65,6 +65,19 @@
       c.requestRenderAll();
     }
   }
+
+  function refinePref() {
+    try {
+      const el = $('mangaSmartAutoRefine');
+      if (el) return !!el.checked;
+      const v = localStorage.getItem('mnai.ocr.autoRefine');
+      return v === null ? true : v === '1';
+    } catch (_) { return true; }
+  }
+  function setRefinePref(on) {
+    try { localStorage.setItem('mnai.ocr.autoRefine', on ? '1' : '0'); } catch (_) {}
+  }
+
   // Manga OCR is a text recognizer, NOT a bubble detector. Crop one candidate
   // from the unmodified canvas snapshot, not the live modified Fabric layers.
   async function refineWithMangaOCR(draft, index) {
@@ -113,6 +126,16 @@
       state.busy=false;
       $('mangaSmartDetect').disabled=false;
       renderDrafts();
+    }
+  }
+
+  async function refineAllDrafts() {
+    if (!state.drafts.length) return message('请先检测本页文字。', true);
+    if (state.busy) return;
+    for (let i = 0; i < state.drafts.length; i++) {
+      if (!state.drafts[i] || state.drafts[i].active === false) continue;
+      await refineWithMangaOCR(state.drafts[i], i);
+      if (!state.drafts.length) break;
     }
   }
 
@@ -236,7 +259,7 @@
     if (pageCache.has(id) || (id === state.pageId && state.drafts.length)) return null;
     if (prefetching && prefetching.id === id) return prefetching.promise;
     const image = snapshot(c), language = ($('mangaSmartLanguage') || {}).value || 'jpn+eng';
-    const promise = window.MangaModelRequest.post('/manga-smart/ocr', { image, language }).then(result => {
+    const promise = window.MangaModelRequest.post('/manga-smart/ocr', { image, language, refine: false }).then(result => {
       if (!result || !result.ok || result.width !== c.getWidth() || result.height !== c.getHeight()) return;
       if (pageId() === id && snapshot(c) !== image) return;   // page edited meanwhile
       const drafts = core.mapDetections(result.regions, c.getWidth(), c.getHeight()).map(d => ({ ...d, active: true }));
@@ -273,8 +296,12 @@
     message('正在使用本机 Tesseract 识别当前画布……');
     try {
       const image = snapshot(c);
+      const wantRefine = refinePref();
+      message(wantRefine
+        ? '正在识别本页文字；检测到后会用 Manga OCR 精修（已安装且已缓存时自动进行）……'
+        : '正在使用本机 Tesseract 识别当前画布……');
       const result = await window.MangaModelRequest.post('/manga-smart/ocr',
-        { image, language: $('mangaSmartLanguage').value }, { signal: startRequest() });
+        { image, language: $('mangaSmartLanguage').value, refine: wantRefine }, { signal: startRequest() });
       if (!result.ok) throw new Error(result.error || 'OCR 无法完成。');
       if (result.width !== c.getWidth() || result.height !== c.getHeight()) {
         throw new Error('画布尺寸在识别期间已变化，请重新检测。');
@@ -286,7 +313,11 @@
         .map(d => ({ ...d, active: true }));
       state.pageId = pageId();
       remember(state.pageId, { sourceImage: image, drafts: state.drafts, canvas: c });
-      message(state.drafts.length ? '识别到 ' + state.drafts.length + ' 条候选文字。可逐条修改后一次应用。'
+      const refinedN = result.refinedCount || (result.refined ? state.drafts.filter(d => d.recognizer === 'manga-ocr-local').length : 0);
+      message(state.drafts.length
+        ? ('识别到 ' + state.drafts.length + ' 条候选文字'
+          + (result.refined ? '（Manga OCR 已精修 ' + (result.refinedCount || refinedN) + ' 条）' : '')
+          + '。可逐条修改后一次应用。')
         : '这一页没有识别到文字。如果其实有字，可以点「手动框选字幕」把文字区域框出来再识别。');
       renderDrafts();
       const pageUI = window.MangaPageStructureUI;
@@ -595,11 +626,13 @@
       '<option value="kor+eng">韩语＋英语</option></select></label>',
       '<div class="manga-smart-line"><button id="mangaSmartDetect" type="button">检测本页文字</button>',
       '<button id="mangaSmartManual" type="button">手动框选字幕</button>',
+      '<button id="mangaSmartRefineAll" type="button" title="对当前候选逐条调用 Manga OCR（需已安装 manga-ocr）">全部精修</button>',
       '<button id="mangaSmartCancel" type="button" hidden>取消识别</button></div>',
+      '<label class="manga-smart-hint"><input type="checkbox" id="mangaSmartAutoRefine"> 检测后用 Manga OCR 精修（推荐；首次可能下载约 400MB）</label>',
       '<div id="mangaSmartRegions" class="manga-smart-regions"></div>',
       '<button id="mangaSmartApply" type="button" disabled>应用为可编辑图层</button>',
       '<p class="manga-smart-hint" data-adv="1">自动去字仅适合纯色气泡。复杂背景请先用 GPT 改图擦字，或取消勾选仅插入文字。',
-      '基础 OCR 需要本机 Tesseract 及所选语言包。复杂背景可点击本地 LaMa 去字，先预览后确认，模型为可选依赖。Manga OCR 精修为可选依赖，首次点击可能联网下载约 400MB 模型；成功后可用缓存离线运行。精修结果须人工确认。</p>',
+      '基础 OCR 需要本机 Tesseract 及所选语言包。勾选「检测后用 Manga OCR 精修」后，检测完成会自动用 manga-ocr 重认每条（推荐）；也可点「全部精修」或单条「Manga OCR 精修」。首次可能联网下载约 400MB，之后离线。精修结果须人工确认。去字可用通用 LaMa 或漫画微调 LaMa。</p>',
       '<div id="mangaSmartStatus" role="status"></div>'
     ].join('');
     document.body.appendChild(panel);
@@ -609,6 +642,13 @@
     $('mangaSmartCancel').addEventListener('click', cancelRequest);
     $('mangaSmartManual').addEventListener('click', beginManual);
     $('mangaSmartApply').addEventListener('click', apply);
+    const autoRefine = $('mangaSmartAutoRefine');
+    if (autoRefine) {
+      autoRefine.checked = refinePref();
+      autoRefine.addEventListener('change', () => setRefinePref(autoRefine.checked));
+    }
+    const refineAll = $('mangaSmartRefineAll');
+    if (refineAll) refineAll.addEventListener('click', refineAllDrafts);
     message('先检测本页文字，或手动框选区域。');
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', render);

@@ -1,0 +1,75 @@
+{
+  "page": "docs/images/comic-page.jpg",
+  "size": [
+    1000,
+    1417
+  ],
+  "ocr": {
+    "baseline_engine": "tesseract-local",
+    "refined_engine": "tesseract-local+manga-ocr",
+    "baseline_sec": 4.5,
+    "refined_sec": 90.07,
+    "rows": [
+      {
+        "gt": "啊……下雨了。",
+        "baseline": "咽下雨了。",
+        "refined": "『．．．下雨了。",
+        "cer_baseline": 0.429,
+        "cer_refined": 0.571
+      },
+      {
+        "gt": "要一起走吗？",
+        "baseline": "一起走?",
+        "refined": "要一起走９？",
+        "cer_baseline": 0.5,
+        "cer_refined": 0.167
+      },
+      {
+        "gt": "伞忘在家里了……",
+        "baseline": "了里家在…人",
+        "refined": "傘忘在家里了．．．",
+        "cer_baseline": 0.75,
+        "cer_refined": 0.5
+      }
+    ],
+    "mean_cer_baseline": 0.56,
+    "mean_cer_refined": 0.413
+  },
+  "inpaint": {
+    "crop_box": [
+      760,
+      60,
+      960,
+      240
+    ],
+    "mask_coverage": 0.244,
+    "lama": {
+      "engine": "simple-lama-local",
+      "sec": 7.53,
+      "mae_inside": 22.92,
+      "mae_outside": 0.0,
+      "luma_std_inside": 103.02
+    },
+    "lama_manga": {
+      "engine": "simple-lama-manga-local",
+      "sec": 32.92,
+      "mae_inside": 14.74,
+      "mae_outside": 0.0,
+      "luma_std_inside": 102.2
+    }
+  },
+  "wont_integrate": [
+    {
+      "name": "PP-OCRv6_manga",
+      "reason": "Needs custom det+rec ONNX pipeline; keep CTD. Apache-2.0 OK for later optional detector."
+    },
+    {
+      "name": "Baberu OCR",
+      "reason": "Extra transformer OCR; manga-ocr already installed and enough on this page."
+    },
+    {
+      "name": "AOT (manga-image-translator)",
+      "reason": "Heavy dependency tree; TorchScript anime-manga-big-lama via SimpleLama is smaller."
+    }
+  ]
+}
