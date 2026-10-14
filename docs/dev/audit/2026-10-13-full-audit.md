@@ -61,6 +61,8 @@
 | 52 | 已修复 | [PR #12](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/12)：事件过滤只在 target.saveHistory===false 时跳过；导入底图添加后清除临时抑制 |
 | 53 | 已修复 [PR #19](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/19)：重置设置保留素材索引与生成任务记录（产品决定：重置仅针对设置，不清创作数据） |
 | 58 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：导入前校验历史结构；加载中途失败时恢复历史、图片映射、提示词与画布尺寸 |
+| 59 | 已修复 [PR #25](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/25)：运行中任务点 × 后记录取消状态，结果返回时不回贴、保留原图并提示“已发出的请求可能仍计费”（不声称撤销扣费） |
+| 60 | 已修复 [PR #25](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/25)：NaiEngine（AI Fill/画一页）改为进入同一个 novelaiQueue，与旧图层生成串行；existsWaitQueue/clearAllQueues 覆盖全部请求 |
 | 63 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：导入素材文件名使用完整 ID 的哈希，原子写入 |
 | 67 | 已修复 [PR #21](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/21)：分页长图导出时临时隐藏无关图层和编辑网格，只渲染目标模拟器 |
 | 80 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：glfxReset 锁定原目标并在原索引恢复，不再替换当前选中对象 |

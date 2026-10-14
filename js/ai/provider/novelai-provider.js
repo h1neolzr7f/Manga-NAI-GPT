@@ -555,6 +555,11 @@ return {img:img,payload:payload};
 });
 updateAiTaskCancelInfo(spinnerId,{queueName:'novelai',queueItemId:p._queueItemId});
 return p.then(async result=>{
+if(typeof isAiTaskCancelled==='function'&&isAiTaskCancelled(spinnerId)){
+removeGenerationTask(task);
+if(typeof createToast==='function')createToast('NovelAI','已取消：生成结果没有贴到画布（已发出的请求可能仍会计费）。',4000);
+return;
+}
 if(result&&result.img){
 DashboardUI.recordGeneration(type,Date.now()-startTime,result.payload.input,result.payload.model);
 await this._placeResult(result.img,layer,task,type);
@@ -569,6 +574,7 @@ window.NaiPanelPipelineReview.onPanelGenerationFailure(layer,error&&error.messag
 this._handleError(error,type,task);
 }).finally(()=>{
 removeSpinner(spinnerId);
+if(typeof forgetCancelledAiTask==='function')forgetCancelledAiTask(spinnerId);
 });
 }
 async executeT2I(layer,spinnerId){
