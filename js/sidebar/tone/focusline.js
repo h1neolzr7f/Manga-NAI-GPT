@@ -210,10 +210,10 @@ var activeObject=getLastObject();
 if (isPanel(activeObject)) {
 var canvasX=activeObject.left+(activeObject.width*activeObject.scaleX)/2;
 var canvasY=activeObject.top+(activeObject.height*activeObject.scaleY)/2;
+// Audit 90: putImageInFrame already canvas.add's; do not add the same object twice.
 var obj=putImageInFrame(svgString,canvasX,canvasY,true,false,true,activeObject);
-obj.name='Focus Line';
-canvas.add(obj);
-nowFocusLine=obj;
+if(obj){obj.name='Focus Line';nowFocusLine=obj;}
+
 updateLayerPanel();
 } else {
 fabric.loadSVGFromString(svgString,function (objects,options) {

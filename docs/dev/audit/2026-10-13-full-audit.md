@@ -93,7 +93,10 @@
 | 80 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：glfxReset 锁定原目标并在原索引恢复，不再替换当前选中对象 |
 | 82 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：刀切比例校验失败时回滚子图变换/clipPath/绑定与图层顺序 |
 | 86 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：旧版角色卡就地规范化，输入回调写入当前对象 |
+| 87 | 已修复 [PR #32](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/32)：页计划改为确定性分配周期（不限 3 轮随机），40/153 页可生成且总和等于目标页数 |
 | 88 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：标签补全保留 ::、}、]、) 等关闭权重标记 |
+| 89 | 已修复 [PR #32](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/32)：网点/速度线按逻辑尺寸生成（3× 超采样仅栅格化），渐变与密度不再混用 buffer 坐标 |
+| 90 | 已修复 [PR #32](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/32)：集中线只由 putImageInFrame 加入画布一次，更新不再留下重复引用 |
 | 91 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：辉光尺寸按十进制解析 |
 | 94 | 已修复 [PR #19](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/19)：工具模式记录并恢复图层原选中状态；用户移动锁显式记为 userMoveLock 并持久化 |
 | 101 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：日期键按本地年月日解析；周目标与周统计统一周一为起点（产品决定） |
