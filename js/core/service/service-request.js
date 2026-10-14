@@ -70,17 +70,31 @@ headers['Content-Type']='application/json';
 body=JSON.stringify(body);
 }
 var response;
+// The deadline and the caller's cancel cover the whole exchange, body included: a server that
+// sends headers and then stalls must not leave the request hanging.
+var abortedP=new Promise(function(resolve,reject){
+controller.signal.addEventListener('abort',function(){var e=new Error('aborted');e.name='AbortError';reject(e);},{once:true});
+});
+abortedP.catch(function(){});
+var text='';
+try{
 try{
 response=await fetch(url,{method:options.method||(body?'POST':'GET'),headers:headers,body:body,signal:controller.signal});
 }catch(error){
-clearTimeout(timer);
 if(timedOut)throw fail(service,{timeout:true});
 if(error&&error.name==='AbortError')throw fail(service,{aborted:true});
 throw fail(service,{network:true});
 }
+try{
+text=await Promise.race([response.text(),abortedP]);
+}catch(error){
+if(timedOut)throw fail(service,{timeout:true});
+if(controller.signal.aborted)throw fail(service,{aborted:true});
+throw fail(service,{network:true,status:response.status});
+}
+}finally{
 clearTimeout(timer);
-var text='';
-try{text=await response.text();}catch(e){text='';}
+}
 var data=null;
 try{data=text?JSON.parse(text):{};}catch(e){data=text;}
 if(!response.ok||(data&&typeof data==='object'&&data.ok===false)){

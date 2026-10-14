@@ -50,12 +50,24 @@
     for (let attempt = 1; ; attempt++) {
       const ctl = new AbortController(); const stop = () => ctl.abort(); if (signal) { if (signal.aborted) throw new DOMException('aborted', 'AbortError'); signal.addEventListener('abort', stop, { once: true }); }
       const timer = setTimeout(() => ctl.abort('timeout'), 180000);
-      let r;
-      try { r = await fetch('/nai-proxy/generate-image', { method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', Accept: 'application/zip, application/json', Authorization: token() }, body: JSON.stringify(body) }); }
-      catch (e) { if (signal && signal.aborted) throw new DOMException('aborted', 'AbortError'); if (ctl.signal.aborted) throw Object.assign(new Error('NovelAI 3 分钟没有响应，结果未知：没有自动重试（避免重复生成或扣费）。确认后可以再点一次。'), { unknown: true }); throw Object.assign(new Error('请求发出后连接断了，结果未知：没有自动重试（避免重复生成或扣费）。（' + (e.message || e) + '）'), { unknown: true }); }
-      finally { clearTimeout(timer); if (signal) signal.removeEventListener('abort', stop); }
-      if (r.ok) { subAt = 0; return unpack(r); }
-      const text = await r.text().catch(() => ''); const e = C.httpError(r.status, text);
+      // Timer and cancel stay armed until the body is read and unpacked (audit 09); a body that
+      // stalls or is cancelled is reported as an unknown result and never retried.
+      const aborted = new Promise((_, rej) => ctl.signal.addEventListener('abort', () => rej(new DOMException('aborted', 'AbortError')), { once: true }));
+      aborted.catch(() => {});
+      const failUnknown = (e) => { if (signal && signal.aborted) return new DOMException('aborted', 'AbortError'); if (ctl.signal.aborted) return Object.assign(new Error('NovelAI 3 分钟没有响应，结果未知：没有自动重试（避免重复生成或扣费）。确认后可以再点一次。'), { unknown: true }); return Object.assign(new Error('请求发出后连接断了，结果未知：没有自动重试（避免重复生成或扣费）。（' + ((e && e.message) || e) + '）'), { unknown: true }); };
+      let r, text = '';
+      try {
+        try { r = await fetch('/nai-proxy/generate-image', { method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', Accept: 'application/zip, application/json', Authorization: token() }, body: JSON.stringify(body) }); }
+        catch (e) { throw failUnknown(e); }
+        if (r.ok) {
+          subAt = 0;
+          try { return await Promise.race([unpack(r), aborted]); }
+          catch (e) { if (ctl.signal.aborted) throw failUnknown(e); throw e; }
+        }
+        text = await Promise.race([r.text(), aborted]).catch(() => '');
+        if (ctl.signal.aborted) throw failUnknown();
+      } finally { clearTimeout(timer); if (signal) signal.removeEventListener('abort', stop); }
+      const e = C.httpError(r.status, text);
       if (!e.retry || attempt >= 6) { const err = new Error(e.msg); err.status = r.status; throw err; }
       if (onStatus) onStatus(e.msg + '（第 ' + attempt + ' 次）');
       await new Promise(res => setTimeout(res, Math.min(30000, e.wait * attempt)));

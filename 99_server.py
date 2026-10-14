@@ -514,6 +514,11 @@ def _safe_nai_size(width, height):
     if not math.isfinite(width) or not math.isfinite(height) or width <= 0 or height <= 0:
         width = 1024.0
         height = 1024.0
+    # A size the editor already fitted (64-multiples inside the limits) is kept as-is: the
+    # editor rendered the init image and mask at exactly that size (audit 13).
+    if (width == int(width) and height == int(height) and int(width) % 64 == 0 and int(height) % 64 == 0
+            and 64 <= width <= max_edge and 64 <= height <= max_edge and width * height <= max_pixels):
+        return {'width': int(width), 'height': int(height)}
     aspect = width / height if height else 1.0
     if not math.isfinite(aspect) or aspect <= 0:
         aspect = 1.0
