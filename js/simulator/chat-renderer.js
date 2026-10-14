@@ -324,8 +324,25 @@ var avatarItems=await makeAvatarWithImage(participant||{name:'?',avatar:''},316,
 rowItems=rowItems.concat(avatarItems);
 rowItems.push(makeText(participant?participant.name:'系统',{left:378,top:y+4,fontFamily:theme.fontFamily,fontSize:18,fontWeight:'bold',fill:theme.accentColor||'#5865f2'}));
 rowItems.push(makeText(message.time||'',{left:520,top:y+8,fontFamily:theme.fontFamily,fontSize:14,fill:theme.secondaryColor}));
-rowItems.push(makeText(textValue(message.content,'（空）'),{left:378,top:y+34,width:560,fontFamily:theme.fontFamily,fontSize:22,fill:theme.primaryColor,lineHeight:1.2}));
 rowHeight=108;
+if(message.type==='image'&&message.image){
+// Discord image messages show the image (audit 114).
+if(message.content)rowItems.push(makeText(String(message.content),{left:378,top:y+34,width:560,fontFamily:theme.fontFamily,fontSize:22,fill:theme.primaryColor,lineHeight:1.2}));
+var imgTop=y+(message.content?72:38);
+var picture=null;
+try{picture=await loadImage(message.image);}catch(error){picture=null;}
+if(picture){
+var size=fitImage(picture,560,300);
+picture.set({left:378,top:imgTop,originX:'left',originY:'top'});
+rowItems.push(picture);
+rowHeight=imgTop-y+size.height+16;
+}else{
+rowItems.push(makeText('（图片加载失败）',{left:378,top:imgTop,fontFamily:theme.fontFamily,fontSize:18,fill:theme.secondaryColor}));
+rowHeight=imgTop-y+40;
+}
+}else{
+rowItems.push(makeText(textValue(message.content,'（空）'),{left:378,top:y+34,width:560,fontFamily:theme.fontFamily,fontSize:22,fill:theme.primaryColor,lineHeight:1.2}));
+}
 }
 var messageGroup=new fabric.Group(rowItems,{originX:'left',originY:'top',subTargetCheck:true,interactive:true,simulatorMessageId:message.id,simulatorMessageIndex:i});
 items.push(messageGroup);
