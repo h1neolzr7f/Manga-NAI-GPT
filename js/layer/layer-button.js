@@ -74,6 +74,7 @@ buttonsDiv.appendChild(deleteButton);
 
 function moveLockChange(obj){
 obj.selectable=!obj.selectable;
+obj.userMoveLock=!obj.selectable;   // explicit user lock survives tool-mode exits (audit 94)
 canvas.discardActiveObject();
 canvas.renderAll();
 updateLayerPanel();

@@ -76,6 +76,15 @@ icon.classList.remove("active");
 });
 
 if (element.style.display==="none") {
+// Close every sidebar panel that has a toolbar toggle, not just a hand-kept list (audit 112).
+if(typeof document!=='undefined'&&document.querySelectorAll){
+document.querySelectorAll('[data-action="toggleVisibility"][data-target]').forEach(function(toggle){
+var other=$(toggle.dataset.target);
+if(other&&other!==element)other.style.display="none";
+});
+}
+var psTools=$("ps-tools-area");
+if(psTools&&psTools!==element)psTools.style.display="none";
 $("svg-container-template").style.display="none";
 $("panel-manager-area").style.display="none";
 $("auto-generate-area").style.display="none";

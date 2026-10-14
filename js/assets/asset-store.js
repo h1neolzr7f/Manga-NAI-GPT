@@ -168,12 +168,15 @@ return Promise.all([idb,persistToServer(asset,file)]).then(function(result){
 var path=result[1];
 if(opts.required&&!result[0]&&!path)throw new Error('素材持久化失败。');
 var current=self.assets.find(function(item){return item.id===asset.id;});
+var persisted=!!(result[0]||path);
 if(current){
 if(path){
 current.path=path;
 current.relativePath=path;
 }
 current.missing=false;
+// Neither IndexedDB nor /user-assets took the file: it only lives in memory (audit 19).
+if(persisted)delete current.memoryOnly;else current.memoryOnly=true;
 self.save();
 self.emit();
 }
@@ -189,7 +192,7 @@ var self=this;
 return root.NaiComicAssetScanner.inspect(file,options).then(function(result){
 var registered=self.register(result.record,file);
 if((options&&options.sourceType)==='imported'||result.record.sourceType==='imported'){
-return self.persistImported(registered.asset,file).then(function(){return registered;});
+return self.persistImported(registered.asset,file).then(function(saved){registered.persisted=!(saved&&saved.memoryOnly);return registered;});
 }
 return registered;
 });
@@ -390,10 +393,17 @@ var current=typeof canvas!=='undefined'?canvas:root.canvas;
 if(!current||!root.fabric||!root.fabric.Image) return Promise.reject(new Error('Canvas 或 Fabric 尚未就绪。'));
 var asset=this.get(id);
 if(!asset)return Promise.reject(new Error('素材不存在：'+id));
+// Pin the page: a page switch during read/decode must not drop the asset onto the new page (audit 18).
+var pageGuid=typeof getCanvasGUID==='function'?getCanvasGUID():null;
+function pageChanged(){
+var now=typeof canvas!=='undefined'?canvas:root.canvas;
+return now!==current||(pageGuid&&typeof getCanvasGUID==='function'&&getCanvasGUID()!==pageGuid);
+}
 return this.getDataUrl(id).then(function(dataUrl){
 return new Promise(function(resolve,reject){
 root.fabric.Image.fromURL(dataUrl,function(image){
 if(!image){reject(new Error('素材无法载入画布。'));return;}
+if(pageChanged()){reject(new Error('添加素材期间切换了页面，已取消；请在目标页重新添加。'));return;}
 var panel=selectedPanel(current);
 if(panel)fitIntoPanel(image,panel);
 else{

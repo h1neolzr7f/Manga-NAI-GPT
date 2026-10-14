@@ -70,11 +70,24 @@ ModeManager.cursor.update(mode);
 uiLogger.debug("ModeManager.change:",prev,"->",mode);
 },
 
+// Tool modes disable selection temporarily; remember the layer's own state so leaving the tool
+// restores it instead of unlocking layers the user locked (audit 94).
+_toolLock:function(obj,props){
+if(!obj.__toolPrev)obj.__toolPrev={selectable:obj.selectable,evented:obj.evented};
+obj.set(props);
+},
+_toolRestore:function(obj,fallback){
+var prev=obj.__toolPrev;
+if(prev){delete obj.__toolPrev;obj.set({selectable:prev.selectable!==false,evented:prev.evented!==false});}
+else obj.set(fallback);
+if(obj.userMoveLock)obj.set({selectable:false});
+},
+
 _enableSpeechBubbleMode:function(mode){
 currentMode=mode;
 canvas.selection=false;
 canvas.forEachObject(function(obj){
-obj.set({selectable:false,evented:false});
+ModeManager._toolLock(obj,{selectable:false,evented:false});
 });
 var buttons={
 freehand:typeof sbFreehandButton!=='undefined'?sbFreehandButton:null,
@@ -240,7 +253,8 @@ _updateMovement:function(){
 canvas.discardActiveObject();
 canvas.selection=!isKnifeMode;
 canvas.forEachObject(function(obj){
-obj.set({selectable:!isKnifeMode});
+if(isKnifeMode)ModeManager._toolLock(obj,{selectable:false});
+else ModeManager._toolRestore(obj,{selectable:true});
 });
 canvas.renderAll();
 }
@@ -375,6 +389,8 @@ if(typeof unSelectedById==='function')unSelectedById("clearMode");
 
 clearAll:function(){
 uiLogger.debug("ModeManager.clearAll start");
+// Selection locks seen while no tool was active belong to the user (audit 94).
+var toolWasActive=ModeManager._current!==ModeManager.MODE.SELECT||!!isKnifeMode;
 ModeManager.crop.disable();
 ModeManager.knife.disable();
 ModeManager.edit.clear();
@@ -388,10 +404,12 @@ setSBActiveButton(sbSelectButton);
 ModeManager.speechBubble.clear();
 canvas.forEachObject(function(obj){
 if(obj.customType==="freehandBubbleRect"){
+delete obj.__toolPrev;
 obj.set({selectable:false,evented:false});
 return;
 }
-obj.set({selectable:true,evented:obj.simulatorRole!=='page'});
+if(!toolWasActive&&!obj.__toolPrev&&obj.selectable===false)obj.userMoveLock=true;
+ModeManager._toolRestore(obj,{selectable:true,evented:obj.simulatorRole!=='page'});
 });
 canvas.selection=true;
 ModeManager.cursor.reset();

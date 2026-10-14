@@ -96,9 +96,7 @@ def download(pack_id, opener=urllib.request.urlopen):
                 continue
             target = os.path.join(store_dir(), *(m["root"] + rel).split("/"))
             os.makedirs(os.path.dirname(target), exist_ok=True)
-            with open(target + ".part", "wb") as f:
-                f.write(data)
-            os.replace(target + ".part", target)
+            _atomic_write(target, data)
             progress_add(name, size)
     finally:
         progress_end(name)
@@ -113,9 +111,23 @@ def download(pack_id, opener=urllib.request.urlopen):
 def _write(m, rel, data):
     target = os.path.join(store_dir(), *(m["root"] + rel).split("/"))
     os.makedirs(os.path.dirname(target), exist_ok=True)
-    with open(target + ".part", "wb") as f:
-        f.write(data)
-    os.replace(target + ".part", target)
+    _atomic_write(target, data)
+
+
+def _atomic_write(target, data):
+    """Unique temp file per writer, so concurrent downloads of one pack never share a .part (audit 45)."""
+    import tempfile
+    fd, tmp = tempfile.mkstemp(prefix=os.path.basename(target)[:40] + ".", suffix=".part", dir=os.path.dirname(target))
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+        os.replace(tmp, target)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def _download_archive(m, pack, opener):

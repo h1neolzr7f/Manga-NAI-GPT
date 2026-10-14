@@ -261,7 +261,7 @@ class Handler(BaseHTTPRequestHandler):
         return options
 
     def _process_one(self, content: bytes, filename: str, options: dict[str, Any]) -> dict[str, Any]:
-        with tempfile.NamedTemporaryFile(prefix="manga_editor_", suffix="_" + filename, delete=True) as temp:
+        with tempfile.NamedTemporaryFile(prefix="manga_editor_", suffix=os.path.splitext(filename)[1][:16], delete=True) as temp:  # short temp name (audit 44)
             temp.write(content)
             temp.flush()
             model_id, result = self.manager.remove_background(content, options.get("model") or options.get("mode"), options)

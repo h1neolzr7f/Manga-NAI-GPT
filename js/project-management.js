@@ -577,6 +577,7 @@ data.roleAssignments[AI_ROLES.Image2Image]='novelai';
 localStorage.setItem('localSettingsData',JSON.stringify(data));
 }
 
+var RESET_PRESERVED_KEYS=['nai_comic_asset_manifest_v1','nai_comic_image2_jobs_v1'];
 function resetAllSettings(){
 var items=[
 getText('settingsResetItem1')||'API connection settings (URLs, API keys)',
@@ -633,7 +634,12 @@ cancelBtn.addEventListener('click',function(){overlay.remove();});
 overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove();});
 okBtn.addEventListener('click',function(){
 overlay.remove();
+// Reset settings only: creative-data indexes (asset library manifest, generation job records)
+// survive, otherwise stored images become invisible after reload (audit 53).
+var keep={};
+RESET_PRESERVED_KEYS.forEach(function(key){var v=localStorage.getItem(key);if(v!==null)keep[key]=v;});
 localStorage.clear();
+Object.keys(keep).forEach(function(key){try{localStorage.setItem(key,keep[key]);}catch(e){}});
 sessionStorage.clear();
 if('caches' in window){
 caches.keys().then(function(names){

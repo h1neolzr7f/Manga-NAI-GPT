@@ -230,7 +230,10 @@ bindTabs();
 var input=element('assetLibraryInput');
 if(input)input.addEventListener('change',function(){
 store.addFiles(input.files,{sourceType:'imported',license:{type:'unknown',publicAllowed:false}}).then(function(results){
-status('已处理 '+results.length+' 个素材文件。刷新后仍可从本机缓存加载。',false);render();
+var memoryOnly=(results||[]).filter(function(r){return r&&r.persisted===false;}).length;
+if(memoryOnly)status('已处理 '+results.length+' 个素材文件，其中 '+memoryOnly+' 个未能保存到本机（存储已满或写入失败），只在本次打开期间可用，刷新后会丢失。',true);
+else status('已处理 '+results.length+' 个素材文件。刷新后仍可从本机缓存加载。',false);
+render();
 }).catch(function(error){status(error.message,true);});
 });
 var search=element('assetLibrarySearch');

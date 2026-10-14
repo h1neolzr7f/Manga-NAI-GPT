@@ -70,7 +70,7 @@ currentMode="select";
 canvas.selection=true;
 canvas.forEachObject(function(obj){
 if(obj.excludeFromLayerPanel)return;
-obj.set({selectable:true,evented:obj.simulatorRole!=='page'});
+obj.set({selectable:!obj.userMoveLock,evented:obj.simulatorRole!=='page'});
 });
 changeDefaultCursor();
 canvas.renderAll();
@@ -79,7 +79,7 @@ shiftTempDisabledKnife=true;
 canvas.selection=true;
 canvas.forEachObject(function(obj){
 if(obj.excludeFromLayerPanel)return;
-obj.set({selectable:true,evented:obj.simulatorRole!=='page'});
+obj.set({selectable:!obj.userMoveLock,evented:obj.simulatorRole!=='page'});
 });
 changeDefaultCursor();
 canvas.renderAll();
