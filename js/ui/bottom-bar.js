@@ -391,11 +391,15 @@ window.addEventListener("resize",btmUpdateScrollButtons);
 
 async function chengeCanvasByGuid(guid,saveCurrent=false){
 if(window.NaiPageLoading||window.NaiHistoryLoading)return false;
-const projectData=btmProjectsMap.get(guid);
-if(!projectData||!projectData.blob)return false;
+if(!btmProjectsMap.get(guid)||!btmProjectsMap.get(guid).blob)return false;
+// Clicking the page that is already open must not reload its older saved blob over live edits.
+if(saveCurrent&&typeof getCanvasGUID==='function'&&getCanvasGUID()===guid)return true;
 window.NaiPageLoading=true;
 try{
 if(saveCurrent&&stateStack.length>=btmSaveStateThreshold)await btmSaveProjectFile();
+// Re-read after saving: the save replaces the Map record.
+const projectData=btmProjectsMap.get(guid);
+if(!projectData||!projectData.blob)return false;
 return await loadLz4BlobProjectFile(projectData.blob,guid,true);
 }catch(error){
 uiLogger.error("Error loading ZIP:",error);
@@ -436,7 +440,8 @@ if(getCanvasGUID()===guid)await btmSaveProjectFile(null,false);
 var src=btmProjectsMap.get(guid);
 if(!src||!src.blob){if(typeof createToastError==='function')createToastError('无法复制','这一页还没有保存内容，先画点东西再复制。');return null;}
 var newGuid=generateGUID();
-btmAddImage(src.imageLink?{href:src.imageLink.href}:src.imageLink,src.blob,newGuid,true);
+var copyBlob=await btmRewriteBlobGuid(src.blob,guid,newGuid);
+btmAddImage(src.imageLink?{href:src.imageLink.href}:src.imageLink,copyBlob,newGuid,true);
 var idx=btmGetGuidIndex(guid)+1;
 if(idx<btmGetGuidsSize()-1)reorderImages(idx,newGuid);
 updateAllPageNumbers();
@@ -444,6 +449,34 @@ btmUpdateScrollButtons();
 btmUpdateHandleText();
 await chengeCanvasByGuid(newGuid,true);
 return newGuid;
+}
+
+// A page's identity lives inside its saved history states (canvasGuid). A copy must carry its
+// own GUID everywhere, or reopening the project merges it with the original.
+function btmReplaceGuidDeep(node,oldGuid,newGuid){
+if(Array.isArray(node)){node.forEach(function(v){btmReplaceGuidDeep(v,oldGuid,newGuid);});return;}
+if(!node||typeof node!=='object')return;
+Object.keys(node).forEach(function(k){
+if(k==='canvasGuid'&&node[k]===oldGuid)node[k]=newGuid;
+else btmReplaceGuidDeep(node[k],oldGuid,newGuid);
+});
+}
+async function btmRewriteBlobGuid(blob,oldGuid,newGuid){
+var files=await lz4Compressor.unLz4Files(blob);
+var out=[];
+for(var i=0;i<files.length;i++){
+var f=files[i],data=f.data;
+if(/^state_\d+\.json$/.test(f.name)){
+var outer=JSON.parse(ArrayBufferUtils.fromArrayBufferToString(data));
+var wasString=typeof outer==='string';
+var state=wasString?JSON.parse(outer):outer;
+btmReplaceGuidDeep(state,oldGuid,newGuid);
+var json=JSON.stringify(wasString?JSON.stringify(state):state);
+data=new Uint8Array(await ArrayBufferUtils.toArrayBuffer(json));
+}
+lz4Compressor.putDataListByArrayBuffer(out,f.name,data.buffer?data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength):data);
+}
+return await lz4Compressor.buffersToLz4Blob(out);
 }
 
 function btmOfferPageRestore(removed){
@@ -471,7 +504,8 @@ if(removed.index<btmGetGuidsSize()-1)reorderImages(removed.index,removed.guid);
 updateAllPageNumbers();
 btmUpdateScrollButtons();
 btmUpdateHandleText();
-if(typeof chengeCanvasByGuid==='function')await chengeCanvasByGuid(removed.guid);
+// Save the page being edited before switching, or its unsaved edits are lost.
+if(typeof chengeCanvasByGuid==='function')await chengeCanvasByGuid(removed.guid,true);
 });
 bar.appendChild(text);
 bar.appendChild(btn);
