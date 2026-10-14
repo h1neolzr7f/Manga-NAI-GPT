@@ -72,7 +72,10 @@
   function accept(i) {
     const t = target, r = items[i]; if (!t || !r) return; const tok = tokenAt(t), v = t.value;
     const lead = v.slice(tok.a, tok.b).match(/^\s*(?:-?\d+(?:\.\d+)?::|[{[(]+)?/)[0];
-    t.value = v.slice(0, tok.a) + lead + r.name + ', ' + v.slice(tok.b).replace(/^[^,\n]*,?\s*/, ''); const pos = tok.a + lead.length + r.name.length + 2; t.setSelectionRange(pos, pos);
+    // Keep closing weight markers (::, }, ], )) of the tag being completed (audit 88).
+    const restWord = v.slice(tok.b).match(/^[^,\n]*/)[0];
+    const trail = (restWord.match(/(?:::|[}\])]+)\s*$/) || [''])[0].trim();
+    t.value = v.slice(0, tok.a) + lead + r.name + trail + ', ' + v.slice(tok.b).replace(/^[^,\n]*,?\s*/, ''); const pos = tok.a + lead.length + r.name.length + trail.length + 2; t.setSelectionRange(pos, pos);
     t.dispatchEvent(new Event('input', { bubbles: true })); t.dispatchEvent(new Event('change', { bubbles: true })); closeMenu(); t.focus();
   }
   function bind(t) {
