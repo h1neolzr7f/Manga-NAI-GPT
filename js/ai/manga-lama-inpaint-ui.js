@@ -193,8 +193,16 @@
     g.putImageData(d,0,0);
     return c;
   }
+  function invalidatePreview(reason){
+    // Audit 75: any mask change drops the old preview so Confirm cannot apply a stale result.
+    approved=null;
+    if($('mangaLamaConfirm'))$('mangaLamaConfirm').disabled=true;
+    if($('mangaLamaPreviewImg')){$('mangaLamaPreviewImg').removeAttribute('src');$('mangaLamaPreviewImg').hidden=true;}
+    if(reason)show(reason);
+  }
   async function refreshMask(){
     if(!prepared)return;
+    invalidatePreview();
     const now=prepared,crop=now.crop;
     if(!crop.ruleMask){crop.ruleMask=document.createElement('canvas');crop.ruleMask.width=crop.width;crop.ruleMask.height=crop.height;crop.ruleMask.getContext('2d').drawImage(crop.maskCanvas,0,0);}
     const restoreRule=()=>{const g=crop.maskCanvas.getContext('2d');g.clearRect(0,0,crop.width,crop.height);g.drawImage(crop.ruleMask,0,0);};
@@ -342,7 +350,10 @@
         throw Error('模型处理期间画布或蒙版已变化，结果已丢弃。');
       if(data.width!==now.crop.width||data.height!==now.crop.height)
         throw Error('LaMa 结果分辨率不一致。');
-      approved={input:now.input,crop:now.crop,result:data.image};
+      const maskSnap=document.createElement('canvas');
+      maskSnap.width=now.crop.width;maskSnap.height=now.crop.height;
+      maskSnap.getContext('2d').drawImage(now.crop.maskCanvas,0,0);
+      approved={input:now.input,crop:Object.assign({},now.crop,{maskCanvas:maskSnap}),result:data.image,ticket:id};
       $('mangaLamaPreviewImg').src=data.image;
       $('mangaLamaPreviewImg').hidden=false;
       $('mangaLamaConfirm').disabled=false;
@@ -377,6 +388,7 @@
   async function apply(){
     if(!approved || ongoing)return;
     const target=approved;
+    const applyTicket=ticket;
     if(!target.input.validate()){
       approved=null;$('mangaLamaConfirm').disabled=true;
       return show('漫画或文字框已变化。不能应用旧预览，请重新生成。',true);
@@ -385,8 +397,11 @@
     $('mangaLamaConfirm').disabled=true;
     try{
       const img=await loadImage(target.result);
+      // Audit 74: cancel during decode must not commit; approved identity + ticket checked at each await.
+      if(ticket!==applyTicket||approved!==target)throw Error('已取消，修复结果没有贴到画布。');
       const url=alphaMaskedCanvas(img,target.crop);
       const overlay=await makeFabric(url);
+      if(ticket!==applyTicket||approved!==target)throw Error('已取消，修复结果没有贴到画布。');
       if(!target.input.validate())throw Error('创建图层期间画布被修改，已取消应用。');
       overlay.set({left:target.crop.x,top:target.crop.y,selectable:true});
       overlay.set('name','本地 LaMa 去字 · 可恢复');

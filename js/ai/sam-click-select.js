@@ -19,7 +19,8 @@
   function gpt() { return window.MangaGPTRegionEditor; }
 
   // Stable per page content: a new id whenever the page pixels the model saw change.
-  function hashString(s) { let h = 2166136261; for (let i = 0; i < s.length; i += 97) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + '-' + s.length.toString(36); }
+  // Audit 76: hash every character. Sampling every 97th collided on same-length pages with different pixels.
+  function hashString(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + '-' + s.length.toString(36); }
 
   function status(text, isError) {
     if (!cur) return;

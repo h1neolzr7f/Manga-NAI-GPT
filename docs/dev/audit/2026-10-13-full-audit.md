@@ -78,6 +78,9 @@
 | 71 | 已修复 [PR #22](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/22)：覆盖底色在内边距内遇到跨越≥60% 的深色轮廓线即停止，不再盖住气泡边框（决定：宁可少盖一点也不破坏线稿） |
 | 72 | 已修复 [PR #22](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/22)：OCR 返回中位字形尺寸 glyph，字号上限按实际字形而非框面积估算 |
 | 73 | 已修复 [PR #22](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/22)：应用时固定页面 GUID，解码期间切页则中止并提示，不会把 A 页图层加到 B 页（决定：中止而非自动切回） |
+| 74 | 已修复 [PR #29](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/29)：LaMa 应用在每次 await 后核对 ticket 与 approved 身份；取消后迟到解码不再提交图层 |
+| 75 | 已修复 [PR #29](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/29)：任何蒙版改动（含检测器切换）作废预览并禁用确认；批准时快照 mask，应用不再读到之后改动的蒙版 |
+| 76 | 已修复 [PR #29](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/29)：智能点选 imageId 对整段页面内容做 FNV-1a，不再每 97 字符抽样（避免同长度不同图碰撞） |
 | 80 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：glfxReset 锁定原目标并在原索引恢复，不再替换当前选中对象 |
 | 82 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：刀切比例校验失败时回滚子图变换/clipPath/绑定与图层顺序 |
 | 86 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：旧版角色卡就地规范化，输入回调写入当前对象 |
