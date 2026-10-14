@@ -602,7 +602,32 @@ var safeMultiplier=ImageUtil.resolveExportMultiplier(multiplier);
 ImageUtil.lastExportWasCapped=safeMultiplier<multiplier-1e-9;
 var options={format:normalizedFormat,multiplier:safeMultiplier};
 if(normalizedFormat!=='png')options.quality=ImageUtil.normalizeExportQuality(quality);
+// Audit 65: Fabric's raster path ignores excludeFromExport — hide helpers for the export only.
+var hidden=[];
+if(canvas&&typeof canvas.getObjects==='function'){
+canvas.getObjects().forEach(function(obj){
+if(obj&&(obj.excludeFromExport||obj.naiCropFrame)&&obj.visible!==false){hidden.push(obj);obj.visible=false;}
+});
+}
+// Audit 66: Fabric may mutate the live canvas during toDataURL(multiplier); always restore.
+var snap=canvas?{
+width:canvas.width,height:canvas.height,
+viewportTransform:canvas.viewportTransform&&canvas.viewportTransform.slice?canvas.viewportTransform.slice():canvas.viewportTransform,
+interactive:canvas.interactive,enableRetinaScaling:canvas.enableRetinaScaling,contextTop:canvas.contextTop
+}:null;
+try{
 return canvas.toDataURL(options);
+}finally{
+if(snap){
+if(typeof canvas.setDimensions==='function')canvas.setDimensions({width:snap.width,height:snap.height});
+else{canvas.width=snap.width;canvas.height=snap.height;}
+if(snap.viewportTransform)canvas.viewportTransform=snap.viewportTransform.slice?snap.viewportTransform.slice():snap.viewportTransform;
+if(snap.interactive!==undefined)canvas.interactive=snap.interactive;
+if(snap.enableRetinaScaling!==undefined)canvas.enableRetinaScaling=snap.enableRetinaScaling;
+if('contextTop' in snap)canvas.contextTop=snap.contextTop;
+}
+hidden.forEach(function(obj){obj.visible=true;});
+}
 },
 
 // 上限に当たって解像度が落ちたときだけ利用者に知らせる。二重表示はしない。
@@ -681,6 +706,7 @@ return ImageUtil.getCropAndDownloadLinkByMultiplier(multiplier,format,quality);
 
 clipCopy:function(){
 removeGrid();
+try{
 // クリップボードは元の画素を保つため、位深度を落とさない 32bit ARGB 固定で書き出す。
 return ImageUtil.getCropAndDownloadLinkByMultiplier(
 ImageUtil.resolveExportMultiplierForDpi(
@@ -707,10 +733,16 @@ createToast("已复制","画面已复制到剪贴板。");
 }).catch(function(error){
 createToastError("复制失败",(error&&error.message)||"无法写入剪贴板。");
 }).then(restoreGridAfterExport);
+}catch(error){
+restoreGridAfterExport();
+createToastError('复制失败',(error&&error.message)||'无法写入剪贴板。');
+throw error;
+}
 },
 
 cropAndDownload:function(){
 removeGrid();
+try{
 return ImageUtil.getCropAndDownloadLink().then(function(link){
 link.click();
 ImageUtil.notifyExportLimitReached();
@@ -720,6 +752,11 @@ restoreGridAfterExport();
 restoreGridAfterExport();
 createToastError('导出失败',(error&&error.message)||'无法生成导出图片。',5000);
 });
+}catch(error){
+restoreGridAfterExport();
+createToastError('导出失败',(error&&error.message)||'无法生成导出图片。',5000);
+throw error;
+}
 },
 
 // Beginners could not tell what resolution 下载图片 produced (a 1200px page comes out ~2480px at
