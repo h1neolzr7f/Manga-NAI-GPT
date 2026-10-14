@@ -94,14 +94,11 @@ class RefinePageRegionsTest(unittest.TestCase):
     def tearDown(self):
         refiner._reset_for_tests()
 
-    def setUp(self):
+    def test_pads_and_rewrites_region_text(self):
         try:
-            import PIL.Image  # noqa: F401
+            from PIL import Image
         except ImportError:
             self.skipTest("Pillow not installed in this CI job")
-
-    def test_pads_and_rewrites_region_text(self):
-        from PIL import Image
         img = Image.new("RGB", (200, 120), (255, 255, 255))
         buf = __import__("io").BytesIO(); img.save(buf, format="PNG")
         regions = [{"text": "错字", "x": 40, "y": 30, "width": 60, "height": 40, "confidence": 50}]
@@ -116,7 +113,10 @@ class RefinePageRegionsTest(unittest.TestCase):
         self.assertEqual(out[0]["recognizer"], "manga-ocr-local")
 
     def test_keeps_tesseract_text_when_model_returns_empty(self):
-        from PIL import Image
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest("Pillow not installed in this CI job")
         img = Image.new("RGB", (100, 80), (255, 255, 255))
         buf = __import__("io").BytesIO(); img.save(buf, format="PNG")
         regions = [{"text": "保留", "x": 10, "y": 10, "width": 40, "height": 30, "confidence": 80}]
