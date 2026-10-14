@@ -115,9 +115,14 @@
 | 103 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：正向规则只改正向提示词，负向规则只改负向；空旧词跳过 |
 | 104 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：提示词替换改为字面替换，不再当正则 |
 | 107 | 已修复 [PR #17](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/17)：合并前收集被吸收气泡的对白，合并后的气泡正文继承原对白（多段换行拼接），新气泡仍为默认“台词” |
+| 108 | 已修复 [PR #37](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/37)：页面效果/网格不再在共享 Fabric ctx 上 clearRect，下层像素保留 |
+| 109 | 已修复 [PR #37](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/37)：自定义底页解码前固定页面；切页后放弃结果并提示，不删新页底图 |
+| 110 | 已修复 [PR #37](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/37)：选中图片时右键 I2I 不再被“还没有分镜格”预检拦截（逐格生成仍要求分镜） |
+| 111 | 已修复 [PR #37](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/37)：模型测试绑定发起时的地址；地址已切换则丢弃迟到响应且不存盘 |
 | 112 | 已修复 [PR #19](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/19)：切换侧栏时关闭所有带工具栏开关的面板（含画具） |
 | 113 | 已修复 [PR #17](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/17)：三种聊天布局的消息行 Group 不再强制 left/top=0，保留 Fabric 计算出的行位置 |
 | 114 | 已修复 [PR #21](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/21)：Discord 图片消息与社交动态实际加载图片并等比放置；失败显示“图片加载失败” |
+| 115 | 已修复 [PR #37](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/37)：头像加载成功后去掉不透明默认圆与首字母，图片可见（仅保留透明描边） |
 | 116 | 已修复 [PR #17](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/17)：站点零件文字带稳定字段 ID；readSelected 从画布回读最新文字并同步 simulatorScene，重新应用不再覆盖 |
 | 117 | 已修复 [PR #21](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/21)：Studio 以载入的完整场景为底，只 patch 用户改动字段，列表项按索引保留原有隐藏属性 |
 | 118 | 已修复 [PR #21](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/21)：姓名字段同时写 name/author/sender/user，论坛/手机渲染器都能显示 |

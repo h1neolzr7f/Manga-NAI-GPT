@@ -121,7 +121,7 @@ ctx.fillRect(hash(i*2.4)*width,hash(i*6.1)*height,1+n*2,1+n*2);
 function drawEffect(ctx,width,height,options){
 var opt=normalizeEffect(options);
 var i,x,y,len,rgb=parseColor(opt.color);
-ctx.clearRect(0,0,width,height);
+// Audit 108: never clearRect on the shared Fabric ctx — that erases lower layers.
 if(opt.id==='vignette'){
 var vg=ctx.createRadialGradient(width/2,height/2,Math.min(width,height)*0.28,width/2,height/2,Math.max(width,height)*0.72);
 vg.addColorStop(0,'rgba(0,0,0,0)');
@@ -279,7 +279,7 @@ return object;
 function drawGridPattern(ctx,width,height,size){
 size=Math.max(4,Number(size)||10);
 var i;
-ctx.clearRect(0,0,width,height);
+// Audit 108: do not clearRect on shared Fabric ctx.
 for(i=0;i<=width/size;i++){
 ctx.strokeStyle=i%(50/size)===0?'rgba(226,74,74,0.45)':'rgba(74,144,226,0.28)';
 ctx.beginPath();
@@ -367,9 +367,20 @@ return Promise.resolve(object);
 function placeImage(dataUrl,meta,behindPanels){
 var current=currentCanvas();
 if(!current||!root.fabric)return Promise.reject(new Error('Canvas 尚未初始化。'));
+// Audit 109: pin page identity before async decode; abandon if the user switched pages.
+var requestGuid=typeof getCanvasGUID==='function'?getCanvasGUID():(current&&current.guid);
+var requestCanvas=current;
 return new Promise(function(resolve,reject){
 root.fabric.Image.fromURL(dataUrl,function(image){
 if(!image){reject(new Error('底页图片加载失败。'));return;}
+var live=currentCanvas();
+var liveGuid=typeof getCanvasGUID==='function'?getCanvasGUID():(live&&live.guid);
+if(live!==requestCanvas||(requestGuid!=null&&liveGuid!=null&&String(liveGuid)!==String(requestGuid))){
+if(typeof createToast==='function')createToast('底页',['页面已切换，自定义底页未应用到新页'],2600);
+resolve(null);
+return;
+}
+current=live;
 var width=Number(current.width)||1000;
 var height=Number(current.height)||1400;
 var scale=Math.max(width/(image.width||1),height/(image.height||1));

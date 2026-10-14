@@ -373,6 +373,11 @@ openNovelaiSettings();
 return false;
 }
 if(!panelCount()){
+// Audit 110: a selected raster image can still run I2I without panels (右键「以这张图再生成」).
+var active=typeof canvas!=='undefined'&&canvas&&typeof canvas.getActiveObject==='function'?canvas.getActiveObject():null;
+if(active&&typeof isImage==='function'&&isImage(active)&&!(typeof isPanel==='function'&&isPanel(active))){
+return true;
+}
 var pages=typeof btmGetGuidsSize==='function'?btmGetGuidsSize():1;
 if(!pages||pages<=1){
 if(typeof createToastError==='function')createToastError('还没有分镜格','请先点「页面」建自定义页面或 A4，再用「切割格子」切开；或点左侧「模板」选分镜。模拟器是假界面，不能当格子出图。',7000);
