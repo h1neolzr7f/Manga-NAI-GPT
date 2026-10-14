@@ -55,6 +55,7 @@ return visible;
 },
 _handleKey:function(e,trap){
 if(e.key==='Escape'){
+if(e.isComposing||e.keyCode===229){return;}
 e.preventDefault();
 e.stopPropagation();
 if(trap.closeCallback){

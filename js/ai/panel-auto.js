@@ -66,12 +66,15 @@
   }
 
   const cache = new Map();
+  // Audit 93: hash full src (same as SAM 76), not only length — same-size replacement must miss cache.
+  function hashString(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + '-' + s.length.toString(36); }
   function pageKey() {
     if (typeof canvas === 'undefined') return '';
     const img = canvas.getObjects().find(o => o.type === 'image' && !o.autoSwap && !o.panelLayer);
     if (!img) return '';
     const id = typeof getCanvasGUID === 'function' ? getCanvasGUID() : 'page';
-    return id + ':' + img.width + 'x' + img.height + ':' + ((img._element && img._element.src) || '').length;
+    const src = (img._element && img._element.src) || '';
+    return id + ':' + img.width + 'x' + img.height + ':' + hashString(src);
   }
   function loadImg(src) { return new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src; }); }
 

@@ -95,7 +95,12 @@
 | 86 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：旧版角色卡就地规范化，输入回调写入当前对象 |
 | 88 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：标签补全保留 ::、}、]、) 等关闭权重标记 |
 | 91 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：辉光尺寸按十进制解析 |
+| 92 | 已修复 [PR #33](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/33)：commonProperties 持久化 mangaImport* 合同（参考/分格/占位/tags/sourceBox 等），历史恢复后可选占位、可隐藏参考层 |
+| 93 | 已修复 [PR #33](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/33)：自动分格缓存键对整段图片 src 做 FNV-1a（同 SAM 76），同尺寸换图不再命中旧坐标 |
 | 94 | 已修复 [PR #19](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/19)：工具模式记录并恢复图层原选中状态；用户移动锁显式记为 userMoveLock 并持久化 |
+| 95 | 已修复 [PR #33](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/33)：竖排 onInput 接受 Delete/WordForward/Undo/Redo/Replacement 与多字 deleteCompositionText，退出编辑前同步 textarea |
+| 96 | 已修复 [PR #33](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/33)：竖排构造克隆 keysMapRtl，不再污染已有横排 RTL 文字的方向键 |
+| 98 | 已修复 [PR #33](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/33)：composition 选区经 fromStringToGraphemeSelection 转 grapheme 索引再绘制，emoji 前缀下 IME 高亮对准正确字 |
 | 101 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：日期键按本地年月日解析；周目标与周统计统一周一为起点（产品决定） |
 | 103 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：正向规则只改正向提示词，负向规则只改负向；空旧词跳过 |
 | 104 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：提示词替换改为字面替换，不再当正则 |
