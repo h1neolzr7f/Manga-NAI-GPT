@@ -95,8 +95,9 @@
     message('正在用 Manga OCR 精修第 '+(index+1)+' 条文字。首次运行可能需要下载约 400MB 模型……');
     try {
       const source=await loadImage(state.sourceImage);
-      const padX=Math.max(10,Math.round(box.width*.22));
-      const padY=Math.max(10,Math.round(box.height*.40));
+      const vertical = !!(draft.vertical) || (box.height > box.width * 1.35);
+      const padX=vertical ? Math.max(14,Math.round(box.width*.48)) : Math.max(10,Math.round(box.width*.22));
+      const padY=vertical ? Math.max(8,Math.round(box.height*.14)) : Math.max(10,Math.round(box.height*.40));
       const x=Math.max(0,Math.floor(box.x-padX));
       const y=Math.max(0,Math.floor(box.y-padY));
       const right=Math.min(source.width,Math.ceil(box.x+box.width+padX));
@@ -143,7 +144,7 @@
     const list = $('mangaSmartRegions');
     list.replaceChildren();
     state.drafts.forEach((draft, i) => {
-      const row = make('div', undefined, 'manga-smart-item');
+      const row = make('div', undefined, 'manga-smart-item' + (draft.suspect ? ' is-suspect' : ''));
       const first = make('div', undefined, 'manga-smart-line');
       const use = document.createElement('input');
       use.type = 'checkbox';
@@ -152,6 +153,8 @@
       use.addEventListener('change', () => { draft.active = use.checked; });
       const label = make('span', '区域 ' + (i + 1) + ' · ' + Math.round(draft.x) +
         ',' + Math.round(draft.y) + ' · ' + Math.round(draft.confidence || 0) + '%' +
+        (draft.recognizer === 'manga-ocr-local' ? ' · Manga OCR' : '') +
+        (draft.suspect ? ' · 建议核对' : '') +
         (draft.panelId ? ' · 第' + Number(draft.panelId.split('-')[1]) + '格' : ''));
       const remove = make('button', '删除', 'manga-smart-small');
       remove.type = 'button';

@@ -1,0 +1,92 @@
+{
+  "page": "docs/images/comic-page.jpg",
+  "size": [
+    1000,
+    1417
+  ],
+  "version": "1.6.3",
+  "ocr": {
+    "baseline_engine": "tesseract-local",
+    "refined_engine": "tesseract-local+manga-ocr",
+    "baseline_sec": 1.46,
+    "warm": {
+      "ok": true,
+      "engine": "manga-ocr-local",
+      "warmed": true
+    },
+    "warm_sec": 10.57,
+    "refined_sec": 8.71,
+    "region_count_base": 3,
+    "region_count_refined": 3,
+    "refined_count": 3,
+    "suspect_count": 1,
+    "rows": [
+      {
+        "gt": "啊……下雨了。",
+        "baseline": "咽下雨了。",
+        "refined": "『．．．下雨了。",
+        "cer_baseline": 0.429,
+        "cer_refined": 0.571
+      },
+      {
+        "gt": "要一起走吗？",
+        "baseline": "一起走?",
+        "refined": "要一起走９？",
+        "cer_baseline": 0.5,
+        "cer_refined": 0.167
+      },
+      {
+        "gt": "伞忘在家里了……",
+        "baseline": "了里家在…人",
+        "refined": "傘忘在家里了．．．",
+        "cer_baseline": 0.75,
+        "cer_refined": 0.5
+      }
+    ],
+    "mean_cer_baseline": 0.56,
+    "mean_cer_refined": 0.413
+  },
+  "inpaint": {
+    "crop_box": [
+      760,
+      60,
+      960,
+      240
+    ],
+    "mask_coverage": 0.431,
+    "engines": {
+      "lama": {
+        "engine": "simple-lama-local",
+        "engineName": "lama",
+        "sec": 3.83,
+        "mae_inside": 45.83,
+        "mae_outside": 0.0,
+        "luma_std_inside": 94.07,
+        "ok": true
+      },
+      "lama-manga": {
+        "engine": "simple-lama-manga-local",
+        "engineName": "lama-manga",
+        "sec": 7.99,
+        "mae_inside": 38.43,
+        "mae_outside": 0.0,
+        "luma_std_inside": 94.07,
+        "ok": true
+      },
+      "auto": {
+        "engine": "simple-lama-manga-local",
+        "engineName": "lama-manga",
+        "sec": 6.73,
+        "mae_inside": 38.43,
+        "mae_outside": 0.0,
+        "luma_std_inside": 94.07,
+        "ok": true
+      }
+    }
+  },
+  "verdict": {
+    "ocr_improved": true,
+    "manga_lama_better_or_equal": true,
+    "auto_picks_manga": true
+  }
+}

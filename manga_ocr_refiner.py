@@ -75,6 +75,23 @@ def _recognize(model, image):
     return text.strip()
 
 
+
+def warm(allow_download=False):
+    """Load manga-ocr into memory when weights are already cached (no download prompt).
+
+    Safe to call from a background warm endpoint; raises 428 if weights are missing
+    and allow_download is false.
+    """
+    from manga_model_guard import manga_ocr_cached
+    if not package_ready():
+        raise SmartOcrError(
+            "未安装 Manga OCR。请在本地 Python 环境执行 pip install manga-ocr。", 503)
+    if not allow_download and not manga_ocr_cached():
+        raise SmartOcrError("Manga OCR 模型尚未下载。", 428)
+    with exclusive("manga-ocr"):
+        get_model(allow_download)
+    return {"ok": True, "engine": "manga-ocr-local", "warmed": True}
+
 def refine_region(image_url, allow_download=False):
     data, width, height = read_image(image_url)
     if width * height > 4_000_000 or width < 2 or height < 2:
@@ -100,13 +117,43 @@ def refine_region(image_url, allow_download=False):
     }
 
 
+def _looks_suspect(text, confidence=0, vertical=False):
+    """Cheap UI flag: likely garbage / truncated OCR the user should check.
+
+    Does not drop the region — only marks it for yellow highlight in the panel.
+    """
+    compact = "".join((text or "").split())
+    if not compact:
+        return True
+    # Very low Tesseract confidence (manga-ocr leaves confidence at 0 after refine).
+    if confidence and confidence < 35:
+        return True
+    # Latin/digit soup or symbol-heavy fragments after refine often mean a bad crop.
+    cjk = sum(1 for ch in compact if ("぀" <= ch <= "ヿ") or ("㐀" <= ch <= "鿿")
+              or ("ｦ" <= ch <= "ﾝ") or ("가" <= ch <= "힯"))
+    if cjk == 0 and len(compact) >= 2:
+        return True
+    if cjk and (len(compact) - cjk) / len(compact) > 0.55 and len(compact) >= 3:
+        return True
+    # Vertical bubble with a single wide glyph string of punctuation-like dots only.
+    if vertical and len(compact) <= 2 and all(ch in "．.、…・·" for ch in compact):
+        return True
+    return False
+
+
 def _pad_box(reg, page_w, page_h):
     w = max(1, int(reg.get("width") or 0))
     h = max(1, int(reg.get("height") or 0))
     x = int(reg.get("x") or 0)
     y = int(reg.get("y") or 0)
-    pad_x = max(10, round(w * 0.22))
-    pad_y = max(10, round(h * 0.40))
+    vertical = bool(reg.get("vertical")) or (h > w * 1.35)
+    if vertical:
+        # Tall/narrow vertical bubbles: extra side pad so edge glyphs are not clipped.
+        pad_x = max(14, round(w * 0.48))
+        pad_y = max(8, round(h * 0.14))
+    else:
+        pad_x = max(10, round(w * 0.22))
+        pad_y = max(10, round(h * 0.40))
     left = max(0, x - pad_x)
     top = max(0, y - pad_y)
     right = min(page_w, x + w + pad_x)
@@ -153,6 +200,11 @@ def refine_page_regions(png_bytes, width, height, regions, allow_download=False)
                     item["recognizer"] = "manga-ocr-local"
                     item["confidence"] = 0
                     refined += 1
+                iw = max(1, int(item.get("width") or 0))
+                ih = max(1, int(item.get("height") or 0))
+                item["suspect"] = _looks_suspect(
+                    item.get("text"), item.get("confidence") or 0,
+                    bool(item.get("vertical")) or (ih > iw * 1.35))
                 out.append(item)
     return out, refined
 

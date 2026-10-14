@@ -697,7 +697,10 @@
     }
     drawPick();
     if (r && r.ok) status(s.chars.length ? '找到 ' + s.chars.length + ' 个人物（橙色虚线）。点一下要换掉的那个；没框到的话直接点在人物身上。' : '没有自动找到人物：直接点在要换的人物身上。');
-    else status(((r && r.error) || '自动找人物不可用。') + ' 可以直接点在要换的人物身上（智能点选）。', !(r && r.declined));
+    else {
+      const missing = r && (r.status === 501 || /onnxruntime|opencv|自动找人物不可用/.test(String(r.error || '')));
+      status((missing ? '本机人物识别组件未就绪，已跳过自动找人。' : ((r && r.error) || '自动找人物不可用。')) + ' 可以直接点在要换的人物身上（智能点选）。', !(r && r.declined) && !missing);
+    }
   }
 
   /** Warm the server's per-page detection cache in the background (after import). Never prompts: runs only
@@ -710,10 +713,23 @@
         // stay out of the way: no prefetch while any wizard or smart-select is open
         if (!gpt() || !gpt().pageImage || S || document.querySelector('.sam-select, #taskWizardCard, #mangaGptTaskHead')) return;
         const st = await post('/manga-smart/status', {});
-        const ch = st && st.characters;
-        if (!(ch && ch.cached && ch.identityCached && st.samSelect && st.samSelect.cached)) return;
         const pg = gpt().pageImage(false);
         if (!pg || !pg.image) return;
+        // Low-risk SAM page-embedding preload when weights are already on disk.
+        if (st && st.samSelect && st.samSelect.cached) {
+          const imageId = (pg.width + 'x' + pg.height + ':' + String(pg.image || '').length).slice(0, 80);
+          post('/manga-smart/sam-warm', { imageId, image: pg.image }).catch(function () {});
+        }
+        // Warm manga-ocr into RAM when already cached (no download).
+        if (st && st.mangaOcr && st.mangaOcr.cached) {
+          post('/manga-smart/ocr-warm', {}).catch(function () {});
+        }
+        const ch = st && st.characters;
+        // Only hit /characters when runtime AND models are present — avoids 501 spam.
+        if (!(ch && ch.ready && ch.cached && ch.identityCached)) {
+          root.__autoSwapPrefetch = 'skipped';
+          return;
+        }
         root.__autoSwapPrefetch = 'running';
         const r = await post('/manga-smart/characters', { image: pg.image, background: true });
         root.__autoSwapPrefetch = r && r.ok ? 'done' : 'failed';

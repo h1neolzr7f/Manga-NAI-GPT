@@ -362,7 +362,7 @@ var d=await r.json();
 return !!(d&&d.envKey&&String(d.trustedBaseUrl||'').replace(/\/+$/,'')===url);
 }catch(e){return true;} // cannot tell (offline page): let the task report its own error
 }
-var HINTS={gpt:'这个功能要用 GPT 图像服务。请先选服务、填 API 地址和 Key，点「测试连接」，然后点「完成」回到刚才的任务。',
+var HINTS={gpt:'换角色 / 自定义改图需要 GPT 图像服务（会改画面）。请先选服务、填 API 地址和 Key，点「测试连接」，再点「完成」回到任务。本机 OCR / 去字 / 智能点选不用 GPT。',
 novelai:'AI 生图要用 NovelAI。请先填访问令牌（Token），点「测试连接」，然后点「完成」。'};
 async function ensureReady(kind){
 if(await ready(kind))return true;

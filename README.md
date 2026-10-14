@@ -19,7 +19,9 @@ Manga-NAI-GPT 是基于 [Manga Editor Desu](https://github.com/new-sankaku/manga
 
 ## 功能
 
-当前版本 **1.6.2**：首页 6 个任务，外加角色库、自动对白气泡、Ctrl+K 命令面板和带缩略图的历史、PSD 导入导出。1.6 起「改一块」「画一页」也可以用 NovelAI 画（支持 V5），生成前显示要花多少 Anlas。详见 [CHANGELOG](CHANGELOG.md)。
+当前版本 **1.6.3**：首页 6 个任务，外加角色库、自动对白气泡、Ctrl+K 命令面板和带缩略图的历史、PSD 导入导出。1.6 起「改一块」「画一页」也可以用 NovelAI 画（支持 V5），生成前显示要花多少 Anlas。详见 [CHANGELOG](CHANGELOG.md)。
+
+**本机后端（1.6.3）**：改字幕默认「检测后 Manga OCR 精修」（权重已缓存时自动精修；首次需确认下载约 400MB）；去掉杂物 / 去字默认 `auto` LaMa（有漫画微调权重则用漫画，否则通用）。全量审计 120/120 已在 1.6.2 关闭；本版为效果抛光，见 `docs/dev/smoke-163/`。
 
 | 任务 | 做什么 | 需要 |
 |---|---|---|
