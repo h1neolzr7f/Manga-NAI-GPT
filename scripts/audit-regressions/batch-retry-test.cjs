@@ -6,7 +6,7 @@ const body=src.slice(0,src.lastIndexOf('main().catch'))+'\nexport { generateImag
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'batch-'));const mod=path.join(tmp,'tool.mjs');fs.writeFileSync(mod,body);
 const png=Buffer.from('89504e470d0a1a0a0000000d49484452','hex');
 (async()=>{
-  const {generateImageWithRetry}=await import(mod);
+  const {generateImageWithRetry}=await import(require('url').pathToFileURL(mod).href);
   const opts=o=>Object.assign({token:'OFFLINE_FIXTURE_ONLY',prompt:'x',width:512,height:512,seed:1,steps:28,scale:5,model:'nai-diffusion-4-5-full',endpoint:'http://offline.invalid/ai/generate-image'},o);
   let calls=0;
   // image generated, save fails every time -> 1 request
