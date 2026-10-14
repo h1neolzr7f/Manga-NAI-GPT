@@ -156,12 +156,23 @@ def color_key_remove(data: bytes, options: dict[str, Any]) -> bytes:
     return png
 
 
+def _int_option(options: dict[str, Any], key: str, default: int) -> int:
+    """0 is a valid setting; only a missing/blank value falls back to the default (audit 17)."""
+    value = options.get(key)
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def rembg_kwargs(options: dict[str, Any]) -> dict[str, Any]:
     return {
         "alpha_matting": bool(options.get("alpha_matting")),
-        "alpha_matting_foreground_threshold": int(options.get("fg_threshold") or 240),
-        "alpha_matting_background_threshold": int(options.get("bg_threshold") or 10),
-        "alpha_matting_erode_size": int(options.get("erode_size") or 10),
+        "alpha_matting_foreground_threshold": _int_option(options, "fg_threshold", 240),
+        "alpha_matting_background_threshold": _int_option(options, "bg_threshold", 10),
+        "alpha_matting_erode_size": _int_option(options, "erode_size", 10),
         "post_process_mask": bool(options.get("post_process_mask")),
         "only_mask": bool(options.get("only_mask")),
     }

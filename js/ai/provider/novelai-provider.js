@@ -290,7 +290,7 @@ var safeSize=this._aspectSafeSize(parseInt(rd.width,10)||1024,parseInt(rd.height
 return {
 prompt:this._normalizePrompt(rd.prompt),
 negative_prompt:this._normalizePrompt(rd.negative_prompt),
-seed:seed>0?seed:Math.floor(Math.random()*4294967295),
+seed:(Number.isFinite(seed)&&seed>=0&&seed<=4294967295)?seed:Math.floor(Math.random()*4294967295),   // 0 is a fixed seed (audit 37)
 width:safeSize.width,
 height:safeSize.height,
 steps:parseInt(rd.steps,10)||28,

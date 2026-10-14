@@ -43,15 +43,19 @@ var prompts=[
 {old: $('old-negative-prompt3-old').value,new: $('new-negative-prompt3-new').value}
 ];
 
-layers.forEach(function(layer) {
-prompts.forEach(function(prompt) {
-if (layer.text2img_prompt&&layer.text2img_prompt.includes(prompt.old)) {
-layer.text2img_prompt=layer.text2img_prompt.replace(new RegExp(prompt.old,'g'),prompt.new);
-}
-if (layer.text2img_negative&&layer.text2img_negative.includes(prompt.old)) {
-layer.text2img_negative=layer.text2img_negative.replace(new RegExp(prompt.old,'g'),prompt.new);
-}
+// Positive rules only touch the positive prompt, negative rules only the negative prompt (audit 103);
+// replacement is literal, so weight brackets like [smile] are not regex syntax (audit 104).
+var positive=prompts.slice(0,3),negative=prompts.slice(3);
+function literalReplace(text,rules){
+rules.forEach(function(rule){
+if(!rule.old)return;
+text=text.split(rule.old).join(rule.new==null?'':rule.new);
 });
+return text;
+}
+layers.forEach(function(layer) {
+if (layer.text2img_prompt) layer.text2img_prompt=literalReplace(layer.text2img_prompt,positive);
+if (layer.text2img_negative) layer.text2img_negative=literalReplace(layer.text2img_negative,negative);
 });
 
 uiLogger.debug("applyChanges","saveState");

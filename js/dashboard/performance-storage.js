@@ -139,6 +139,11 @@ dashboardPerfLogger.error('Error getting daily stats:',error);
 return{};
 }
 }
+// "YYYY-MM-DD" keys are local calendar days; new Date(key) would parse them as UTC (audit 101).
+function parseDateKey(key){
+var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(key||''));
+return m?new Date(Number(m[1]),Number(m[2])-1,Number(m[3])):new Date(key);
+}
 async function getWeeklyStats(){
 try{
 var dailyData=await getDailyStats();
@@ -146,7 +151,7 @@ var weeklyData={};
 Object.entries(dailyData).forEach(function(entry){
 var dateKey=entry[0];
 var count=entry[1];
-var date=new Date(dateKey);
+var date=parseDateKey(dateKey);
 var day=date.getDay();
 var diff=date.getDate()-day+(day===0?-6:1);
 var monday=new Date(date.setDate(diff));
@@ -501,10 +506,10 @@ var todayKey=getDateKey(today);
 var todayCount=dailyData[todayKey]||0;
 var weekCount=0;
 var weekStart=new Date(today);
-weekStart.setDate(weekStart.getDate()-weekStart.getDay());
+weekStart.setDate(weekStart.getDate()-(weekStart.getDay()===0?6:weekStart.getDay()-1));   // Monday, same as weekly stats
 weekStart.setHours(0,0,0,0);
 Object.entries(dailyData).forEach(function(entry){
-var d=new Date(entry[0]);
+var d=parseDateKey(entry[0]);
 if(d>=weekStart) weekCount+=entry[1];
 });
 var dailyGoal=goals.daily?goals.daily.target:0;

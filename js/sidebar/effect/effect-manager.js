@@ -193,7 +193,7 @@ const selectedObject=canvas.getActiveObject();
 if (selectedObject) {
 if (effectCheck.checked) {
 const color=effectColor.value;
-const blurValue=parseInt(effectSize1.value,20);
+const blurValue=parseInt(effectSize1.value,10);
 selectedObject.set({
 shadow: {
 color: color,

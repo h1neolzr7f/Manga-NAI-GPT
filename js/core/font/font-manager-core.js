@@ -423,7 +423,10 @@ let fmFontData = {
       try {
         const fontMatch = fontUrl.match(/family=([^&]+)/);
         if (!fontMatch) throw new Error(i18next.t("error.invalidUrl"));
-        const fontName = fontMatch[1].split(":")[0];
+        // Google Fonts encodes spaces as "+" / %20; save the real CSS family name (audit 46).
+        let rawFamily = fontMatch[1].replace(/\+/g, " ");
+        try { rawFamily = decodeURIComponent(rawFamily); } catch (_) { /* keep as-is */ }
+        const fontName = rawFamily.split(":")[0].split("|")[0].trim();
         
         if (this.existsFont(fontName)) {
           createToastError(getText("alreadyRegisteredFont"), fontName);
