@@ -42,6 +42,18 @@ var pointAtpx=getPointAtDistance(centerX,centerY,angle,KNIFE_CONSTANTS.SPLIT_LIN
 var splitLine=drawLine(centerX,centerY,pointAtpx.x,pointAtpx.y,panel);
 if (splitLine===null) return {isSplit: false};
 
+// Snapshot what splitPolygon changes so a rejected split restores it completely (audit 82).
+var panelIndex=canvas.getObjects().indexOf(panel);
+var panelGuids=Array.isArray(panel.guids)?panel.guids.slice():panel.guids;
+var childSnapshots=[];
+if(panel.guids&&panel.guids.length>0){
+canvas.getObjects().forEach(function(obj){
+if(obj.guid&&panel.guids.indexOf(obj.guid)!==-1){
+childSnapshots.push({obj:obj,props:{left:obj.left,top:obj.top,scaleX:obj.scaleX,scaleY:obj.scaleY,angle:obj.angle,
+clipPath:obj.clipPath,relatedPoly:obj.relatedPoly,name:obj.name},index:canvas.getObjects().indexOf(obj)});
+}
+});
+}
 var splitResult=splitPolygon(panel);
 if (!splitResult.isSplit||!splitResult.polygon1||!splitResult.polygon2) {
 return {isSplit: false};
@@ -53,9 +65,20 @@ if (area1AspectRatio<=KNIFE_CONSTANTS.ASPECT_RATIO.MIN||
 area1AspectRatio>=KNIFE_CONSTANTS.ASPECT_RATIO.MAX||
 area2AspectRatio<=KNIFE_CONSTANTS.ASPECT_RATIO.MIN||
 area2AspectRatio>=KNIFE_CONSTANTS.ASPECT_RATIO.MAX) {
-canvas.add(setNotSave(panel));
 canvas.remove(setNotSave(splitResult.polygon1));
 canvas.remove(setNotSave(splitResult.polygon2));
+if(canvas.getObjects().indexOf(panel)<0){
+setNotSave(panel);
+if(typeof canvas.insertAt==='function'&&panelIndex>=0)canvas.insertAt(panel,panelIndex);else canvas.add(panel);
+}
+panel.guids=panelGuids;
+childSnapshots.forEach(function(snap){
+snap.obj.set(snap.props);
+if(typeof snap.obj.setCoords==='function')snap.obj.setCoords();
+var at=canvas.getObjects().indexOf(snap.obj);
+if(at>=0&&at!==snap.index&&typeof canvas.moveTo==='function')canvas.moveTo(snap.obj,snap.index);
+});
+if(typeof saveStateByManual==='function')saveStateByManual();
 return {isSplit: false};
 }
 return splitResult;
