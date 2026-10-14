@@ -90,7 +90,11 @@
 | 74 | 已修复 [PR #29](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/29)：LaMa 应用在每次 await 后核对 ticket 与 approved 身份；取消后迟到解码不再提交图层 |
 | 75 | 已修复 [PR #29](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/29)：任何蒙版改动（含检测器切换）作废预览并禁用确认；批准时快照 mask，应用不再读到之后改动的蒙版 |
 | 76 | 已修复 [PR #29](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/29)：智能点选 imageId 对整段页面内容做 FNV-1a，不再每 97 字符抽样（避免同长度不同图碰撞） |
+| 77 | 已修复 [PR #30](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/30)：智能点选把候选精确栅格 mask 交给 GPT；应用优先用 smartMask，轮廓仅用于显示，孔洞与多连通区域与蓝色预览一致 |
+| 78 | 已修复 [PR #30](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/30)：混合结果裁切后按 bounds.minX/Y 放置且 scale=1，不再 scaleToWidth(整页) |
+| 79 | 已修复 [PR #30](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/30)：画笔离屏 buffer 在页面尺寸变化时重建/扩容，外侧笔迹可画 |
 | 80 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：glfxReset 锁定原目标并在原索引恢复，不再替换当前选中对象 |
+| 81 | 已修复 [PR #30](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/30)：切线交点按刀向参数排序取两端；等距时不再得到零长线，矩形横/竖模板可切分 |
 | 82 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：刀切比例校验失败时回滚子图变换/clipPath/绑定与图层顺序 |
 | 86 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：旧版角色卡就地规范化，输入回调写入当前对象 |
 | 88 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：标签补全保留 ::、}、]、) 等关闭权重标记 |

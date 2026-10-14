@@ -369,7 +369,8 @@ return;
 var clippedCanvas=HtmlCanvasUtil.createClippedCanvas(blendedCanvas,bounds);
 var webpDataUrl=clippedCanvas.toDataURL('image/webp',quality);
 fabric.Image.fromURL(webpDataUrl,function(img){
-img.scaleToWidth(canvas.width);
+// Audit 78: clipped pixels are already page-scale; keep the crop offset, never scaleToWidth(full page).
+img.set({left:bounds.minX,top:bounds.minY,scaleX:1,scaleY:1});
 canvas.add(img);
 canvas.setActiveObject(img);
 canvas.renderAll();
