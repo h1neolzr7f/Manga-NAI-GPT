@@ -131,5 +131,32 @@ class SmartOcrTests(unittest.TestCase):
         self.assertEqual((rw, rh), (w, h))
 
 
+
+
+    def test_refine_flag_rewrites_regions(self):
+        class FakeProc:
+            returncode = 0
+            stdout = TSV.encode("utf-8")
+            stderr = b""
+        with mock.patch.object(ocr, "find_tesseract", return_value="/bin/tesseract"), \
+             mock.patch.object(ocr.subprocess, "run", return_value=FakeProc()), \
+             mock.patch.object(ocr, "_maybe_refine", side_effect=lambda result, *a, **k: dict(result, refined=True, refinedCount=1, engine="tesseract-local+manga-ocr")):
+            result = ocr.ocr_image(URL, "jpn+eng", refine=True)
+        self.assertTrue(result["refined"])
+        self.assertIn("manga-ocr", result["engine"])
+
+    def test_refine_false_skips_manga_ocr(self):
+        class FakeProc:
+            returncode = 0
+            stdout = TSV.encode("utf-8")
+            stderr = b""
+        with mock.patch.object(ocr, "find_tesseract", return_value="/bin/tesseract"), \
+             mock.patch.object(ocr.subprocess, "run", return_value=FakeProc()), \
+             mock.patch.object(ocr, "_maybe_refine", side_effect=AssertionError("should not refine")) as refine:
+            # _maybe_refine is always called; make it pass-through when refine=False
+            refine.side_effect = lambda result, image, refine, allow_download: result if refine is False else (_ for _ in ()).throw(AssertionError("bad"))
+            result = ocr.ocr_image(URL, "jpn+eng", refine=False)
+        self.assertFalse(result.get("refined", False))
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

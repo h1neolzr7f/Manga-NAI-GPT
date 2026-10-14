@@ -256,7 +256,15 @@
     sfxBox.checked=pref('mnai.lama.keepSfx',true);sfx.append(sfxBox,document.createTextNode(' 保留拟声词（只擦字幕框里的字，画面上的效果字不动）'));
     detBox.addEventListener('change',()=>{setPref('mnai.lama.detector',detBox.checked);if(prepared)refreshMask();});
     sfxBox.addEventListener('change',()=>{setPref('mnai.lama.keepSfx',sfxBox.checked);if(prepared)refreshMask();});
-    opts.append(det,sfx);
+    const eng=node('label');eng.append(document.createTextNode('修复引擎 '));
+    const engSel=node('select');engSel.id='mangaLamaEngine';
+    [['auto','自动（有漫画模型用漫画）'],['lama-manga','漫画微调 LaMa'],['lama','通用 LaMa']].forEach(([v,t])=>{
+      const o=node('option',t);o.value=v;engSel.append(o);
+    });
+    try{engSel.value=localStorage.getItem('mnai.lama.engine')||'auto';}catch(_){engSel.value='auto';}
+    engSel.addEventListener('change',()=>{try{localStorage.setItem('mnai.lama.engine',engSel.value);}catch(_){}});
+    eng.append(engSel);
+    opts.append(det,sfx,eng);
     const generate=node('button','根据蒙版生成本地修复预览');
     generate.id='mangaLamaGenerate';generate.type='button';
     const img=node('img');img.id='mangaLamaPreviewImg';
@@ -339,9 +347,11 @@
     show('开始本地 LaMa 推理（可点「取消」中止）。模型未下载时会先询问是否下载。');
     controller=typeof AbortController==='function'?new AbortController():null;
     try{
+      const engine=(($('mangaLamaEngine')||{}).value)||'auto';
       const data=await window.MangaModelRequest.post('/manga-smart/lama-inpaint',{
         image:now.crop.modelInput,
-        mask:now.crop.maskCanvas.toDataURL('image/png')
+        mask:now.crop.maskCanvas.toDataURL('image/png'),
+        engine
       },{signal:controller&&controller.signal});
       if(id!==ticket)return;
       if(!data.ok||!/^data:image\/png;base64,/.test(data.image||''))
@@ -357,7 +367,8 @@
       $('mangaLamaPreviewImg').src=data.image;
       $('mangaLamaPreviewImg').hidden=false;
       $('mangaLamaConfirm').disabled=false;
-      show('修复预览已生成。只有点击「确认」才应用图层；原始漫画尚未变化。');
+      const used=data.engineName||data.engine||engine;
+      show('修复预览已生成（引擎：'+used+'）。只有点击「确认」才应用图层；原始漫画尚未变化。');
     }catch(e){if(id===ticket)show(e.message||String(e),true);}
     finally{if(id===ticket){ongoing=false;controller=null;$('mangaLamaGenerate').disabled=false;}}
   }

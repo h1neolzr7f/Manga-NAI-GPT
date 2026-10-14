@@ -52,8 +52,23 @@ def manga_ocr_cached():
     return False
 
 
+def lama_manga_weights_path():
+    explicit = (os.environ.get("LAMA_MANGA_MODEL") or "").strip()
+    if explicit:
+        return _expand(explicit)
+    torch_home = os.environ.get("TORCH_HOME") or os.path.join(_xdg_cache(), "torch")
+    return _expand(os.path.join(torch_home, "hub", "checkpoints", "anime-manga-big-lama.pt"))
+
+
+def lama_manga_cached():
+    path = lama_manga_weights_path()
+    # Size pin matches manga_lama_inpaint.MANGA_MODEL_BYTES
+    return os.path.isfile(path) and os.path.getsize(path) == 205717870
+
+
 MODELS = {
     "lama": {"label": "LaMa", "size": "约 200MB", "cached": lama_cached},
+    "lama-manga": {"label": "漫画微调 LaMa", "size": "约 196MB", "cached": lama_manga_cached},
     "manga-ocr": {"label": "Manga OCR", "size": "约 450–900MB", "cached": manga_ocr_cached},
     "ctd": {"label": "漫画文字检测（comic-text-detector）", "size": "约 91MB", "cached": lambda: __import__("manga_text_detector").cached()},
     "sam2": {"label": "智能点选（SAM 2.1 tiny）", "size": "约 149MB", "cached": lambda: __import__("manga_sam_select").cached()},
@@ -101,7 +116,7 @@ _IDLE_GROUPS = {
     # lock -> [(module, attributes set to None / cleared)]
     "sam2": [("manga_sam_select", ("_predictor", "_embeds")), ("manga_character_detect", ("_seg", "_extra"))],
     "ctd": [("manga_text_detector", ("_session",))],
-    "lama": [("manga_lama_inpaint", ("_model",))],
+    "lama": [("manga_lama_inpaint", ("_models",))],
     "manga-ocr": [("manga_ocr_refiner", ("_model",))],
 }
 _last_use = {}

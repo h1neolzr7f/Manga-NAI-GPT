@@ -90,5 +90,44 @@ class MangaOcrRefinerTest(unittest.TestCase):
         self.assertEqual(rows[0][1],403)
         self.assertTrue(handler.close_connection)
 
+class RefinePageRegionsTest(unittest.TestCase):
+    def tearDown(self):
+        refiner._reset_for_tests()
+
+    def test_pads_and_rewrites_region_text(self):
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest("Pillow not installed in this CI job")
+        img = Image.new("RGB", (200, 120), (255, 255, 255))
+        buf = __import__("io").BytesIO(); img.save(buf, format="PNG")
+        regions = [{"text": "错字", "x": 40, "y": 30, "width": 60, "height": 40, "confidence": 50}]
+        class Model:
+            def __call__(self, crop):
+                return "  正确文字  "
+        with mock.patch.object(refiner, "get_model", return_value=Model()):
+            out, n = refiner.refine_page_regions(buf.getvalue(), 200, 120, regions, allow_download=True)
+        self.assertEqual(n, 1)
+        self.assertEqual(out[0]["text"], "正确文字")
+        self.assertEqual(out[0]["originalText"], "错字")
+        self.assertEqual(out[0]["recognizer"], "manga-ocr-local")
+
+    def test_keeps_tesseract_text_when_model_returns_empty(self):
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest("Pillow not installed in this CI job")
+        img = Image.new("RGB", (100, 80), (255, 255, 255))
+        buf = __import__("io").BytesIO(); img.save(buf, format="PNG")
+        regions = [{"text": "保留", "x": 10, "y": 10, "width": 40, "height": 30, "confidence": 80}]
+        with mock.patch.object(refiner, "get_model", return_value=lambda image: ""):
+            out, n = refiner.refine_page_regions(buf.getvalue(), 100, 80, regions, allow_download=True)
+        self.assertEqual(n, 0)
+        self.assertEqual(out[0]["text"], "保留")
+
+    def test_package_ready_false_without_import(self):
+        with mock.patch.object(refiner.importlib.util, "find_spec", return_value=None):
+            self.assertFalse(refiner.package_ready())
+
 if __name__=="__main__":
     unittest.main(verbosity=2)

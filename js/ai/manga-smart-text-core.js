@@ -44,6 +44,8 @@
       if (!box || !text) continue;
       const draft = { ...box, text, erase: true, vertical: !!item.vertical,
         confidence: Math.max(0, Math.min(100, Number(item.confidence) || 0)) };
+      if (typeof item.recognizer === 'string' && item.recognizer) draft.recognizer = item.recognizer;
+      if (typeof item.originalText === 'string' && item.originalText) draft.originalText = item.originalText;
       const area = bubbleTextArea(item.bubble, box, pageWidth, pageHeight);
       if (area) draft.textArea = area;
       const glyph = Number(item.glyph);   // median single-glyph size from OCR (audit 72)

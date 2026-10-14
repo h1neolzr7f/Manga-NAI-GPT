@@ -20,6 +20,7 @@
 | 动漫人脸检测 YOLOv8 `face_detect_v1.4_s` | 换角色：找脸、跨格匹配 | https://huggingface.co/deepghs/anime_face_detection | MIT | ✅ |
 | CCIP `ccip-caformer-24-randaug-pruned`（特征 + 度量） | 换角色：同一角色识别 | https://huggingface.co/deepghs/ccip_onnx | **OpenRAIL**（带使用限制条款） | ⚠️ 不是 OSI 许可证；因为是**用户按需下载、不随仓库分发**，不影响本项目的 GPL-3.0；README 中提示其使用限制 |
 | LaMa（经 `simple-lama-inpainting`，约 200 MB） | 修瑕疵/去字 | https://github.com/advimman/lama ，https://github.com/enesmsahin/simple-lama-inpainting | Apache-2.0 | ✅ |
+| 漫画微调 LaMa（`anime-manga-big-lama.pt`，约 196 MB，可选） | 去字/去杂物（漫画线稿更贴） | https://huggingface.co/df1412/anime-big-lama （TorchScript；源自 PanelPachi / Big-LaMa 微调） | MIT | ✅ |
 | manga-ocr（`kha-white/manga-ocr-base`，约 400 MB） | 日文竖排精修识别 | https://github.com/kha-white/manga-ocr ，https://huggingface.co/kha-white/manga-ocr-base | Apache-2.0 | ✅ |
 | Tesseract OCR + tessdata | 文字识别（系统安装） | https://github.com/tesseract-ocr/tesseract ，https://github.com/tesseract-ocr/tessdata_best | Apache-2.0 | ✅（不打包，调用系统程序） |
 

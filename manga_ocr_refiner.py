@@ -3,9 +3,11 @@
 Upstream engine: kha-white/manga-ocr. We call its documented MangaOcr(PIL.Image)
 interface without copying model source/weights. No full-page bbox detection here.
 Model (~400 MB) may be downloaded by manga-ocr on the first EXPLICIT user click;
-ordinary Tesseract OCR does not import or initialize this package.
+ordinary Tesseract OCR does not import or initialize this package unless the caller
+opts into post-detect refine (and weights are already cached, or allow_download).
 """
 import importlib
+import importlib.util
 import io
 import threading
 
@@ -14,6 +16,13 @@ from manga_model_guard import exclusive, require_download_consent
 
 _model = None
 _model_lock = threading.RLock()
+
+
+def package_ready():
+    try:
+        return importlib.util.find_spec("manga_ocr") is not None
+    except (ImportError, ValueError):
+        return False
 
 
 def get_model(allow_download=False):
@@ -59,6 +68,13 @@ def decode_image(raw, width, height):
         raise SmartOcrError("选区图片无法解码。") from exc
 
 
+def _recognize(model, image):
+    text = model(image)
+    if not isinstance(text, str) or not text.strip() or len(text) > 500:
+        return None
+    return text.strip()
+
+
 def refine_region(image_url, allow_download=False):
     data, width, height = read_image(image_url)
     if width * height > 4_000_000 or width < 2 or height < 2:
@@ -69,17 +85,76 @@ def refine_region(image_url, allow_download=False):
         try:
             # The model's underlying transformer is not guaranteed thread-safe.
             with _model_lock:
-                text = model(image)
+                text = _recognize(model, image)
         except Exception as exc:
+            if isinstance(exc, SmartOcrError):
+                raise
             raise SmartOcrError("Manga OCR 推理失败；请检查本机可用内存与模型安装。", 502) from exc
-    if not isinstance(text, str) or not text.strip() or len(text) > 500:
+    if text is None:
         raise SmartOcrError("Manga OCR 未返回有效短文本，请重新框选或手动修改。", 422)
     return {
         "ok": True, "engine": "manga-ocr-local",
         "width": width, "height": height,
-        "text": text.strip(), "verified": False,
+        "text": text, "verified": False,
         "warning": "Manga OCR 只识别用户给定选区，不检测气泡边界；可能产生幻觉，请人工校对。"
     }
+
+
+def _pad_box(reg, page_w, page_h):
+    w = max(1, int(reg.get("width") or 0))
+    h = max(1, int(reg.get("height") or 0))
+    x = int(reg.get("x") or 0)
+    y = int(reg.get("y") or 0)
+    pad_x = max(10, round(w * 0.22))
+    pad_y = max(10, round(h * 0.40))
+    left = max(0, x - pad_x)
+    top = max(0, y - pad_y)
+    right = min(page_w, x + w + pad_x)
+    bottom = min(page_h, y + h + pad_y)
+    if right - left < 2 or bottom - top < 2:
+        return None
+    if (right - left) * (bottom - top) > 4_000_000:
+        return None
+    return left, top, right, bottom
+
+
+def refine_page_regions(png_bytes, width, height, regions, allow_download=False):
+    """Re-recognize each detection crop with manga-ocr (same padding as the UI button).
+
+    Returns (regions, refined_count). Failed crops keep the Tesseract text.
+    Raises SmartOcrError(428) when weights are missing and allow_download is false.
+    """
+    if not regions:
+        return [], 0
+    image_module = importlib.import_module("PIL.Image")
+    page = image_module.open(io.BytesIO(png_bytes))
+    page.load()
+    page = page.convert("RGB")
+    if page.size != (width, height):
+        raise SmartOcrError("页面尺寸与 OCR 结果不一致。")
+    out = []
+    refined = 0
+    with exclusive("manga-ocr"):
+        model = get_model(allow_download)
+        with _model_lock:
+            for reg in regions:
+                box = _pad_box(reg, width, height)
+                item = dict(reg)
+                if box is None:
+                    out.append(item)
+                    continue
+                try:
+                    text = _recognize(model, page.crop(box))
+                except Exception:
+                    text = None
+                if text:
+                    item["originalText"] = reg.get("text")
+                    item["text"] = text[:500]
+                    item["recognizer"] = "manga-ocr-local"
+                    item["confidence"] = 0
+                    refined += 1
+                out.append(item)
+    return out, refined
 
 
 def _reset_for_tests():
