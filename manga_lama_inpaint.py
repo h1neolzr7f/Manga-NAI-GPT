@@ -124,6 +124,8 @@ def get_model(allow_download=False, engine="lama"):
     with _lock:
         if chosen in _models and _models[chosen] is not None:
             return chosen, _models[chosen]
+        # Importability before consent: missing pip package must be 503, not a download prompt.
+        _import_upstream()
         if chosen == "lama-manga":
             require_download_consent("lama-manga", False, allow_download)
             if not manga_cached():
