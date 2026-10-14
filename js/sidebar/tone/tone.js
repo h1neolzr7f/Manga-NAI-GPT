@@ -131,7 +131,7 @@ tmpCtxTone.quadraticCurveTo(x,y+height/2,x,y+height/4);
 }
 
 function generateTone() {
-tmpCtxTone.clearRect(0,0,tmpCanvasTone.width,tmpCanvasTone.height);
+tmpCtxTone.clearRect(0,0,tmpCanvasTone.width/3,tmpCanvasTone.height/3);
 const dotSize=parseInt(controlElementsTone.dotSize.value);
 const dotSpacing=parseInt(controlElementsTone.dotSpacing.value);
 const dotShape=controlElementsTone.dotShape.value;
@@ -140,8 +140,10 @@ const gradientEnabled=controlElementsTone.gradientEnabled.checked;
 const gradientDirection=controlElementsTone.gradientDirection.value;
 const gradientStart=parseInt(controlElementsTone.gradientStart.value)/100;
 const gradientEnd=parseInt(controlElementsTone.gradientEnd.value)/100;
-const canvasSizeX=tmpCanvasTone.width;
-const canvasSizeY=tmpCanvasTone.height;
+// Audit 89: generate in logical page units; buffer is 3× with ctx.scale(3).
+const toneScale=3;
+const canvasSizeX=tmpCanvasTone.width/toneScale;
+const canvasSizeY=tmpCanvasTone.height/toneScale;
 
 const totalSpacing=dotSize+dotSpacing;
 for (let y=0;y<canvasSizeY+totalSpacing;y+=totalSpacing) {

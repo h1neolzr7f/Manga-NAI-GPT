@@ -44,58 +44,48 @@ return isValid;
 }
 
 function adjustPages(sections,targetTotal) {
-const MAX_ATTEMPTS=100;
-let attempts=0;
-
-while (attempts<MAX_ATTEMPTS) {
-let currentTotal=sections.reduce((sum,section)=>sum+section.pages,0);
-if (currentTotal===targetTotal&&verifyStructure(sections)) {
-return sections;
-}
-sections=generateInitialStructure(targetTotal);
-attempts++;
-}
+// Audit 87: deterministic structure always sums to targetTotal (no 100-attempt random retry).
+var built=generateInitialStructure(targetTotal);
+var total=built.reduce(function(sum,section){return sum+section.pages;},0);
+if(total===targetTotal&&verifyStructure(built))return built;
 throw new Error('unknwn page generate.');
 }
 
 function generateInitialStructure(totalPages) {
-
-
+// Deterministic page plan: opening + N story cycles + closing finish.
 const structure=[];
+totalPages=Math.max(0,Number(totalPages)||0);
+if(totalPages<=0)return [{type: PROMPT_SEX,pages: 1}];
 structure.push({type: PROMPT_OPENING,pages: 1});
-
-let remainingPages=totalPages-2;
+let remaining=totalPages-2; // reserve closing FINISH
 let cycleCount=0;
-
-while (remainingPages>0&&cycleCount<3) {
-if (cycleCount>0) {
-if (remainingPages<4) break;
-const scenePages=getRandomInt(1,Math.min(2,remainingPages-4));
-structure.push({type: PROMPT_CHANGE_SCENE,pages: scenePages});
-remainingPages-=scenePages;
+while(remaining>=4){
+ if(cycleCount>0){
+  if(remaining<5)break; // need scene(1)+cycle(4)
+  structure.push({type: PROMPT_CHANGE_SCENE,pages: 1});
+  remaining-=1;
+ }
+ // Fair share for this cycle; leave multiples of ~5 for later cycles when possible.
+ let estCycles=Math.max(1,Math.floor((remaining+1)/5));
+ let cycleBudget=Math.max(4,Math.floor(remaining/estCycles));
+ while(remaining-cycleBudget>0&&remaining-cycleBudget<4)cycleBudget++;
+ cycleBudget=Math.min(cycleBudget,remaining);
+ if(cycleBudget<4)break;
+ let parts=[1,1,1,1],extra=cycleBudget-4,i=0;
+ const order=[2,1,0,3]; // prefer SEX, LATE, EARLY, FINISH
+ while(extra>0){parts[order[i%4]]++;extra--;i++;}
+ structure.push({type: PROMPT_EARLY,pages: parts[0]});
+ structure.push({type: PROMPT_LATE,pages: parts[1]});
+ structure.push({type: PROMPT_SEX,pages: parts[2]});
+ structure.push({type: PROMPT_FINISH,pages: parts[3]});
+ remaining-=cycleBudget;
+ cycleCount++;
 }
-
-if (remainingPages<4) break;
-
-const maeburePages=getRandomInt(1,Math.min(3,remainingPages-3));
-structure.push({type: PROMPT_EARLY,pages: maeburePages});
-remainingPages-=maeburePages;
-
-const atofuriPages=getRandomInt(1,Math.min(3,remainingPages-2));
-structure.push({type: PROMPT_LATE,pages: atofuriPages});
-remainingPages-=atofuriPages;
-
-const honbunPages=getRandomInt(1,Math.min(3,remainingPages-1));
-structure.push({type: PROMPT_SEX,pages: honbunPages});
-remainingPages-=honbunPages;
-
-const ochiPages=getRandomInt(1,Math.min(2,remainingPages));
-structure.push({type: PROMPT_FINISH,pages: ochiPages});
-remainingPages-=ochiPages;
-
-cycleCount++;
+if(remaining>0){
+ const sex=[...structure].reverse().find(s=>s.type===PROMPT_SEX);
+ if(sex)sex.pages+=remaining;
+ else structure.push({type: PROMPT_SEX,pages: remaining});
 }
-
 structure.push({type: PROMPT_FINISH,pages: 1});
 return structure;
 }

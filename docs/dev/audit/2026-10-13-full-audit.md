@@ -100,7 +100,10 @@
 | 84 | 已修复 [PR #31](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/31)：prepare-installer.ps1 图标转换用 sys.argv 传路径，含单引号/中文的目录不再造成 Python 语法错误 |
 | 85 | 已修复 [PR #31](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/31)：Windows 启动器从 LOCAL_TOOLS_PORT 取抠图端口（默认 8765）并写回环境变量；启动后探测 /health，提示使用同一地址（决定：客户端默认仍 8765，自定义端口在服务设置填写） |
 | 86 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：旧版角色卡就地规范化，输入回调写入当前对象 |
+| 87 | 已修复 [PR #32](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/32)：页计划改为确定性分配周期（不限 3 轮随机），40/153 页可生成且总和等于目标页数 |
 | 88 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：标签补全保留 ::、}、]、) 等关闭权重标记 |
+| 89 | 已修复 [PR #32](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/32)：网点/速度线按逻辑尺寸生成（3× 超采样仅栅格化），渐变与密度不再混用 buffer 坐标 |
+| 90 | 已修复 [PR #32](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/32)：集中线只由 putImageInFrame 加入画布一次，更新不再留下重复引用 |
 | 91 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：辉光尺寸按十进制解析 |
 | 94 | 已修复 [PR #19](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/19)：工具模式记录并恢复图层原选中状态；用户移动锁显式记为 userMoveLock 并持久化 |
 | 101 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：日期键按本地年月日解析；周目标与周统计统一周一为起点（产品决定） |

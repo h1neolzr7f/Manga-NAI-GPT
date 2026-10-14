@@ -73,11 +73,12 @@ tempCtxSpeedLine.lineTo(end.x,end.y);
 tempCtxSpeedLine.stroke();
 }
 function drawTempCanvasSpeedlines() {
-tempCtxSpeedLine.clearRect(0,0,tempCanvasSpeedLine.width,tempCanvasSpeedLine.height);
+// Audit 89: density layout uses logical size (buffer is 3× + scale(3)).
+tempCtxSpeedLine.clearRect(0,0,tempCanvasSpeedLine.width/3,tempCanvasSpeedLine.height/3);
 const density=parseInt($(MODE_SPEED_LINE+'-density').value);
 const angle=(parseInt(0)*Math.PI)/180;
-const width=tempCanvasSpeedLine.width;
-const height=tempCanvasSpeedLine.height;
+const width=tempCanvasSpeedLine.width/3;
+const height=tempCanvasSpeedLine.height/3;
 
 const speedLineStyle=$('speed-line-style').value;
 
