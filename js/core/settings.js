@@ -87,7 +87,7 @@ const commonProperties=[
 'initial',
 'clipPath.initial',
 'name',
-"guids","guid","tempPrompt","tempNegative","tempSeed","img2imgScale","img2img_denoise","canvasGuid","isSpeechBubble","jstsGeom","text","selectable","customType"
+"guids","guid","tempPrompt","tempNegative","tempSeed","img2imgScale","img2img_denoise","canvasGuid","isSpeechBubble","jstsGeom","text","selectable","userMoveLock","customType"
 ,"speechBubbleGrid","speechBubbleScale","speechBubbleViewBoxWidth","speechBubbleViewBoxHeight","speechBubbleRectX","speechBubbleRectY","speechBubbleRectWidth","speechBubbleRectHeight"
 ,"baseScaleX","baseScaleY","lastLeft","lastTop","targetObject","originalSvg","naiDirectorDraft"
 ,"simulatorType","simulatorSchemaVersion","simulatorTemplateId","simulatorEditable","simulatorScene","simulatorStory","simulatorMessageId","simulatorMessageIndex","simulatorParentGuid"

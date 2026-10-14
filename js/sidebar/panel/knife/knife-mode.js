@@ -67,15 +67,9 @@ canvas.discardActiveObject();
 canvas.selection=!isKnifeMode;
 
 canvas.forEachObject(function (obj) {
-if (isKnifeMode) {
-obj.set({
-selectable: false,
-});
-} else {
-obj.set({
-selectable: true,
-});
-}
+// keep user move locks across knife on/off (audit 94)
+if (isKnifeMode) ModeManager._toolLock(obj,{selectable:false});
+else ModeManager._toolRestore(obj,{selectable:true});
 });
 canvas.renderAll();
 }
