@@ -121,6 +121,18 @@ def _atomic_write(target, data):
     try:
         with os.fdopen(fd, "wb") as f:
             f.write(data)
+        import time
+        for attempt in range(20):
+            try:
+                os.replace(tmp, target)
+                return
+            except PermissionError:
+                # Windows: another writer is replacing the same file right now. Its data passed the
+                # same hash check, so once the target exists our copy is redundant.
+                if attempt == 19 and os.path.exists(target):
+                    os.unlink(tmp)
+                    return
+                time.sleep(0.05)
         os.replace(tmp, target)
     except BaseException:
         try:
