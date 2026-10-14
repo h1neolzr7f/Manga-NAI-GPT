@@ -42,7 +42,9 @@ if ($env:MNAI_PORT -and $env:MNAI_PORT.Trim() -ne "") {
 $env:MNAI_PORT = [string]$Port
 $ProbeUrl = "http://127.0.0.1:$Port/index.html"
 $BrowserUrl = "http://127.0.0.1:$Port/index.html#"
-$ToolsPort = 8765
+# Audit 85: same port the sidecar reads (LOCAL_TOOLS_PORT), default 8765.
+$ToolsPort = if ($env:LOCAL_TOOLS_PORT -match '^\d+$') { [int]$env:LOCAL_TOOLS_PORT } else { 8765 }
+$env:LOCAL_TOOLS_PORT = [string]$ToolsPort
 $LogPath = Join-Path $Root "user_data\start.log"
 $ToolsOutLog = Join-Path $Root "user_data\local_tools.log"
 $ToolsErrLog = Join-Path $Root "user_data\local_tools.err.log"
@@ -556,7 +558,20 @@ try {
         } else {
             Write-StartLine "服务已就绪。" "Green"
             if ($toolsProcess -and -not $toolsProcess.HasExited) {
-                Write-StartLine ("抠图服务：已启动（" + $ToolsPort + " 端口）。") "Green"
+                $toolsReady = $false
+                for ($ti = 0; $ti -lt 40; $ti++) {
+                    try {
+                        $hr = Invoke-WebRequest -Uri ("http://127.0.0.1:{0}/health" -f $ToolsPort) -UseBasicParsing -TimeoutSec 1
+                        if ($hr.StatusCode -eq 200) { $toolsReady = $true; break }
+                    } catch { }
+                    if ($toolsProcess.HasExited) { break }
+                    Start-Sleep -Milliseconds 150
+                }
+                if ($toolsReady) {
+                    Write-StartLine ("抠图服务：已启动并就绪（http://127.0.0.1:" + $ToolsPort + "）。请在「服务设置 › 抠图服务地址」使用同一地址。") "Green"
+                } else {
+                    Write-StartLine ("抠图服务进程在 " + $ToolsPort + " 端口，但 /health 尚未就绪；可稍后在服务设置里核对地址。") "Yellow"
+                }
             } elseif ($toolsProcess) {
                 Write-StartLine "抠图服务：没能启动，抠图/去背景不可用（其余功能正常）。日志：" "Yellow"
                 Write-StartLine ("  " + $ToolsErrLog) "Yellow"

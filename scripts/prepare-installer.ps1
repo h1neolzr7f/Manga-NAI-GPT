@@ -98,7 +98,8 @@ try {
     $pythonExe = Join-Path $pythonDir "python.exe"
     $iconSource = Join-Path $StagingDir "03_images\icon\icon_full_512_512.png"
     $iconOutput = Join-Path $StagingDir "app.ico"
-    & $pythonExe -c "from PIL import Image; im=Image.open(r'$iconSource').convert('RGBA'); im.save(r'$iconOutput', sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])"
+    # Audit 84: pass paths as argv so apostrophes/Unicode in the folder name stay valid Python.
+    & $pythonExe -c "from PIL import Image; import sys; im=Image.open(sys.argv[1]).convert('RGBA'); im.save(sys.argv[2], sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])" $iconSource $iconOutput
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $iconOutput)) { throw "Failed to create the Windows application icon." }
 
     & $pythonExe -c "import PIL, sys; print(sys.version); print('Pillow', PIL.__version__)"
