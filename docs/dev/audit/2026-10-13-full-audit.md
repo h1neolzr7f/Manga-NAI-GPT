@@ -8,6 +8,20 @@
 
 首轮只审查与复现，未修改、提交或推送项目代码。第二轮的聊天配置修复及独立PR状态见本文末尾。下述“复现”主要指执行原生产函数、以可控制的存储、网络或模型依赖建立的离线复现，不等同于完整浏览器或真实推理验收。
 
+## 修复状态（持续更新）
+
+回归测试：`npm run test:audit-regressions`（`scripts/audit-regressions/`，已接入 `npm test`）。`scripts/audit/*` 仍是针对基线 `ca9572d` 的缺陷诊断脚本，已修复条目的诊断断言会按预期失败。
+
+| 编号 | 状态 | PR / 说明 |
+| --- | --- | --- |
+| 01 | 已修复 | fix/audit-data-loss：同页点击直接返回；保存后重新读取记录 |
+| 02 | 已修复 | fix/audit-data-loss：复制页重写历史状态中的 canvasGuid |
+| 03 | 已修复 | fix/audit-data-loss：撤销删除切页前保存当前页 |
+| 11 | 已修复 | [PR #5](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/5) |
+| 12 | 已修复 | [PR #5](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/5) |
+
+<!-- audit-status-end -->
+
 ## 优先修复：数据和付费结果
 
 ### 01 — 点击当前页缩略图回滚刚做的编辑（P1，生产函数复现）
