@@ -66,6 +66,8 @@
 | 56 | 已修复 [PR #23](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/23)：抠图请求固定页面 GUID 与源对象；切页或源图已删除时结果不贴入并提示，也不再触发颜色回退（决定：丢弃并提示重做，而非自动跨页） |
 | 57 | 已修复 [PR #23](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/23)：颜色键 alpha 与原 alpha 取最小值，透明/半透明像素不会被复活（invert 同样保留） |
 | 58 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：导入前校验历史结构；加载中途失败时恢复历史、图片映射、提示词与画布尺寸 |
+| 61 | 已修复 [PR #24](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/24)：生成素材只有在索引写入成功后才算成功；写入失败时任务标为“保存失败”，生成字节留在内存，可“重试保存”而不重新生成（不花额外费用） |
+| 62 | 已修复 [PR #24](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/24)：素材包导入改为全有或全无：任一记录无效即回滚到导入前状态，成功时一次性保存 |
 | 63 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：导入素材文件名使用完整 ID 的哈希，原子写入 |
 | 67 | 已修复 [PR #21](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/21)：分页长图导出时临时隐藏无关图层和编辑网格，只渲染目标模拟器 |
 | 68 | 已修复 [PR #22](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/22)：OCR 同字合并要求水平重叠≥30%，不再把相邻两个字合并 |
