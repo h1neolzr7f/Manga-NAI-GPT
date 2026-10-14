@@ -485,25 +485,24 @@ targetLayerGuid=layer.relatedPoly?getGUID(layer.relatedPoly):getGUID(layer);
 layerType='standalone';
 }
 var center=calculateCenter(layer);
-registerGenerationTask(canvasGuid,{
+return registerGenerationTask(canvasGuid,{
 layerGuid:getGUID(layer),
 layerType:layerType,
 centerX:center.centerX,
 centerY:center.centerY,
 targetLayerGuid:targetLayerGuid
 });
-return canvasGuid;
 }
-_placeResult(result,layer,canvasGuid,type){
-if(isPageChanged(canvasGuid)){
-return applyGeneratedImageToOriginalPage(canvasGuid,result).then(applied=>{
+_placeResult(result,layer,task,type){
+if(isPageChanged(task.canvasGuid)){
+return applyGeneratedImageToOriginalPage(task,result).then(applied=>{
 if(!applied){
-removeGenerationTask(canvasGuid);
+removeGenerationTask(task);
 throw new Error('原页面不可用，生图结果未回贴；不会写入当前页。');
 }
 });
 }
-removeGenerationTask(canvasGuid);
+removeGenerationTask(task);
 this._placeOnCanvas(result,layer,type);
 }
 _placeOnCanvas(result,layer,type){
@@ -524,8 +523,8 @@ canvas.remove(layer);
 replaceImageObject(layer,result,type,layerIndex);
 }
 }
-_handleError(error,type,canvasGuid){
-removeGenerationTask(canvasGuid);
+_handleError(error,type,task){
+removeGenerationTask(task);
 if(error.message==='Queue cancelled'||error.message==='Task cancelled'){
 this._logger.debug('Generation cancelled by user');
 return;
@@ -540,7 +539,7 @@ this._logger.error(type+' error:',message);
 }
 async _execute(layer,spinnerId,type){
 var startTime=Date.now();
-var canvasGuid=this._registerTask(layer);
+var task=this._registerTask(layer);
 var p=novelaiQueue.add(async()=>{
 setCurrentAiTask(spinnerId);
 var payload=await this._buildPayload(layer,type);
@@ -558,7 +557,7 @@ updateAiTaskCancelInfo(spinnerId,{queueName:'novelai',queueItemId:p._queueItemId
 return p.then(async result=>{
 if(result&&result.img){
 DashboardUI.recordGeneration(type,Date.now()-startTime,result.payload.input,result.payload.model);
-await this._placeResult(result.img,layer,canvasGuid,type);
+await this._placeResult(result.img,layer,task,type);
 if(isPanel(layer)&&window.NaiPanelPipelineReview&&typeof window.NaiPanelPipelineReview.onPanelGenerationSuccess==='function'){
 window.NaiPanelPipelineReview.onPanelGenerationSuccess(layer,type);
 }
@@ -567,7 +566,7 @@ window.NaiPanelPipelineReview.onPanelGenerationSuccess(layer,type);
 if(isPanel(layer)&&window.NaiPanelPipelineReview&&typeof window.NaiPanelPipelineReview.onPanelGenerationFailure==='function'){
 window.NaiPanelPipelineReview.onPanelGenerationFailure(layer,error&&error.message);
 }
-this._handleError(error,type,canvasGuid);
+this._handleError(error,type,task);
 }).finally(()=>{
 removeSpinner(spinnerId);
 });

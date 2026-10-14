@@ -1,18 +1,18 @@
-/* exported applyGeneratedImageToOriginalPage, getAiTask, getAiTasksForLayer, isPageChanged, registerAiTask, registerGenerationTask, removeAiTask, updateAiTaskCancelInfo, updateAiTaskStatus */
+/* exported applyGeneratedImageToOriginalPage, removeGenerationTask, getAiTask, getAiTasksForLayer, isPageChanged, registerAiTask, registerGenerationTask, removeAiTask, updateAiTaskCancelInfo, updateAiTaskStatus */
 var generationTaskMap=new Map();
 
 var aiTaskMap=new Map();
-var aiTaskOrderCounter=0;
+var aiTaskIdCounter=0;
 
 function registerAiTask(layerGuid,taskType){
-var taskId='aitask-'+(++aiTaskOrderCounter);
+var taskId='aitask-'+(++aiTaskIdCounter);
 var task={
 taskId:taskId,
 canvasGuid:getCanvasGUID(),
 layerGuid:layerGuid,
 taskType:taskType,
 status:'waiting',
-order:aiTaskOrderCounter,
+order:aiTaskMap.size+1,
 stepValue:0,
 stepMax:0
 };
@@ -49,10 +49,11 @@ function renumberAiTasks(){
 var tasks=[];
 aiTaskMap.forEach(function(task){tasks.push(task);});
 tasks.sort(function(a,b){return a.order-b.order;});
+// Only the display order is renumbered; IDs keep counting up so a new task never reuses the
+// ID of one that is still running.
 for(var i=0;i<tasks.length;i++){
 tasks[i].order=i+1;
 }
-aiTaskOrderCounter=tasks.length;
 }
 
 function updateAiTaskStatus(taskId,status){
@@ -93,11 +94,12 @@ textEl.textContent=text;
 }
 }
 
-async function registerGenerationTask(canvasGuid,taskInfo){
-if(!btmProjectsMap.has(canvasGuid)){
-await btmSaveProjectFile(canvasGuid,false);
-}
+// Each generation request gets its own key: two panels queued on the same page must not
+// overwrite each other's target, and finishing/cancelling one must only clear its own record.
+var generationTaskSeq=0;
+function registerGenerationTask(canvasGuid,taskInfo){
 var info={
+taskKey:'gentask-'+(++generationTaskSeq),
 canvasGuid:canvasGuid,
 layerGuid:taskInfo.layerGuid||null,
 layerType:taskInfo.layerType||'unknown',
@@ -105,25 +107,38 @@ centerX:taskInfo.centerX||0,
 centerY:taskInfo.centerY||0,
 targetLayerGuid:taskInfo.targetLayerGuid||null
 };
-generationTaskMap.set(canvasGuid,info);
-generationTaskLogger.debug("registerGenerationTask",canvasGuid,info);
+generationTaskMap.set(info.taskKey,info);
+// Registration is visible immediately; the page snapshot needed for an off-page apply is awaited via ready.
+info.ready=(async()=>{
+if(!btmProjectsMap.has(canvasGuid))await btmSaveProjectFile(canvasGuid,false);
+})().catch(error=>{generationTaskLogger.error("registerGenerationTask save failed",error);});
+generationTaskLogger.debug("registerGenerationTask",info.taskKey,info);
 return info;
 }
 
-function removeGenerationTask(canvasGuid){
-generationTaskMap.delete(canvasGuid);
+function resolveGenerationTask(keyOrTask){
+if(keyOrTask&&typeof keyOrTask==='object')return generationTaskMap.get(keyOrTask.taskKey)||null;
+if(generationTaskMap.has(keyOrTask))return generationTaskMap.get(keyOrTask);
+return null;
+}
+
+function removeGenerationTask(keyOrTask){
+var key=keyOrTask&&typeof keyOrTask==='object'?keyOrTask.taskKey:keyOrTask;
+generationTaskMap.delete(key);
 }
 
 function isPageChanged(canvasGuid){
 return canvasGuid!==getCanvasGUID();
 }
 
-async function applyGeneratedImageToOriginalPage(canvasGuid,fabricImage){
-var task=generationTaskMap.get(canvasGuid);
+async function applyGeneratedImageToOriginalPage(keyOrTask,fabricImage){
+var task=resolveGenerationTask(keyOrTask);
 if(!task){
-generationTaskLogger.error("Task not found:",canvasGuid);
+generationTaskLogger.error("Task not found:",keyOrTask);
 return false;
 }
+var canvasGuid=task.canvasGuid;
+if(task.ready)await task.ready;
 var projectData=btmProjectsMap.get(canvasGuid);
 if(!projectData||!projectData.blob){
 generationTaskLogger.error("Original page data not found:",canvasGuid);
@@ -146,7 +161,7 @@ return result.success;
 generationTaskLogger.error("Error applying image:",error);
 return false;
 }finally{
-removeGenerationTask(canvasGuid);
+removeGenerationTask(task);
 }
 }
 

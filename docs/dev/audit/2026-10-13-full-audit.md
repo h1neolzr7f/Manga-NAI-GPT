@@ -18,6 +18,8 @@
 | 02 | 已修复 | fix/audit-data-loss：复制页重写历史状态中的 canvasGuid |
 | 03 | 已修复 | fix/audit-data-loss：撤销删除切页前保存当前页 |
 | 04 | 已修复 | fix/audit-autosave：“已保存”标记取保存前捕获的哈希，压缩期间的新编辑保持 dirty |
+| 05 | 已修复 | fix/audit-task-manager：生成任务按唯一 taskKey 记录（含页面与目标层），完成/取消只清自己的记录；注册同步可见，页面快照经 ready 等待 |
+| 06 | 已修复 | fix/audit-task-manager：任务 ID 单调递增，只重排显示序号 |
 | 07 | 已修复 | fix/audit-autosave：项目签名包含页序与每页 blob 身份 |
 | 08 | 已修复 | fix/audit-autosave：写入全部成功后才提交标记；失败与清除都会失效 |
 | 11 | 已修复 | [PR #5](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/5) |
