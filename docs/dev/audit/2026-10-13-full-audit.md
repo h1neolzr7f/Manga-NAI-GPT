@@ -17,6 +17,9 @@
 | 01 | 已修复 | fix/audit-data-loss：同页点击直接返回；保存后重新读取记录 |
 | 02 | 已修复 | fix/audit-data-loss：复制页重写历史状态中的 canvasGuid |
 | 03 | 已修复 | fix/audit-data-loss：撤销删除切页前保存当前页 |
+| 04 | 已修复 | fix/audit-autosave：“已保存”标记取保存前捕获的哈希，压缩期间的新编辑保持 dirty |
+| 07 | 已修复 | fix/audit-autosave：项目签名包含页序与每页 blob 身份 |
+| 08 | 已修复 | fix/audit-autosave：写入全部成功后才提交标记；失败与清除都会失效 |
 | 11 | 已修复 | [PR #5](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/5) |
 | 12 | 已修复 | [PR #5](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/5) |
 
