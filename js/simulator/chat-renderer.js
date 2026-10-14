@@ -74,10 +74,17 @@ if(!participant.avatar)return items;
 try{
 var image=await loadImage(participant.avatar);
 if(image){
-var box=(size||28)*2-4;
+var radius=size||28;
+var box=radius*2-4;
 fitImage(image,box,box);
 image.set({left:x+2,top:y+2,originX:'left',originY:'top'});
-items.unshift(image);
+// Audit 115: drop opaque fallback circle/initial so the uploaded avatar is visible.
+items.length=0;
+items.push(image);
+items.push(new (getFabric()).Circle({
+left:x,top:y,radius:radius,originX:'left',originY:'top',
+fill:'rgba(0,0,0,0)',stroke:(theme&&theme.primaryColor)||'#fff',strokeWidth:2
+}));
 }
 }catch(error){
 if(root.uiLogger&&typeof root.uiLogger.warn==='function')root.uiLogger.warn('聊天头像加载失败：',error);

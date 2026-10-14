@@ -94,15 +94,34 @@ s.textContent=text;
 }
 
 async function testGpt(){
-saveGpt();
+// Audit 111: do not persist until the response still matches the live URL/model.
 setStatus('svcGptStatus','', '正在连接…');
 var key=($('mangaGptKey').value||'').trim().replace(/^Bearer\s+/i,'');
+var requestUrl=($('mangaGptUrl').value||'').trim();
+var requestModel=($('mangaGptModel').value||'').trim();
 try{
-var data=await ServiceRequest.request('gpt','/gpt-image-proxy',{body:{operation:'models',baseUrl:$('mangaGptUrl').value.trim()},
+var data=await ServiceRequest.request('gpt','/gpt-image-proxy',{body:{operation:'models',baseUrl:requestUrl},
 headers:key?{Authorization:'Bearer '+key}:{},timeoutMs:35000});
+var liveUrl=($('mangaGptUrl').value||'').trim();
+var liveModel=($('mangaGptModel').value||'').trim();
+if(liveUrl!==requestUrl){
+setStatus('svcGptStatus','warn','测试结果已丢弃：服务地址已切换');
+return;
+}
 var images=data.imageModels||[];
-if(images.length){applyModelList(images);saveGpt();setStatus('svcGptStatus','ok','已连接 · 已选模型 '+$('mangaGptModel').value+'（共 '+images.length+' 个图像模型）');}
-else setStatus('svcGptStatus','warn','已连接，但服务没有列出图像模型；请在「模型」里手动填写。');
+if(images.length){
+applyModelList(images);
+if(liveModel&&liveModel!==requestModel){
+var model=$('mangaGptModel'),preset=$('mangaGptModelPreset');
+if(model)model.value=liveModel;
+if(preset){
+var known=Array.prototype.some.call(preset.options,function(o){return o.value===liveModel;});
+preset.value=known?liveModel:'custom';
+}
+}
+saveGpt();
+setStatus('svcGptStatus','ok','已连接 · 已选模型 '+$('mangaGptModel').value+'（共 '+images.length+' 个图像模型）');
+}else setStatus('svcGptStatus','warn','已连接，但服务没有列出图像模型；请在「模型」里手动填写。');
 }catch(error){setStatus('svcGptStatus','error',error.userMessage||error.message);}
 }
 async function testNai(){
