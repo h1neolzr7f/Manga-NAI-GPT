@@ -2,6 +2,28 @@
 
 Version numbers apply to **this fork only**, not to upstream Manga Editor Desu.
 
+## 1.6.2 — 2026-10-14（全面审计修复）
+
+关闭 [2026-10-13 全量审计](docs/dev/audit/2026-10-13-full-audit.md) 全部 **120** 条已确认缺陷（PR #6–#37）。中文在前，English 在后。
+
+### 中文
+- **数据与历史**：同页缩略图不再回滚编辑；复制/撤销/切页与 canvasGuid 一致；压缩期间「已保存」不再误标；生成任务按唯一键记录，取消后迟到结果不回贴。
+- **自动保存与工程**：项目签名含页序与 blob 身份；ZIP/lz4 扁平页与 DEFLATE 解压；素材索引写入成功才算成功，包导入全有或全无。
+- **付费与队列**：NovelAI / AI Fill /「画一页」统一排队；超时覆盖响应体读取，结果未知不自动重发；前端与代理最长边统一 1536。
+- **安全**：无系统代理时出站 DNS 解析校验并固定；抠图临时文件短随机名；安装/本机端口与 Windows 探测一致；焦点陷阱在 IME 组合输入时不误关。
+- **本机模型与抠图**：人物模型原子加载；SAM/LaMa 取消与蒙版快照；智能点选完整哈希与精确 mask；选区/页面钉住，切页丢弃旧结果并提示。
+- **OCR / 气泡 / 文字**：同字合并与分行、竖排输入与 IME 高亮、字体持久化失败提示；自由气泡合并保留原对白。
+- **导出与 UI**：栅格导出隐藏辅助框并恢复画布；PSD AI Fill 用 live 位置；页面效果/网格不再 clearRect 擦下层；仪表盘脚本重试、统计串行、历史最长连续天数。
+- **模拟器 / Studio / 导演**：聊天头像不再被默认圆遮挡；剧情/Studio 字段与播放索引；导演迟到响应不覆盖新编辑，草稿仅在显式勾选时保存。
+
+### English
+- Closes all **120** confirmed findings from the 2026-10-13 full audit (PRs #6–#37).
+- Hardens page/history/autosave identity, ZIP/lz4 load, asset index commits, and cancel-safe paid queues (no auto-retry on unknown results).
+- Security: DNS pinning without system proxy, short temp names, consistent local-tools port, IME-safe focus trap.
+- Local AI: atomic model publish, SAM/LaMa cancel + mask snapshots, full-page hash and precise masks, page-pinned apply.
+- OCR/balloons/vertical text/IME/font persistence; export helpers restored after PNG/PSD; page studio no shared-ctx clearRect; dashboard retry/serialize/streak history.
+- Simulator avatar visibility, Studio/story fidelity, director stale-response guards and opt-in draft storage.
+
 ## 1.6.1 — 2026-10-13（稳定性修复）
 
 - 修复选中图层时工具栏重排导致的画布跳动、小图/横向页缩放尺寸异常，以及文字聚焦的嵌套滚动回退。

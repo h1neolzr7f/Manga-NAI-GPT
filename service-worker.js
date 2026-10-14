@@ -1,5 +1,5 @@
 // Service Worker: Cache management for HTTP/HTTPS deployment
-var CACHE_VERSION='manga-editor-1.6.1-offline-shell';
+var CACHE_VERSION='manga-editor-1.6.2-offline-shell';
 // App shell precached at install so the installed app (start_url ./) opens offline (audit 22).
 var APP_SHELL=['./index.html','./manifest.json'];
 var STATIC_EXTENSIONS=[

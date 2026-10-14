@@ -1,24 +1,23 @@
-# Manga-NAI-GPT 1.6.1
+# Manga-NAI-GPT 1.6.2
 
-修复画布跳动、局部编辑背景保护及角色连续性问题。
+全面审计修复：关闭 2026-10-13 全量审计全部 120 条已确认缺陷（PR #6–#37）。
 
 ## 更新
 
-- 选中图层时工具栏保持固定高度；修复横向页、小图缩放和文字聚焦滚动。实机选中整页前后画布位移为 0。
-- 换角色保护远处背景和其他人物，首格与批量共用服装策略；明显上下文重构的候选需检查，批量会暂停。
-- 保留有意的局部提亮和细线变化；修复取消、关闭、切页、重复应用及延迟解码期间的旧结果处理。
-- 画一页增加每格人物/空镜选择、新系列重置、角色与参数快照、系列种子复用；修复默认网点提示词冲突。
-- 修复导出失败清理、参考图读取、普通漫画页整页选择、Python 测试入口和版本显示。
-- 修复 Windows 标签构建、安装器说明文件与支持链接；便携版包含已准备的 Python/Node 基础运行环境，并在上传前校验。
+- 数据与历史：同页点击、复制/撤销/切页 GUID、压缩期 dirty 标记、按唯一键记录的生成任务与取消后的迟到结果隔离。
+- 工程与素材：页序/blob 签名、扁平 ZIP 与 DEFLATE→lz4、素材索引与包导入事务。
+- 付费队列与尺寸：NAI / AI Fill / 画一页统一排队；超时覆盖响应体；结果未知不重发；最长边 1536。
+- 安全与本机服务：无代理时 DNS 固定、短临时名、抠图端口一致、IME 下焦点陷阱不误关。
+- 本机 AI：模型原子发布、SAM/LaMa 取消与蒙版快照、完整图像哈希与精确 mask、切页钉住。
+- OCR / 气泡 / 竖排文字与 IME、字体持久化失败提示；导出隐藏辅助框并恢复画布；页面效果不再擦下层。
+- 仪表盘脚本重试、统计串行、历史最长连续天数；模拟器头像可见；导演迟到不覆盖、草稿需显式保存。
 
 ## 下载与验证
 
-源码修复包解压后双击 `一键启动.bat`，需要电脑上有 Python；Windows 安装版和便携版包含基础运行环境。AI 服务需自行配置，本机 AI 模型另行安装。
+Windows 安装版与便携版含基础运行环境；源码包解压后双击 `一键启动.bat`（需本机 Python）。AI 服务与本机模型需自行配置/安装。
 
-完整回归、应用代码 lint、39 个代理相关 Python 测试及实机布局检查通过。独立复查的 3 项异步处理缺陷已关闭。详见 `docs/dev/DRIFT_REPAIR_VALIDATION.md`。
-
-本轮未调用真实 GPT/NovelAI 服务，不承诺模型人物身份、姿势或构图绝对一致；NAI 整页流程仍主要依赖文字角色锚点与种子。导出成功/失败由离线流程回归覆盖，真实浏览器下载链路尚未完成验收。
+离线回归（含 `npm run test:audit-regressions`）、结构与 Windows 离线检查已通过。审计状态表 120/120 已修复。本轮发布不额外声称真实 GPT/NovelAI 画质保证。
 
 ## English
 
-Fixes canvas layout jumps, character-replacement mask boundaries, brightness/line-change preservation and stale image results after cancellation, closure or page navigation. Adds per-panel cast/empty-shot controls and series continuity snapshots. Offline regressions, lint, 39 Python proxy tests and local Windows browser layout checks passed. Real image-service inference was not configured for this validation; model identity and composition consistency are not guaranteed.
+Audit-fix release: all **120** confirmed findings from the 2026-10-13 full audit are closed (PRs #6–#37). Covers data/history/autosave, ZIP/assets, paid queues and size caps, DNS pinning and local-tools ports, SAM/LaMa/OCR/text, export/page-studio, dashboard stats, simulator avatars, and director stale-response guards. Offline regressions and Windows packaging checks passed. Real image-service quality is not re-claimed beyond prior notes.
