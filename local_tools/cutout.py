@@ -113,7 +113,7 @@ def apply_alpha_feather(image: Image.Image, radius: int) -> Image.Image:
     return out
 
 
-def crop_to_content(image: Image.Image, pad: int = 2) -> Image.Image:
+def crop_to_content(image: Image.Image, pad: int = 2, meta: dict[str, Any] | None = None) -> Image.Image:
     bbox = image.getbbox()
     if not bbox:
         raise RuntimeError("Cutout result is fully transparent")
@@ -122,19 +122,24 @@ def crop_to_content(image: Image.Image, pad: int = 2) -> Image.Image:
     top = max(0, top - pad)
     right = min(image.width, right + pad)
     bottom = min(image.height, bottom + pad)
+    if meta is not None:
+        # Audit 54: report where the crop sits in the source so the editor can place it.
+        meta["crop"] = {"x": left, "y": top, "width": right - left, "height": bottom - top}
+        meta["source_width"] = image.width
+        meta["source_height"] = image.height
     return image.crop((left, top, right, bottom))
 
 
-def postprocess_rgba(image: Image.Image, options: dict[str, Any]) -> Image.Image:
+def postprocess_rgba(image: Image.Image, options: dict[str, Any], meta: dict[str, Any] | None = None) -> Image.Image:
     result = image.convert("RGBA")
     if options.get("feather"):
         result = apply_alpha_feather(result, int(options["feather"]))
     if options.get("crop"):
-        result = crop_to_content(result)
+        result = crop_to_content(result, meta=meta)
     return result
 
 
-def color_key_remove(data: bytes, options: dict[str, Any]) -> bytes:
+def color_key_remove(data: bytes, options: dict[str, Any], meta: dict[str, Any] | None = None) -> bytes:
     image = bytes_to_image(data)
     rgb = image.convert("RGB")
     key = _parse_hex_color(options.get("key_color"))
@@ -146,8 +151,10 @@ def color_key_remove(data: bytes, options: dict[str, Any]) -> bytes:
     alpha = max_diff.point(lambda pixel: 0 if pixel <= tolerance else 255)
     if options.get("invert"):
         alpha = ImageOps.invert(alpha)
+    # Audit 57: the key may only remove pixels, never revive transparent ones.
+    alpha = ImageChops.darker(alpha, image.getchannel("A"))
     image.putalpha(alpha)
-    result = postprocess_rgba(image, options)
+    result = postprocess_rgba(image, options, meta)
     if options.get("only_mask"):
         result = result.getchannel("A").convert("RGBA")
     png = image_to_png_bytes(result)

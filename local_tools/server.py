@@ -264,8 +264,10 @@ class Handler(BaseHTTPRequestHandler):
         with tempfile.NamedTemporaryFile(prefix="manga_editor_", suffix=os.path.splitext(filename)[1][:16], delete=True) as temp:  # short temp name (audit 44)
             temp.write(content)
             temp.flush()
-            model_id, result = self.manager.remove_background(content, options.get("model") or options.get("mode"), options)
+            meta: dict[str, Any] = {}
+            model_id, result = self.manager.remove_background(content, options.get("model") or options.get("mode"), options, meta=meta)
         return {
+            **meta,
             "ok": True,
             "model": model_id,
             "engine": options.get("engine") or ("color-key" if model_id == "color-key" else "rembg"),
