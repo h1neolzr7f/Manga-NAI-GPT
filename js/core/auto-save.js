@@ -8,6 +8,27 @@ var enabled=true;
 var intervalSeconds=60;
 var lastSavedHash=null;
 var lastSavedGuid=null;
+var lastSavedPages=null;
+// Page blobs get a stable id so deleting, reordering or re-saving any page (not only the
+// current one) changes the project signature and makes auto-save write again.
+var blobIds=typeof WeakMap==='function'?new WeakMap():null;
+var nextBlobId=1;
+function blobId(blob){
+if(!blob||typeof blob!=='object'||!blobIds)return String(blob);
+if(!blobIds.has(blob))blobIds.set(blob,nextBlobId++);
+return blobIds.get(blob);
+}
+function computePagesSignature(){
+if(typeof btmProjectsMap==='undefined')return null;
+var parts=[];
+btmProjectsMap.forEach(function(data,guid){parts.push(guid+'='+blobId(data&&data.blob));});
+return parts.join('|');
+}
+function invalidate(){
+lastSavedHash=null;
+lastSavedGuid=null;
+lastSavedPages=null;
+}
 
 function computeStateHash(){
 if(typeof stateStack==='undefined'||typeof currentStateIndex==='undefined')return null;
@@ -64,16 +85,17 @@ if(isSaving)return;
 if(typeof stateStack==='undefined'||stateStack.length<2)return;
 var guid=getCanvasGUID();
 var hash=computeStateHash();
-if(hash!==null&&hash===lastSavedHash&&guid===lastSavedGuid){
+if(hash!==null&&hash===lastSavedHash&&guid===lastSavedGuid&&computePagesSignature()===lastSavedPages){
 autoSaveLogger.debug("Skip auto-save: no changes");
 return;
 }
 isSaving=true;
 autoSaveLogger.info("Auto-save starting...");
 try{
+// The blob is built from the history as it is now; edits made while it compresses
+// must stay dirty, so the "saved" marker is the hash captured before saving.
 await btmSaveProjectFile(null,false);
-lastSavedHash=computeStateHash();
-lastSavedGuid=guid;
+var pagesSignature=computePagesSignature();
 var pages=[];
 btmProjectsMap.forEach(function(data,guid){
 pages.push({guid:guid,blob:data.blob});
@@ -84,8 +106,13 @@ timestamp:Date.now(),
 currentPageGuid:getCanvasGUID(),
 pageOrder:btmGetGuids()
 });
+// Only a fully successful write counts as saved.
+lastSavedHash=hash;
+lastSavedGuid=guid;
+lastSavedPages=pagesSignature;
 autoSaveLogger.info("Auto-save complete, pages="+pages.length);
 }catch(e){
+invalidate();
 autoSaveLogger.error("Auto-save failed:",e);
 }finally{
 isSaving=false;
@@ -93,6 +120,7 @@ isSaving=false;
 }
 
 async function clearAutoSave(){
+invalidate();
 try{
 await store.removeItem('pages');
 await store.removeItem('metadata');
@@ -225,6 +253,7 @@ loadSettings();
 await checkRecovery();
 lastSavedHash=computeStateHash();
 lastSavedGuid=(typeof getCanvasGUID==='function')?getCanvasGUID():null;
+lastSavedPages=computePagesSignature();
 start();
 // best effort: the tab being hidden/closed is the last chance to persist unsaved work
 document.addEventListener('visibilitychange',function(){
