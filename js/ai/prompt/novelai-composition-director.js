@@ -1145,17 +1145,19 @@ return result;
 
 async function writeLayerPromptAsync(layer,type,roughPrompt){
 if(!layer)return null;
+// Capture the prompt version we asked the director to rewrite (audit 105).
+var sourcePrompt=textOf(roughPrompt!==undefined?roughPrompt:layer.text2img_prompt);
 var result=await draftLayerPromptAsync(layer,type,roughPrompt);
+// If the user edited this layer while waiting, keep their text and leave the result for the UI/candidate path.
+if(textOf(layer.text2img_prompt)!==sourcePrompt){
+result.stale=true;
+result.kept_user_prompt=layer.text2img_prompt;
+return result;
+}
 layer.text2img_prompt=result.prompt;
 layer.text2img_negative=result.negative_prompt;
 layer.naiDirectorPlan=result.plan;
-layer.naiDirectorDraft={
-prompt:result.prompt,
-negative_prompt:result.negative_prompt,
-plan:result.plan,
-source_prompt:textOf(roughPrompt),
-created_at:new Date().toISOString()
-};
+// Audit 106: do not force naiDirectorDraft here — the UI store-drafts toggle decides.
 return result;
 }
 
