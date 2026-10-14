@@ -77,6 +77,9 @@
 | 61 | 已修复 [PR #24](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/24)：生成素材只有在索引写入成功后才算成功；写入失败时任务标为“保存失败”，生成字节留在内存，可“重试保存”而不重新生成（不花额外费用） |
 | 62 | 已修复 [PR #24](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/24)：素材包导入改为全有或全无：任一记录无效即回滚到导入前状态，成功时一次性保存 |
 | 63 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：导入素材文件名使用完整 ID 的哈希，原子写入 |
+| 64 | 已修复 [PR #28](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/28)：persist 与 remove 用 per-id token 串行；删除会使进行中的 put 作废并再次清理 blob，避免孤立存储 |
+| 65 | 已修复 [PR #28](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/28)：栅格导出临时隐藏 excludeFromExport/naiCropFrame 辅助框，finally 恢复，绿色裁剪框不再烤进 PNG |
+| 66 | 已修复 [PR #28](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/28)：exportCanvasDataURL 快照并恢复画布尺寸/viewport/交互；cropAndDownload/clipCopy 用 try/finally 覆盖同步抛错，保证网格与提示恢复 |
 | 67 | 已修复 [PR #21](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/21)：分页长图导出时临时隐藏无关图层和编辑网格，只渲染目标模拟器 |
 | 68 | 已修复 [PR #22](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/22)：OCR 同字合并要求水平重叠≥30%，不再把相邻两个字合并 |
 | 69 | 已修复 [PR #22](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/22)：OCR 按纵向重叠把词聚成行，多行横排文本按行顺序输出 |

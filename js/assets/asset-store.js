@@ -164,8 +164,24 @@ AssetStore.prototype.persistFile=function(asset,file,options){
 var self=this;
 var opts=options||{};
 if(!asset||!file)return opts.required?Promise.reject(new Error('素材文件为空。')):Promise.resolve(asset);
+var id=asset.id;
+// Audit 64: bump the token so an in-flight put is abandoned if remove() wins the race.
+self._persistToken=self._persistToken||{};
+var token=(self._persistToken[id]=(self._persistToken[id]||0)+1);
+if(!self.assets.some(function(item){return item.id===id;})){
+return opts.required?Promise.reject(new Error('素材已删除。')):Promise.resolve(null);
+}
 var blobStore=root.NaiComicAssetBlobStore;
-var idb=Promise.resolve().then(function(){return blobStore?blobStore.put(asset.id,file,{name:file.name||asset.name,type:file.type||asset.mime}):false;}).catch(function(){return false;});
+var idb=Promise.resolve().then(function(){
+if(self._persistToken[id]!==token||!self.assets.some(function(item){return item.id===id;}))return false;
+return blobStore?blobStore.put(id,file,{name:file.name||asset.name,type:file.type||asset.mime}):false;
+}).then(function(ok){
+if(ok&&(self._persistToken[id]!==token||!self.assets.some(function(item){return item.id===id;}))){
+if(blobStore)return Promise.resolve(blobStore.remove(id)).then(function(){return false;});
+return false;
+}
+return ok;
+}).catch(function(){return false;});
 return Promise.all([idb,persistToServer(asset,file)]).then(function(result){
 var path=result[1];
 if(opts.required&&!result[0]&&!path)throw new Error('素材持久化失败。');
@@ -305,6 +321,9 @@ var before=this.assets.length;
 this.assets=this.assets.filter(function(asset){return asset.id!==id;});
 this.files.delete(id);
 this.unindexAsset(existing||{id:id});
+// Audit 64: invalidate any in-flight persist for this id, then delete the blob (and again after a late put).
+this._persistToken=this._persistToken||{};
+this._persistToken[id]=(this._persistToken[id]||0)+1;
 if(root.NaiComicAssetBlobStore)root.NaiComicAssetBlobStore.remove(id);
 if(this.assets.length!==before){this.save();this.emit();return true;}
 return false;
