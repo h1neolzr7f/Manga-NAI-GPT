@@ -142,8 +142,9 @@ def _same_glyph(a, b):
     if ix * iy >= 0.5 * area:
         return True
     # a glyph split in two (e.g. the dakuten of が read as a second が right next to it)
-    near = abs((a["x"] + a["w"] / 2) - (b["x"] + b["w"] / 2)) <= max(a["w"], b["w"]) * 1.2
-    return a["text"] == b["text"] and near and iy >= 0.5 * min(a["h"], b["h"])
+    # Needs real overlap: two identical glyphs merely close together are normal text like 「ああ」 (audit 68).
+    overlap = ix >= 0.3 * min(a["w"], b["w"])
+    return a["text"] == b["text"] and overlap and iy >= 0.5 * min(a["h"], b["h"])
 
 
 def _dedupe(words):
@@ -155,11 +156,41 @@ def _dedupe(words):
     return kept
 
 
+def _lines(words):
+    """Horizontal lines: cluster by vertical overlap, then left -> right (audit 69)."""
+    lines = []
+    for word in sorted(words, key=lambda w: (w["y"] + w["h"] / 2, w["x"])):
+        for line in lines:
+            top, bottom = line["top"], line["bottom"]
+            ov = min(bottom, word["y"] + word["h"]) - max(top, word["y"])
+            if ov >= 0.5 * min(word["h"], bottom - top):
+                line["words"].append(word)
+                line["top"] = min(top, word["y"]); line["bottom"] = max(bottom, word["y"] + word["h"])
+                break
+        else:
+            lines.append({"top": word["y"], "bottom": word["y"] + word["h"], "words": [word]})
+    lines.sort(key=lambda l: l["top"])
+    return [sorted(l["words"], key=lambda w: w["x"]) for l in lines]
+
+
+def _columns(words):
+    size = max(8, sorted(w["w"] for w in words)[len(words) // 2])
+    columns = []
+    for word in sorted(words, key=lambda w: -(w["x"] + w["w"] / 2)):
+        cx = word["x"] + word["w"] / 2
+        for col in columns:
+            if abs(col["cx"] - cx) <= size * 0.6:
+                col["words"].append(word); break
+        else:
+            columns.append({"cx": cx, "words": [word]})
+    return columns
+
+
 def _reading_order(words, vertical):
     if not words:
         return ""
     if not vertical:
-        return "".join(w["text"] for w in sorted(words, key=lambda w: (w["y"] + w["h"] // 2, w["x"])))
+        return "".join("".join(w["text"] for w in line) for line in _lines(words))
     # columns right -> left (cluster by x centre), each column top -> bottom
     size = max(8, sorted(w["w"] for w in words)[len(words) // 2])
     columns = []
@@ -185,7 +216,7 @@ def read_bubble(run_tesseract, parse_tsv, bubble):
         conf = sum(w["conf"] for w in words) / len(words)
         score = japanese_score(text, conf)
         if best is None or score > best[0]:
-            best = (score, text, conf, words)
+            best = (score, text, conf, words, vertical)
     if not best or best[0] < 1.0:
         return None
     words = best[3]
@@ -195,6 +226,14 @@ def read_bubble(run_tesseract, parse_tsv, bubble):
     tx1 = max(w_["x"] + w_["w"] for w_ in words) - 20; ty1 = max(w_["y"] + w_["h"] for w_ in words) - 20
     tx0 = max(0, tx0); ty0 = max(0, ty0); tx1 = min(w, tx1); ty1 = min(h, ty1)
     vertical = (ty1 - ty0) > (tx1 - tx0) * 1.3
+    # The winning mode's structure decides when it has several columns / lines (audit 70);
+    # the block's shape only settles single-column/single-line results.
+    if best[4] and len(_columns(words)) >= 2:
+        vertical = True
+    elif not best[4] and len(_lines(words)) >= 2:
+        vertical = False
     return {"text": best[1][:500], "x": x + tx0, "y": y + ty0, "width": max(1, tx1 - tx0), "height": max(1, ty1 - ty0),
             "confidence": round(best[2], 1), "vertical": vertical,
+            # median single-glyph size (cross direction): caps the replacement font (audit 72)
+            "glyph": sorted((w_["w"] if vertical else w_["h"]) for w_ in words)[len(words) // 2],
             "bubble": {"x": x, "y": y, "width": w, "height": h}}

@@ -49,10 +49,17 @@
 | 45 | 已修复 [PR #19](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/19)：示例图包写入使用每个写入者唯一的临时文件再原子替换 |
 | 46 | 已修复 [PR #18](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/18)：网络字体 family 先 URL 解码（+/%20）再保存与应用 |
 | 49 | 已修复 [PR #16](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/16)：超容量对白放入同场景续格，不跨说话人合并；每句带稳定 line ID/speaker（wizardLines，写入 data-script-lines） |
+| 51 | 已修复 [PR #22](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/22)：气泡尾巴在整页 faces 中查找说话人，且要求脸部位于本分格内，否则不画指向他格的尾巴 |
 | 52 | 已修复 | [PR #12](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/12)：事件过滤只在 target.saveHistory===false 时跳过；导入底图添加后清除临时抑制 |
 | 53 | 已修复 [PR #19](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/19)：重置设置保留素材索引与生成任务记录（产品决定：重置仅针对设置，不清创作数据） |
 | 58 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：导入前校验历史结构；加载中途失败时恢复历史、图片映射、提示词与画布尺寸 |
 | 63 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：导入素材文件名使用完整 ID 的哈希，原子写入 |
+| 68 | 已修复 [PR #22](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/22)：OCR 同字合并要求水平重叠≥30%，不再把相邻两个字合并 |
+| 69 | 已修复 [PR #22](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/22)：OCR 按纵向重叠把词聚成行，多行横排文本按行顺序输出 |
+| 70 | 已修复 [PR #22](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/22)：竖排/横排方向由胜出模式的列/行结构判定（≥2 列或行时），不再误判 |
+| 71 | 已修复 [PR #22](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/22)：覆盖底色在内边距内遇到跨越≥60% 的深色轮廓线即停止，不再盖住气泡边框（决定：宁可少盖一点也不破坏线稿） |
+| 72 | 已修复 [PR #22](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/22)：OCR 返回中位字形尺寸 glyph，字号上限按实际字形而非框面积估算 |
+| 73 | 已修复 [PR #22](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/22)：应用时固定页面 GUID，解码期间切页则中止并提示，不会把 A 页图层加到 B 页（决定：中止而非自动切回） |
 | 80 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：glfxReset 锁定原目标并在原索引恢复，不再替换当前选中对象 |
 | 82 | 已修复 [PR #15](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/15)：刀切比例校验失败时回滚子图变换/clipPath/绑定与图层顺序 |
 | 86 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：旧版角色卡就地规范化，输入回调写入当前对象 |

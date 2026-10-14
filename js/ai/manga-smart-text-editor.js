@@ -401,17 +401,49 @@
     return new Uint8ClampedArray(data);
   }
 
+  /** Per side, how far the cover may extend: up to the first row/column in the padding where a dark line
+   *  (different from the background) spans most of the box, i.e. a balloon border. */
+  function outlineLimits(source, box, color, pad) {
+    const out = { left: pad, top: pad, right: pad, bottom: pad };
+    let ctx = null;
+    try { ctx = source.getContext('2d'); } catch (_) { return out; }
+    if (!ctx || typeof ctx.getImageData !== 'function') return out;
+    const W = source.width, H = source.height;
+    const x0 = Math.max(0, Math.floor(box.x)), x1 = Math.min(W, Math.ceil(box.x + box.width));
+    const y0 = Math.max(0, Math.floor(box.y)), y1 = Math.min(H, Math.ceil(box.y + box.height));
+    const dark = (d, i) => Math.abs(d[i] - color.r) + Math.abs(d[i + 1] - color.g) + Math.abs(d[i + 2] - color.b) > 150 && d[i + 3] > 128;
+    function rowIsLine(yy) {
+      if (yy < 0 || yy >= H || x1 <= x0) return false;
+      const d = ctx.getImageData(x0, yy, x1 - x0, 1).data; let n = 0;
+      for (let i = 0; i < d.length; i += 4) if (dark(d, i)) n++;
+      return n >= 0.6 * (x1 - x0);
+    }
+    function colIsLine(xx) {
+      if (xx < 0 || xx >= W || y1 <= y0) return false;
+      const d = ctx.getImageData(xx, y0, 1, y1 - y0).data; let n = 0;
+      for (let i = 0; i < d.length; i += 4) if (dark(d, i)) n++;
+      return n >= 0.6 * (y1 - y0);
+    }
+    for (let k = 1; k <= pad; k++) if (rowIsLine(y0 - k)) { out.top = Math.max(0, k - 1); break; }
+    for (let k = 0; k < pad; k++) if (rowIsLine(y1 + k)) { out.bottom = Math.max(0, k); break; }
+    for (let k = 1; k <= pad; k++) if (colIsLine(x0 - k)) { out.left = Math.max(0, k - 1); break; }
+    for (let k = 0; k < pad; k++) if (colIsLine(x1 + k)) { out.right = Math.max(0, k); break; }
+    return out;
+  }
+
   function makeErasure(source, box, color) {
     const pad = Math.max(5, Math.round(Math.min(box.height, 60) * 0.22));
-    const x = Math.max(0, Math.floor(box.x - pad));
-    const y = Math.max(0, Math.floor(box.y - pad));
-    const right = Math.min(source.width, Math.ceil(box.x + box.width + pad));
-    const bottom = Math.min(source.height, Math.ceil(box.y + box.height + pad));
+    // Stop the cover before a bubble outline inside the padding (audit 71).
+    const lim = outlineLimits(source, box, color, pad);
+    const x = Math.max(0, Math.floor(box.x - lim.left));
+    const y = Math.max(0, Math.floor(box.y - lim.top));
+    const right = Math.min(source.width, Math.ceil(box.x + box.width + lim.right));
+    const bottom = Math.min(source.height, Math.ceil(box.y + box.height + lim.bottom));
     const patch = document.createElement('canvas');
     patch.width = right - x;
     patch.height = bottom - y;
     const ctx = patch.getContext('2d');
-    const feather = Math.min(4, pad / 2);
+    const feather = Math.max(0.5, Math.min(4, Math.min(lim.left, lim.top, lim.right, lim.bottom, pad) / 2));
     const image = ctx.createImageData(patch.width, patch.height);
     for (let yy = 0; yy < patch.height; yy++) for (let xx = 0; xx < patch.width; xx++) {
       const edge = Math.min(xx, yy, patch.width - 1 - xx, patch.height - 1 - yy);
@@ -444,6 +476,11 @@
     state.busy = true;
     $('mangaSmartApply').disabled = true;
     let processed = 0, skipped = 0, overflow = 0;
+    // Pin the page: decoding is async, a page switch meanwhile must not drop these layers on the new page (audit 73).
+    const pageGuid = typeof getCanvasGUID === 'function' ? getCanvasGUID() : null;
+    const drafts = state.drafts, source = state.sourceImage;
+    const stale = () => getCanvas() !== c || state.drafts !== drafts || state.sourceImage !== source ||
+      (pageGuid && typeof getCanvasGUID === 'function' && getCanvasGUID() !== pageGuid);
     try {
       const original = await loadImage(snapshot(c));
       const pixelCanvas = document.createElement('canvas');
@@ -470,7 +507,12 @@
         const vertical = candidate.vertical && typeof fabric.VerticalTextbox === 'function';
         const area = (candidate.textArea && core.normalizeBox(candidate.textArea, c.getWidth(), c.getHeight())) || box;
         // original glyph size = the tight text box's cross dimension (one column / one line)
-        const glyph = area === box ? 0 : (vertical ? box.width : box.height) * 1.1;
+        // A multi-column/multi-line OCR box is not one glyph: estimate the glyph from the box area per
+        // character, capped by the box's cross size (audit 72). The whole box is only used for layout.
+        const chars = Math.max(1, Array.from(String(candidate.sourceText || candidate.originalText || candidate.text || '').replace(/\s/g, '')).length);
+        const cross = vertical ? box.width : box.height;
+        const perChar = Math.sqrt(Math.max(1, box.width * box.height) / chars);
+        const glyph = area === box ? 0 : (candidate.glyph > 0 ? Math.min(cross, candidate.glyph) : Math.min(cross, perChar)) * 1.1;
         const fit = core.fitText(candidate.text, area, vertical, measureText, glyph);
         if (fit.overflow) overflow++;
         const TextClass = vertical ? fabric.VerticalTextbox : fabric.Textbox;
@@ -497,6 +539,7 @@
         textbox.set('mangaSmartText', 'editable-subtitle');
         prepared.push({ eraseLayer, textbox });
       }
+      if (stale()) return message('应用期间切换了页面或重新识别，已取消，没有改动当前页。', true);
       if (!prepared.length) return message(
         '没有安全的自动去字区域：复杂背景或透明区域请先用 GPT 改图去字，或取消「自动去字」只创建文字层。', true);
       if (typeof changeDoNotSaveHistory === 'function') changeDoNotSaveHistory();

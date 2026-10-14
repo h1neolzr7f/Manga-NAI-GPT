@@ -73,7 +73,9 @@
     items.forEach((it, k) => {
       const w = Math.min(it.w, p.w - 2 * m), h = Math.min(it.h, p.h - 2 * m);
       const target = items.length === 1 ? 0.05 : 0.05 + 0.75 * k / (items.length - 1);
-      const sp = it.speaker != null && faces[it.speaker] ? faces[it.speaker] : null;
+      // it.speaker indexes the page-wide faces list (opts.faces), not the panel-filtered one (audit 51)
+      const raw = it.speaker != null && opts.faces && opts.faces[it.speaker] ? R(opts.faces[it.speaker]) : null;
+      const sp = raw && inter(raw, p) > 0.3 * area(raw) ? raw : null;
       let best = null;
       for (let y = p.y + m; y <= p.y + p.h - h - m + 0.01; y += step) for (let x = p.x + m; x <= p.x + p.w - w - m + 0.01; x += step) {
         const c = { x, y, w, h }, a = w * h, ctr = { x: x + w / 2, y: y + h / 2 };
