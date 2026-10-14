@@ -29,6 +29,7 @@
 | 14 | 已修复 | PR_MODELS：人物模型先在局部完整加载再原子发布；就绪判断要求全部会话 |
 | 15 | 已修复 | PR_MODELS：_get_extra 返回会话快照，空闲清理清空共享字典不影响进行中的请求（会话由快照引用保持存活） |
 | 16 | 已修复 | PR_MODELS：检测缓存键包含 refine；精修模型不可用时的降级结果不缓存 |
+| 24 | 已修复 | PR_SEC：无系统代理时，Director/tagger/NovelAI 出站连接在连接时解析、校验并固定到已校验地址（与 GPT 图像代理同一规则）；有系统代理时由代理解析。另：_start_tool_job 不再回退读取服务端 NOVELAI_API_KEY |
 
 <!-- audit-status-end -->
 

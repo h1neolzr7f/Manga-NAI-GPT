@@ -6,6 +6,7 @@ import os
 import re
 import sys
 import mimetypes
+import http.client
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -141,14 +142,85 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
+# Port this server listens on; connect-time pinning refuses proxy chains back into it.
+SERVER_PORT = None
+
+
 def _build_proxy_opener():
+    """Outbound opener for upstreams. With a system proxy the proxy resolves names (same rule as
+    gpt_image_proxy); without one, connections are resolved, validated and pinned at connect
+    time (audit 24)."""
     proxy_url = _get_proxy_url()
     if not proxy_url:
-        return urllib.request.build_opener(_NoRedirect())
+        return _build_pinned_opener(SERVER_PORT)
     return urllib.request.build_opener(_NoRedirect(), urllib.request.ProxyHandler({
         'http': proxy_url,
         'https': proxy_url
     }))
+
+
+def _upstream_address_error(address, port, own_port=None):
+    """Per-address rule shared by URL validation and connect-time pinning."""
+    try:
+        ip = ipaddress.ip_address(str(address).split('%', 1)[0])
+    except ValueError:
+        return ''
+    if getattr(ip, 'ipv4_mapped', None):
+        ip = ip.ipv4_mapped
+    if ip.is_link_local or ip.is_unspecified or ip.is_multicast or ip.is_reserved:
+        return 'link-local / reserved addresses are blocked'
+    if ip.is_loopback and own_port and port == own_port:
+        return 'the proxy may not call this server itself'
+    return ''
+
+
+def _resolve_pinned(host, port, own_port):
+    infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    for info in infos:
+        error = _upstream_address_error(info[4][0], port, own_port)
+        if error:
+            raise urllib.error.URLError('upstream address rejected at connect time: ' + error)
+    return infos
+
+
+def _pinned_connect(conn, own_port):
+    """Resolve at connect time, validate every address and connect to exactly that address:
+    closes the DNS-rebinding gap between validate_upstream_url() and the real connection
+    (audit 24). TLS still verifies the certificate for the original hostname."""
+    last_error, sock = None, None
+    for family, socktype, proto, _, sockaddr in _resolve_pinned(conn.host, conn.port, own_port):
+        try:
+            sock = socket.socket(family, socktype, proto)
+            if conn.timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:
+                sock.settimeout(conn.timeout)
+            sock.connect(sockaddr)
+            return sock
+        except OSError as exc:
+            last_error = exc
+            sock.close()
+    raise last_error or OSError('connection failed')
+
+
+def _build_pinned_opener(own_port=None):
+    """No-proxy opener whose connections are validated and pinned at connect time."""
+    class PinnedHTTP(http.client.HTTPConnection):
+        def connect(self):
+            self.sock = _pinned_connect(self, own_port)
+
+    class PinnedHTTPS(http.client.HTTPSConnection):
+        def connect(self):
+            sock = _pinned_connect(self, own_port)
+            self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
+
+    class HTTPHandler(urllib.request.HTTPHandler):
+        def http_open(self, req):
+            return self.do_open(PinnedHTTP, req)
+
+    class HTTPSHandler(urllib.request.HTTPSHandler):
+        def https_open(self, req):
+            return self.do_open(PinnedHTTPS, req, context=self._context)
+
+    return urllib.request.build_opener(_NoRedirect(), urllib.request.ProxyHandler({}), HTTPHandler(), HTTPSHandler())
 
 
 def _build_direct_opener():
@@ -349,16 +421,9 @@ def validate_upstream_url(url, own_port=None):
         except ValueError:
             pass
     for address in addresses:
-        try:
-            ip = ipaddress.ip_address(address)
-        except ValueError:
-            continue
-        if getattr(ip, 'ipv4_mapped', None):
-            ip = ip.ipv4_mapped
-        if ip.is_link_local or ip.is_unspecified or ip.is_multicast or ip.is_reserved:
-            return 'link-local / reserved addresses are blocked'
-        if ip.is_loopback and own_port and port == own_port:
-            return 'the proxy may not call this server itself'
+        error = _upstream_address_error(address, port, own_port)
+        if error:
+            return error
     if host in LOCAL_HOSTNAMES and own_port and port == own_port:
         return 'the proxy may not call this server itself'
     return ''
@@ -589,7 +654,11 @@ def _start_tool_job(kind, token, args):
 
     def run_job():
         env = os.environ.copy()
-        resolved_token = _strip_bearer(token) or _strip_bearer(os.environ.get('NOVELAI_API_KEY', ''))
+        # Only the token the caller resolved (request header, or .env for a trusted local
+        # request) reaches the job; never fall back to the server's own key here.
+        env.pop('NOVELAI_API_KEY', None)
+        env.pop('NAI_API_KEY', None)
+        resolved_token = _strip_bearer(token)
         if resolved_token:
             env['NOVELAI_API_KEY'] = _strip_bearer(resolved_token)
         proxy_url = _get_proxy_url()
@@ -1169,6 +1238,7 @@ if __name__ == '__main__':
     ADDRESS = (os.environ.get('NAI_BIND') or '127.0.0.1').strip() or '127.0.0.1'
     try:
         httpd_instance = ThreadedTCPServer((ADDRESS, PORT), CORSRequestHandler)
+        SERVER_PORT = int(httpd_instance.server_address[1])
     except OSError as error:
         try:
             sys.stdout.reconfigure(errors='replace')  # non-CJK consoles must not crash on the hint
