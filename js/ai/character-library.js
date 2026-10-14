@@ -17,14 +17,21 @@
   /** CCIP features + colours for every reference of a card; stored back on the card. */
   async function buildIdentity(card) {
     const feats = []; let palette = [];
-    for (const ref of (card.references || []).slice(0, 3)) {
+    const cardId = card && card.id;
+    const refSnapshot = (card.references || []).slice(0, 3);
+    for (const ref of refSnapshot) {
       const r = await post('character-embed', { image: ref });
       if (r && r.ok && r.feature) { feats.push(r.feature); if (!palette.length && r.palette) palette = r.palette; }
       else if (r && r.declined) return false;
     }
-    if (!feats.length) return false;
-    const prev = card.identity || {};
-    await bible().put(Object.assign({}, card, { identity: { features: feats.concat(prev.features || []).slice(0, 8), palette, tags: prev.tags || '' } }));
+    if (!feats.length || !cardId) return false;
+    // Audit 32: re-read after await. Deleted cards stay deleted; only identity fields are merged onto the live card.
+    const live = ((await loadCards()) || []).find(c => c.id === cardId);
+    if (!live) return false;
+    const liveRefs = (live.references || []).slice(0, 3);
+    if (liveRefs.length !== refSnapshot.length || liveRefs.some((r, i) => r !== refSnapshot[i])) return false;
+    const prev = live.identity || {};
+    await bible().put(Object.assign({}, live, { identity: { features: feats.concat(prev.features || []).slice(0, 8), palette: palette.length ? palette : (prev.palette || []), tags: prev.tags || '' } }));
     return true;
   }
 
@@ -176,6 +183,9 @@
   /** For GPT edits: the confidently recognised library character whose face lies in the region (largest overlap). */
   function cardForRegion(region) {
     if (!S.autoRef || !S.result || !region) return null;
+    // Audit 31: recognition is bound to the page it ran on; never auto-reference a face from another page.
+    const page = region.pageGuid || (typeof getCanvasGUID === 'function' ? getCanvasGUID() : null);
+    if (page && S.pageKey && String(S.pageKey).split(':')[0] !== String(page)) return null;
     const pa = root.PanelAuto && root.PanelAuto._cache && root.PanelAuto._cache.get(S.pageKey);
     if (!pa) return null;
     let best = null, bestA = 0;
@@ -197,6 +207,7 @@
     const key = (() => { try { const img = root.canvas.getObjects().find(o => o.type === 'image'); return img ? (typeof root.getCanvasGUID === 'function' ? root.getCanvasGUID() : '') + (img._element && img._element.src || '').length : ''; } catch (_) { return ''; } })();
     if (!key || key === lastKey) return;
     lastKey = key;
+    S.result = null; // Audit 31: drop previous page's faces as soon as the page changes
     await loadCards();
     if (library().length) { try { await identify(true); } catch (_) { /* optional */ } }
   }, 3000);

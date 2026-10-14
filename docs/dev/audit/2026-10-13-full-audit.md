@@ -23,6 +23,7 @@
 | 07 | 已修复 | [PR #7](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/7)：项目签名包含页序与每页 blob 身份 |
 | 08 | 已修复 | [PR #7](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/7)：写入全部成功后才提交标记；失败与清除都会失效 |
 | 09 | 已修复 | [PR #9](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/9)：ServiceRequest 与 NaiEngine 的超时/取消覆盖到响应体读取与解包；响应体超时仍按“结果未知”处理，不自动重发 |
+| 10 | 已修复 [PR #26](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/26)：换角色添加与字幕下重排包在同一历史事务中，结束时只保存最终顺序，撤销/重做不会把替换层盖住文字 |
 | 11 | 已修复 | [PR #5](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/5) |
 | 12 | 已修复 | [PR #5](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/5) |
 | 13 | 已修复 | [PR #9](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/9)：前端最大边与本机代理统一为 1536；代理保留编辑器已适配的合法尺寸，参数与图/蒙版一致 |
@@ -43,6 +44,8 @@
 | 28 | 已修复 | [PR #13](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/13)：会话记录来源页；应用前与解码后核对页面，切页时保留候选并提示 |
 | 29 | 已修复 | [PR #13](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/13)：生成流程绑定会话对象，旧会话完成不写入新会话、不清理新会话的 busy/controller |
 | 30 | 已修复 [PR #16](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/16)：聊天渲染前固定来源页面(GUID)与替换目标；切页后放弃插入并提示，不删除新页对象 |
+| 31 | 已修复 [PR #26](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/26)：自动参考仅使用当前页的识别结果；region.pageGuid 与识别缓存页不一致时不返回角色，切页立即清空旧 faces |
+| 32 | 已修复 [PR #26](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/26)：后台 buildIdentity 完成后重读卡片；已删除则不写回；只合并 identity 字段到现卡，不覆盖名字/tags 等编辑（决定：参考图修订不一致也放弃本次特征） |
 | 33 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：角色库嵌入接受 JPEG/WebP（校验格式与像素上限）；建立识别特征失败时界面提示 |
 | 34 | 已修复 | [PR #14](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/14)：旧批处理只重试明确拒绝（429/502/503/504）；结果未知与写盘失败不重发付费请求，写盘单独重试 |
 | 35 | 已修复 [PR #20](https://github.com/h1neolzr7f/Manga-NAI-GPT/pull/20)：服务器启动批处理时传 MNAI_PORT/MNAI_BASE_URL，脚本只接受回环地址，不再硬编码 8000 |

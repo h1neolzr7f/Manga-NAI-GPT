@@ -324,10 +324,18 @@
         if (validTask && !validTask()) return reject(new Error('任务已经变化，候选保留，没有改动画布。'));
         if (!samePage()) return reject(new Error('页面已经切换，候选保留，没有改动画布。'));
         obj.set({ left: res.crop.x, top: res.crop.y, name: '换角色' + (label || ''), autoSwap: 'character' });
-        c.add(obj);
-        if (gpt().letteringInsertIndex) { const idx = gpt().letteringInsertIndex(c.getObjects(), obj); if (idx < c.getObjects().indexOf(obj)) obj.moveTo(idx); }
+        // Audit 10: add + reorder are one history step so undo/redo keep the swap under lettering.
+        const pause = typeof changeDoNotSaveHistory === 'function' && typeof changeDoSaveHistory === 'function';
+        if (pause) changeDoNotSaveHistory();
+        try {
+          c.add(obj);
+          if (gpt().letteringInsertIndex) { const idx = gpt().letteringInsertIndex(c.getObjects(), obj); if (idx < c.getObjects().indexOf(obj)) obj.moveTo(idx); }
+        } finally {
+          if (pause) changeDoSaveHistory();
+        }
         c.requestRenderAll();
         if (typeof updateLayerPanel === 'function') updateLayerPanel();
+        if (typeof saveStateByManual === 'function') saveStateByManual();
         resolve(obj);
       });
     });
