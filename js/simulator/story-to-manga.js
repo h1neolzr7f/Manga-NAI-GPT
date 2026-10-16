@@ -189,11 +189,11 @@ var director=root.NovelAICompositionDirector;
 var useBatch=(opts&&opts.batch)||(!(opts&&opts.batch===false)&&batchDirectorEnabled());
 if(useBatch&&director&&typeof director.callBatchStoryboardApi==='function'){
 return director.callBatchStoryboardApi(batchContextFromPlan(plan)).then(function(sb){
-if(!sb)return enrichPlanWithDirector(plan,{batch:false});
+if(!sb){if(root.console)console.warn('[batch director] no usable storyboard; per-panel fallback');return enrichPlanWithDirector(plan,{batch:false});}
 mergeBatch(plan,sb);
 root.__mangaStoryPlan=plan;   // offered by 生成整页 so the full-page route needs no retyping
 return {plan:plan,source:'api-batch',lint:lintPages(plan)};
-},function(){return enrichPlanWithDirector(plan,{batch:false});});
+},function(e){if(root.console)console.warn('[batch director] failed: '+(e&&e.message||e)+'; per-panel fallback');return enrichPlanWithDirector(plan,{batch:false});});
 }
 if(!director||typeof director.draftLayerPromptAsync!=='function'){
 return Promise.resolve({plan:plan,source:'heuristic'});

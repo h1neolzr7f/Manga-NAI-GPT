@@ -1,38 +1,38 @@
 /* One theme for the whole editor. Every new surface (task bar, wizards, 服务设置) and the main
    existing panels/dialogs read these tokens; dark/light come from the html/body mode class. */
 .dark-mode {
-  --ui-bg: #17191e;
-  --ui-surface: #20232b;
-  --ui-surface-2: #2a2e38;
-  --ui-border: #474c58;
-  --ui-text: #f2f4f7;
-  --ui-text-muted: #aeb5c0;
-  --ui-accent: #c2413a;
-  --ui-accent-hover: #d65a52;
+  --ui-bg: #141414;
+  --ui-surface: #212121;
+  --ui-surface-2: #2b2b2b;
+  --ui-border: #4a2323;
+  --ui-text: #f5f5f5;
+  --ui-text-muted: #b9b0b0;
+  --ui-accent: #a31515;
+  --ui-accent-hover: #c41e1e;
   --ui-accent-text: #ffffff;
-  --ui-focus: #6fb3ff;
+  --ui-focus: #ff5a5a;
   --ui-ok: #4cc38a;
   --ui-warn: #f0b429;
   --ui-danger: #ff6b6b;
-  --ui-shadow: 0 14px 40px rgba(0,0,0,.45);
-  --ui-overlay: rgba(8,10,14,.55);
+  --ui-shadow: 0 14px 40px rgba(0,0,0,.6);
+  --ui-overlay: rgba(0,0,0,.6);
 }
 .light-mode {
-  --ui-bg: #f3efe2;
-  --ui-surface: #fbf8ef;
-  --ui-surface-2: #eee8d6;
-  --ui-border: #c9bf9f;
-  --ui-text: #1f1f1f;
-  --ui-text-muted: #5b5648;
-  --ui-accent: #b8573c;
-  --ui-accent-hover: #cc6f50;
+  --ui-bg: #141414;
+  --ui-surface: #212121;
+  --ui-surface-2: #2b2b2b;
+  --ui-border: #4a2323;
+  --ui-text: #f5f5f5;
+  --ui-text-muted: #b9b0b0;
+  --ui-accent: #a31515;
+  --ui-accent-hover: #c41e1e;
   --ui-accent-text: #ffffff;
-  --ui-focus: #1f6fd1;
-  --ui-ok: #23864f;
-  --ui-warn: #a06a00;
-  --ui-danger: #c62828;
-  --ui-shadow: 0 12px 32px rgba(60,50,20,.22);
-  --ui-overlay: rgba(40,36,20,.35);
+  --ui-focus: #ff5a5a;
+  --ui-ok: #4cc38a;
+  --ui-warn: #f0b429;
+  --ui-danger: #ff6b6b;
+  --ui-shadow: 0 14px 40px rgba(0,0,0,.6);
+  --ui-overlay: rgba(0,0,0,.6);
 }
 :root {
   --ui-radius: 10px;

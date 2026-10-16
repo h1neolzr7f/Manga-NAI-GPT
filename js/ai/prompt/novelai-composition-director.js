@@ -879,8 +879,10 @@ return item.page>0&&item.panel>0&&item.prompt&&!hasCjk(item.prompt);
 if(panels.length<Math.max(1,Math.floor((expectedCount||1)*0.6)))return null;
 var mandatory=getMandatoryPositiveTagsFromCards();
 if(isHonorCharacterCardsEnabled()&&mandatory.length){
-var sample=panels[0]&&panels[0].prompt?panels[0].prompt:'';
-if(countAnchorHits(sample,mandatory)<Math.min(2,mandatory.length))return null;
+// 1.6.8: the card tags may sit in the shared series tags or any panel, not only panel 1; one hit is enough
+// (requiring both default tags in panel 1 rejected every valid batch storyboard and silently fell back).
+var sample=normalizeApiTagList(parsed.series_positive_tags).concat(panels.map(function(p){return p.prompt;})).join(', ');
+if(countAnchorHits(sample,mandatory)<1)return null;
 }
 return {
 api_director:true,
@@ -898,7 +900,8 @@ panels:panels
 async function callBatchStoryboardApi(batchContext){
 var config=getDirectorApiConfig();
 if(!config.enabled||!config.apiUrl||(!config.apiKey&&!config.useProxy)||typeof fetch!=='function')return null;
-var timeout=timeoutSignal(Math.max(config.timeoutMs,60000));
+// a whole story is one long completion: allow 60s + 20s per panel (max 170s, under the 180s proxy limit) instead of a flat 60s
+var timeout=timeoutSignal(Math.max(config.timeoutMs,Math.min(170000,60000+20000*((batchContext&&batchContext.panels||[]).length))));
 try{
 var temperature=isHonorCharacterCardsEnabled()?0.5:0.32;
 var json=await requestDirectorCompletion(config,buildBatchStoryboardMessages(batchContext),temperature,{signal:timeout.signal});

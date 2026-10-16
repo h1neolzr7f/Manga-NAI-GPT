@@ -103,6 +103,14 @@ def text_mask_array(rgb, session, threshold=0.3, dilate=7, input_size=None):
     size = int(input_size or INPUT)
     if size < 256 or size > 2048:
         size = INPUT
+    # The bundled CTD ONNX has a fixed 1024x1024 input; a smaller "fast" size crashes it
+    # (1.6.6 regression: every decompose failed with "OCR 发生内部错误"). Follow the model's shape.
+    try:
+        shp = session.get_inputs()[0].shape
+        if isinstance(shp[2], int) and isinstance(shp[3], int) and shp[2] > 0:
+            size = int(shp[2])
+    except Exception:  # pragma: no cover - mocks without shapes
+        pass
     h, w = rgb.shape[:2]
     # cache: same page often requests mask twice (detect + decompose)
     key = hashlib.sha1(rgb.tobytes() + f"|{threshold}|{dilate}|{size}".encode()).hexdigest()

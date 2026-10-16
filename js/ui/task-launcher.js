@@ -43,6 +43,8 @@ steps:['点「开始框选」，在画布上框住要分出来的人物或物体
 {id:'custom',hidden:true,icon:'auto_fix_high',title:'自定义修改（框选 · 可加参考图）',desc:'框一块区域，用一句话描述怎么改，可加参考图（旧版向导）',kind:'gpt',
 steps:['在画布上拖一个框，框住要改的地方','写一句想怎么改（可加参考图）','点「生成预览」，满意就应用'],
 placeholder:'想怎么改？例如：把天空改成黄昏',preset:''},
+{id:'storymode',icon:'auto_stories',title:'故事模式',desc:'贴一段故事，自动出整章可编辑漫画（免费档）',kind:'storymode',section:'进阶',
+steps:['贴入故事','拆分镜并给角色定外貌','一键出整章：每页出图并拆成可编辑气泡']},
 {id:'decompose',icon:'dashboard_customize',title:'拆成可编辑页',desc:'把整页漫画拆成格子、气泡和文字层，方便改字改图',kind:'decompose',section:'进阶',
 steps:['导入或打开一页漫画','点「开始拆解」（本机识别，不花 Anlas）','检查分格和文字，标「待校对」的请核对']},
 {id:'story',icon:'menu_book',title:'剧情出分镜',desc:'写几句剧情，一键规划成漫画分镜（默认批量导演）',kind:'story',section:'进阶',
@@ -107,7 +109,6 @@ item('taskServiceSettings','settings','服务设置（GPT / NovelAI / 本机）'
 item('taskCharacters','face','角色库 · 认出本页人物',function(){if(window.CharacterLibrary)CharacterLibrary.open();});
 sep();
 item('privacyToggle','visibility_off','隐私模式（模糊缩略图）：'+(privacyOn()?'开':'关'),function(){setPrivacy(!privacyOn());var b=$('privacyToggle');if(b)b.lastChild.textContent='隐私模式（模糊缩略图）：'+(privacyOn()?'开':'关');});
-item('themeToggle','contrast','浅色 / 深色界面',function(){var box=$('mode-toggle');if(!box)return;box.checked=!box.checked;box.dispatchEvent(new Event('change'));});
 item('taskShortcuts','keyboard','快捷键一览 (F1)',call('openShortcutModal'));
 item('taskWhatsNewMenu','auto_awesome','更新说明',function(){try{localStorage.removeItem(WHATSNEW_KEY);}catch(e){}showWhatsNew(true);});
 item('uiModeToggle','tune','专业模式',function(){setMode(mode()==='beginner'?'pro':'beginner');});
@@ -171,7 +172,7 @@ if(sec!==lastSection){
 lastSection=sec;
 grid.appendChild(el('div',{class:'task-rail-label','aria-hidden':'true'},sec));
 }
-var badge=(t.id==='decompose'||t.id==='story')?'<em class="task-tile-badge">新</em>':'';
+var badge=(t.id==='decompose'||t.id==='story'||t.id==='storymode')?'<em class="task-tile-badge">新</em>':'';
 var c=el('button',{type:'button',class:'task-tile','data-task':t.id,'data-section':sec},
 '<i class="material-icons" aria-hidden="true">'+t.icon+'</i><strong>'+t.title+badge+'</strong><span>'+t.desc+'</span>');
 c.addEventListener('click',function(){start(t.id);});
@@ -276,7 +277,7 @@ startNow(id);
 function startNow(id){
 var t=task(id);if(!t)return;
 stop(false);
-if(t.kind!=='nai'&&t.kind!=='page'&&t.kind!=='story'&&!hasPage()){
+if(t.kind!=='nai'&&t.kind!=='page'&&t.kind!=='story'&&t.kind!=='storymode'&&!hasPage()){
 toast('先导入漫画页','点「导入漫画页」选一张或多张图片，然后再选任务。');
 var home=$('taskHome');if(home){home.dataset.dismissed='';updateHome();}
 return;
@@ -291,6 +292,7 @@ else if(t.kind==='layer')startLayer(t);
 else if(t.kind==='page')startPage(t);
 else if(t.kind==='decompose')startDecompose(t);
 else if(t.kind==='story')startStory(t);
+else if(t.kind==='storymode'){stop(false);var hm=$('taskHome');if(hm){hm.dataset.dismissed='1';updateHome();}if(window.StoryMode)StoryMode.open();return;}
 else if(t.kind==='aifill'){if(!window.AiFill){stop(false);return;}AiFill.open().then(function(ok){if(!ok)stop(false);});}
 else startNai(t);
 timer=setInterval(tick,400);

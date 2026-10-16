@@ -40,7 +40,7 @@
     if (Array.isArray(scriptLines)) hints = scriptLines;
     const c = typeof canvas !== 'undefined' ? canvas : null;
     if (!c || !window.MangaModelRequest) throw new Error('编辑器未就绪');
-    if (c.getObjects().length && !window.confirm('拆解会清空当前页对象（原图会作为隐藏图层保留）。继续？')) return;
+    if (c.getObjects().length && !(options && options.noConfirm) && !window.confirm('拆解会清空当前页对象（原图会作为隐藏图层保留）。继续？')) return;
     const job = 'dec-' + Date.now().toString(36);
     say('正在拆解：切格…');
     const stopProg = pollDecomposeProgress(job, say);
@@ -135,12 +135,15 @@
     if (lint.warnings.length) say('提示：' + lint.warnings.join(' '));
     return runSpec(core.buildPagePrompt({ page, panels, layout, color: /\bcolor\b/i.test(opt || '') }), gk, mk);
   }
-  async function runSpec(spec, gk, mk) {
+  async function runSpec(spec, gk, mk, opts) {
+    opts = opts || {};
     const P = window.MangaPagePlanCore;
     delete spec.seed; // reroll = new random seed every run
     if (anlasStop) throw new Error(anlasStop);
     const before = await window.NaiEngine.subscription(true);
     const cost = await window.NaiEngine.costText(spec, 1);
+    // story mode runs unattended: free tier only, never ask to spend
+    if (!cost.free && opts.freeOnly) throw new Error('这页不在免费档内（' + cost.text + '），已停止，不扣 Anlas。');
     if (!cost.free && !window.confirm('这张会花 ' + cost.text + '，继续？')) return;
     say('NovelAI 正在生成整页（' + cost.text + '）…');
     const out = await window.NaiEngine.run({ prompt: spec.prompt, negative: spec.negative, characters: spec.characters,
@@ -149,7 +152,15 @@
     const g = core.anlasGuard(before && before.anlas, after && after.anlas, cost.free);
     if (g.stop) { anlasStop = g.message; say(g.message); }
     hints = spec.hints;
-    const r = await decomposeDataUrl(out.image, spec.hints, { rtl: true });   // builder names two-column rows right first
+    if (!/^data:image\/png/i.test(out.image || '')) out.image = await toPng(out.image);   // service wants PNG
+    let r;
+    try { r = await decomposeDataUrl(out.image, spec.hints, { rtl: true, noConfirm: !!opts.noConfirm }); }
+    catch (e) {
+      if (!opts.keepOnFail) throw e;
+      // story mode: never waste a generated page — keep the picture on this page, retry only re-decomposes
+      try { const im = await fimg(out.image); const c = canvas; const s = Math.min(c.getWidth() / im.width, c.getHeight() / im.height); im.set({ left: 0, top: 0, scaleX: s, scaleY: s, name: '整页（未拆解）' }); c.add(im); c.requestRenderAll(); } catch (_) { /* canvas busy */ }
+      const err = new Error('拆解失败（整页图已保留在本页）：' + (e.message || e)); err.image = out.image; err.hints = spec.hints; throw err;
+    }   // builder names two-column rows right first
     // Planned vs actual panel count, kept per generated page (also the QA record).
     const rec = P ? P.panelRecord(P.plannedPanels(spec), r && r.panels ? r.panels.length : 0, { sha256: r && r.sha256, genre: gk || '', margin: mk || '', layout: gk || '' }) : null;
     if (rec) {
@@ -162,9 +173,13 @@
       if (!rec.recheck.pass) notes.push('图里的字与台本不一致：缺 ' + rec.recheck.missing.length + ' 句、不符 ' + rec.recheck.mismatched.length + ' 句（文字层已按台本嵌字）');
       if (notes.length) say('注意：' + notes.join('；') + '。');
     }
-    return rec;
+    if (rec) rec.image = opts.keepImage ? out.image : undefined;
+    return rec || { image: opts.keepImage ? out.image : undefined };
   }
 
+  function toPng(src) {
+    return load(src).then(im => { const c = document.createElement('canvas'); c.width = im.naturalWidth || im.width; c.height = im.naturalHeight || im.height; c.getContext('2d').drawImage(im, 0, 0); return c.toDataURL('image/png'); });
+  }
   function thumb(dataUrl, w) {
     return new Promise(res => { const im = new Image(); im.onload = () => { const c = document.createElement('canvas'); c.width = w; c.height = Math.round(im.height * w / im.width); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', 0.8)); }; im.onerror = () => res(''); im.src = dataUrl; });
   }
@@ -214,5 +229,12 @@
     if (g) g.addEventListener('click', () => generateAndDecompose().catch(e => say('整页生成失败：' + (e.message || e), true)));
   }
   document.addEventListener('DOMContentLoaded', bind);
-  window.MangaPageDecompose = { decomposeDataUrl, generateAndDecompose, pickAndDecompose, openQa, contactSheet };
+  /** Unattended page for story mode: spec -> NAI (free tier only) -> decompose, no dialogs. */
+  async function generateSpecPage(spec) {
+    if (genBusy) throw new Error('上一张还在生成。');
+    if (!window.NaiEngine || !window.NaiEngine.configured()) throw new Error('请先在「服务设置」填写 NovelAI Token。');
+    genBusy = true;
+    try { return await runSpec(spec, '', '', { freeOnly: true, noConfirm: true, keepOnFail: true }); } finally { genBusy = false; }
+  }
+  window.MangaPageDecompose = { generateSpecPage, decomposeDataUrl, generateAndDecompose, pickAndDecompose, openQa, contactSheet };
 })();
