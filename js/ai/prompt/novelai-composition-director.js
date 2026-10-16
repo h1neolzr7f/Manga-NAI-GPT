@@ -477,7 +477,12 @@ var label='普通分镜边框';
 if(wantsFullBleed){
 tags.push('full-bleed illustration');
 label='满版/出血画面';
-}else if(wantsBorder||layerBounds.type==='panel'||layerBounds.strokeWidth>0){
+}else if(!wantsBorder&&(layerBounds.type==='panel'||layerBounds.strokeWidth>0)){
+// One picture per editor frame: the frame is drawn by the editor. Panel/border tags here made the model
+// draw a whole multi-panel page inside one frame, so the picture just fills the frame cleanly.
+tags.push('clean crop');
+label='分镜格内单张画面';
+}else if(wantsBorder){
 tags.push('manga panel','clean panel border');
 label='漫画分镜边框';
 if(hasAny(prompt,['黑边','粗边框']))tags.push('thick border','black border');
