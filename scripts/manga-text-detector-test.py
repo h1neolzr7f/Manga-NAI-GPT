@@ -103,5 +103,33 @@ class FastInputTests(unittest.TestCase):
         self.assertIn("input_size", sig.parameters)
 
 
+class FixedShapeCtdTest(unittest.TestCase):
+    def test_fixed_shape_model_overrides_fast_size(self):
+        """1.6.8: a fixed-1024 ONNX must not be fed the 768 fast size (1.6.6 decompose regression)."""
+        try:
+            import numpy as np
+            import cv2  # noqa: F401
+        except ImportError:
+            self.skipTest("numpy/opencv missing")
+        import manga_text_detector as td
+        seen = {}
+
+        class Inp:
+            name = "images"
+            shape = [1, 3, 1024, 1024]
+
+        class Sess:
+            def get_inputs(self):
+                return [Inp()]
+
+            def run(self, _o, feed):
+                x = feed["images"]
+                seen["shape"] = x.shape
+                return np.zeros((1, 1, 7)), np.zeros((1, 1, x.shape[2], x.shape[3]), np.float32), None
+
+        td.text_mask_array(np.zeros((300, 200, 3), np.uint8), Sess(), input_size=td.INPUT_FAST)
+        self.assertEqual(tuple(seen["shape"][2:]), (1024, 1024))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

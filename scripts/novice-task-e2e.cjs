@@ -1238,10 +1238,10 @@ async function main() {
       await p.keyboard.press('Escape');
       const proAfterReload = await p.evaluate(() => document.body.classList.contains('ui-pro'));
       await openMore(p); await op.click(p.locator('#uiModeToggle'), '新手模式');
-      const backToBeginner = (await p.locator('#taskBar .task-btn:visible').count()) === 8;   // 8 tasks: +拆成可编辑页 +剧情出分镜 (1.6.6)
+      const backToBeginner = (await p.locator('#taskBar .task-btn:visible').count()) === 9;   // 9 tasks: +拆成可编辑页 +剧情出分镜 (1.6.6) +故事模式 (1.6.8)
       // 1.6.8: single red/black theme; no theme toggle, always dark after reload
       const light = { noToggle: (await p.locator('#themeToggle').count()) === 0, dark: await p.evaluate(() => document.body.classList.contains('dark-mode') && !document.body.classList.contains('light-mode')) };
-      return { pass: homeShown && afterImportHidden && tasks === 8 && proEntriesHidden && pro.gptOpen && pro.smartOpen && pro.tasksHidden && pro.toolsBack && layoutOk(lay1440) && layoutOk(lay1280) && menuOpen && menuEsc && proAfterReload && backToBeginner && light.noToggle && light.dark && !errors.length,
+      return { pass: homeShown && afterImportHidden && tasks === 9 && proEntriesHidden && pro.gptOpen && pro.smartOpen && pro.tasksHidden && pro.toolsBack && layoutOk(lay1440) && layoutOk(lay1280) && menuOpen && menuEsc && proAfterReload && backToBeginner && light.noToggle && light.dark && !errors.length,
         detail: { lay1440, lay1280, menuOpen, menuEsc, homeShown, afterImportHidden, tasks, proEntriesHidden, pro, proAfterReload, backToBeginner, light, errors } };
     } finally { await ctx.close(); }
   });

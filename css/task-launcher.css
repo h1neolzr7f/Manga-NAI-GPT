@@ -217,3 +217,18 @@ body.pa-on .pa-bar{display:flex}
 .task-whatsnew-tip strong { font: var(--ui-font-title); }
 .task-whatsnew-tip p { margin: 0; color: var(--ui-text-muted); font-size: 12px; line-height: 1.45; }
 .task-whatsnew-tip .ui-btn { justify-self: end; min-height: 28px; }
+/* 故事模式 */
+.story-mode { position: fixed; z-index: 12004; top: 80px; right: 18px; width: min(460px, calc(100vw - 28px)); max-height: calc(100vh - 100px); overflow: auto; padding: var(--ui-space-3); display: grid; gap: var(--ui-space-2); }
+.story-mode[hidden] { display: none; }
+.story-mode-head { display: flex; justify-content: space-between; align-items: center; }
+.story-mode-head strong { font: var(--ui-font-title); font-size: 16px; }
+.story-mode-steps { margin: 0; padding-left: 18px; color: var(--ui-text-muted); font-size: 12px; }
+.story-mode textarea { width: 100%; box-sizing: border-box; resize: vertical; }
+.story-mode-cast { display: grid; gap: 4px; }
+.story-mode-castrow { display: grid; grid-template-columns: 72px 1fr; gap: 6px; align-items: center; font-size: 12px; }
+.story-mode-pages { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.story-mode-page { border: 1px solid var(--ui-border); border-radius: var(--ui-radius-sm); padding: 4px 6px; font-size: 12px; background: var(--ui-surface-2); }
+.story-mode-page.is-running { border-color: var(--ui-accent); }
+.story-mode-page.is-done { border-color: var(--ui-ok); }
+.story-mode-page.is-failed { border-color: var(--ui-danger); color: var(--ui-danger); }
+#storyModeStatus.is-error { color: var(--ui-danger); }
