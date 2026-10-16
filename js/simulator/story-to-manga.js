@@ -52,9 +52,39 @@ height:cellH
 return {cols:cols,rows:rows,cells:cells};
 }
 
-function storyToPlan(story){
+/* v2 pacing (behind localStorage mnai.storyV2='1' until the user's blind pick): one moment per panel —
+ * consecutive lines of the same speaker share a panel (at most 2 bubbles), narration/titles get their own,
+ * and pages hold 2–4 panels instead of every line on page 1. */
+var MAX_LINES_V2=2,PAGE_PANELS_V2=4;
+function storyV2Enabled(){try{return !!(root.localStorage&&root.localStorage.getItem('mnai.storyV2')==='1');}catch(e){return false;}}
+function groupBeats(beats){
+var groups=[];
+beats.forEach(function(beat){
+var last=groups[groups.length-1];
+var talk=beat.type==='speech';
+if(last&&talk&&last.talk&&last.speaker===beat.speaker&&last.beats.length<MAX_LINES_V2){last.beats.push(beat);return;}
+groups.push({talk:talk,speaker:beat.speaker,beats:[beat]});
+});
+return groups;
+}
+function storyToPlanV2(value,beats){
+var groups=groupBeats(beats),pages=[];
+var per=groups.length<=PAGE_PANELS_V2?groups.length:(groups.length%PAGE_PANELS_V2===1?PAGE_PANELS_V2-1:PAGE_PANELS_V2);
+for(var i=0;i<groups.length;i+=per){
+pages.push({page:pages.length+1,panels:groups.slice(i,i+per).map(function(g,k){
+return {panel:k+1,mode:'normal',
+description:g.beats.map(function(b){return b.description;}).join(' / '),
+characters:g.speaker?[g.speaker]:[],
+dialogue:g.beats.filter(function(b){return b.content;}).map(function(b){return {speaker:b.speaker||'旁白',content:b.content};}),
+template:'',story:undefined};
+})});
+}
+return {schemaVersion:1,title:value.title||'剧情分镜',pages:pages};
+}
+function storyToPlan(story,opts){
 var value=engine()?engine().normalize(story):story;
 var beats=beatsFromStory(value);
+if((opts&&opts.v2)||(!(opts&&opts.v2===false)&&storyV2Enabled()))return storyToPlanV2(value,beats);
 return {
 schemaVersion:1,
 title:value.title||'剧情分镜',
@@ -184,6 +214,7 @@ root.NaiComicStoryToManga={
 beatsFromStory:beatsFromStory,
 layoutCells:layoutCells,
 storyToPlan:storyToPlan,
+groupBeats:groupBeats,
 fillDirectorPrompt:fillDirectorPrompt,
 makeMangaPanel:makeMangaPanel,
 enrichPlanWithDirector:enrichPlanWithDirector,
