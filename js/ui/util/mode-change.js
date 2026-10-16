@@ -49,9 +49,9 @@ var box=$('mode-toggle');
 if(box)box.checked=mode==='dark-mode';
 }
 
+// 1.6.8: single red/black theme (cream light theme removed); the toggle stays dark.
 function toggleMode() {
-var box=$('mode-toggle');
-var mode=box&&!box.checked?'light-mode':'dark-mode';
+var mode='dark-mode';
 applyColorMode(mode);
 try{localStorage.setItem('mode',mode);}catch(e){/* storage blocked */}
 if(typeof updateLayerPanel==='function')updateLayerPanel();
@@ -63,7 +63,7 @@ $('mode-toggle').addEventListener('change',toggleMode);
 
 function initializeMode() {
 var mode='dark-mode';
-try{if(localStorage.getItem('mode')==='light-mode')mode='light-mode';}catch(e){/* storage blocked */}
+try{localStorage.setItem('mode',mode);}catch(e){/* storage blocked */}
 applyColorMode(mode);
 }
 

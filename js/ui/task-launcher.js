@@ -107,7 +107,6 @@ item('taskServiceSettings','settings','服务设置（GPT / NovelAI / 本机）'
 item('taskCharacters','face','角色库 · 认出本页人物',function(){if(window.CharacterLibrary)CharacterLibrary.open();});
 sep();
 item('privacyToggle','visibility_off','隐私模式（模糊缩略图）：'+(privacyOn()?'开':'关'),function(){setPrivacy(!privacyOn());var b=$('privacyToggle');if(b)b.lastChild.textContent='隐私模式（模糊缩略图）：'+(privacyOn()?'开':'关');});
-item('themeToggle','contrast','浅色 / 深色界面',function(){var box=$('mode-toggle');if(!box)return;box.checked=!box.checked;box.dispatchEvent(new Event('change'));});
 item('taskShortcuts','keyboard','快捷键一览 (F1)',call('openShortcutModal'));
 item('taskWhatsNewMenu','auto_awesome','更新说明',function(){try{localStorage.removeItem(WHATSNEW_KEY);}catch(e){}showWhatsNew(true);});
 item('uiModeToggle','tune','专业模式',function(){setMode(mode()==='beginner'?'pro':'beginner');});
