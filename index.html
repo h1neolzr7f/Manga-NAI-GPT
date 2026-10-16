@@ -1033,6 +1033,14 @@ const b = `<svg viewBox="0 0 100 100" width="100%" height="100%" style="position
                                 <i class="material-icons">verified</i>
                                 <span>生成前预检</span>
                             </button>
+                            <button type="button" id="mangaDecomposeButton" class="nai-character-mini-button" title="导入一张整页漫画，自动切分镜、去掉气泡里的字并重建为可编辑文字层">
+                                <i class="material-icons">dashboard_customize</i>
+                                <span>拆解为可编辑漫画</span>
+                            </button>
+                            <button type="button" id="mangaGenDecomposeButton" class="nai-character-mini-button" title="用 NovelAI 免费额度生成一整页（832×1216，28 步），再自动拆解">
+                                <i class="material-icons">auto_stories</i>
+                                <span>整页生成并拆解</span>
+                            </button>
                             <button type="button" id="mangaImportGenerateButton" class="nai-character-mini-button">
                                 <i class="material-icons">auto_awesome</i>
                                 <span>NAI 重绘本页</span>
@@ -2692,6 +2700,8 @@ const b = `<svg viewBox="0 0 100 100" width="100%" height="100%" style="position
     <script src="js/ai/panel-pipeline-review.js?v=8.10" defer></script>
     <script src="js/ai/prompt/auto/auto-generation.js?v=9.1" defer></script>
     <script src="js/ai/manga-importer.js?v=8.17" defer></script>
+    <script src="js/ai/manga-page-decompose-core.js?v=1.1" defer></script>
+    <script src="js/ai/manga-page-decompose-ui.js?v=1.1" defer></script>
 
     <script src="js/db/user-font-repository.js?v=7.2" defer></script>
     <script src="js/ui/font/user-font-manager.js?v=7.7" defer></script>

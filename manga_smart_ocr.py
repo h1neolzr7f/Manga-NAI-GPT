@@ -393,7 +393,7 @@ def local_model_status():
 
 def handle_smart_ocr_post(handler):
     route = handler.path.split("?", 1)[0]
-    if route not in ("/manga-smart/ocr", "/manga-smart/manga-ocr", "/manga-smart/lama-inpaint", "/manga-smart/status", "/manga-smart/text-mask", "/manga-smart/sam-click", "/manga-smart/sam-warm", "/manga-smart/ocr-warm", "/manga-smart/characters", "/manga-smart/faces", "/manga-smart/character-embed", "/manga-smart/character-identify", "/manga-smart/download-progress", "/manga-smart/prompt-helper-status", "/manga-smart/prompt-helper-download", "/manga-smart/models", "/manga-smart/model-download"):
+    if route not in ("/manga-smart/ocr", "/manga-smart/manga-ocr", "/manga-smart/lama-inpaint", "/manga-smart/status", "/manga-smart/text-mask", "/manga-smart/sam-click", "/manga-smart/sam-warm", "/manga-smart/ocr-warm", "/manga-smart/characters", "/manga-smart/faces", "/manga-smart/character-embed", "/manga-smart/character-identify", "/manga-smart/download-progress", "/manga-smart/prompt-helper-status", "/manga-smart/prompt-helper-download", "/manga-smart/models", "/manga-smart/model-download", "/manga-smart/decompose"):
         return False
     if not _authorized_local_request(handler):
         handler.close_connection = True
@@ -409,7 +409,7 @@ def handle_smart_ocr_post(handler):
         if not isinstance(data, dict):
             raise SmartOcrError("OCR 请求必须是对象。")
         allow_download = data.get("allow_download") is True
-        _idle_kind = {"/manga-smart/characters": "sam2", "/manga-smart/sam-click": "sam2", "/manga-smart/sam-warm": "sam2", "/manga-smart/text-mask": "ctd",
+        _idle_kind = {"/manga-smart/characters": "sam2", "/manga-smart/sam-click": "sam2", "/manga-smart/sam-warm": "sam2", "/manga-smart/text-mask": "ctd", "/manga-smart/decompose": "ctd",
                       "/manga-smart/lama-inpaint": "lama", "/manga-smart/manga-ocr": "manga-ocr", "/manga-smart/ocr-warm": "manga-ocr"}.get(route)
         if _idle_kind:
             try:
@@ -460,6 +460,11 @@ def handle_smart_ocr_post(handler):
         elif route == "/manga-smart/sam-click":
             from manga_sam_select import select
             result = select(data)
+        elif route == "/manga-smart/decompose":
+            from manga_page_decompose import decompose
+            hints = data.get("hints") if isinstance(data.get("hints"), list) else None
+            result = decompose(data.get("image"), allow_download, use_manga_ocr=data.get("manga_ocr") is True,
+                               rtl=data.get("rtl") is True, hints=[str(h)[:200] for h in (hints or [])[:60]])
         elif route == "/manga-smart/text-mask":
             from manga_text_detector import detect
             result = detect(data.get("image"), allow_download)
