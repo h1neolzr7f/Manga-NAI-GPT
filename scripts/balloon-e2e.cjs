@@ -25,7 +25,7 @@ async function fresh(browser) {
   const p = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'zh-CN' })).newPage();
   const errors = []; p.on('pageerror', e => errors.push(e.message)); p.on('dialog', d => d.accept());
   await p.route(/https?:\/\/(?!127\.0\.0\.1:8000)/, r => r.abort());
-  await p.addInitScript(() => { try { localStorage.setItem('mnai.whatsNew.1.6.6', '1'); } catch (e) {} });
+  await p.addInitScript(() => { try { localStorage.setItem('mnai.whatsNew.1.6.6', '1'); localStorage.setItem('mnai.whatsNew.1.6.7', '1'); } catch (e) {} });
   await p.goto(SERVER + '/index.html', { waitUntil: 'domcontentloaded' });
   await p.waitForFunction(() => typeof canvas !== 'undefined' && canvas.getWidth() > 0 && window.BalloonLayout && window.Commands && Commands.list().some(c => c.id === 'view.readingOrder'), null, { timeout: 60000 });
   return { p, errors };

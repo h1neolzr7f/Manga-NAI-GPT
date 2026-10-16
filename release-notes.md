@@ -1,15 +1,13 @@
-# Manga-NAI-GPT 1.6.6
+# Manga-NAI-GPT 1.6.7
 
-新手更好上手：新功能收进分组任务和导览；同时修好透视文字存档、竖排气泡过大、文字蒙版偏慢等问题。
+新手首页回归 Manga Editor Desu 原版画风：奶油底 + 砖红强调色、平铺任务格；新能力保留，导览改成小提示。
 
 ## 更新
 
-- **透视文字**：保存/重开后四角仍可拖。
-- **竖排气泡**：更贴格子，过长对白会自动缩小字号。
-- **文字蒙版更快**：CTD 默认走 768 输入并缓存，拆解同样受益。
-- **OCR 复查**：竖排中文倒序也能对上；提示更保守，少误报。
-- **实验功能**：文案更清楚，默认仍全关；内部有开关路径校验。
-- **新手界面**：任务分「常用 / 进阶 / 专业」；新增「拆成可编辑页」「剧情出分镜」；打开应用会看到 1.6.6 导览。
+- **首页**：不再用「常用 / 进阶 / 专业」大分区，改回原版一张格子；只留浅色分隔标签，新功能带「新」角标。
+- **导览**：右下角小卡片提示「拆成可编辑页 / 剧情出分镜」，不再全屏遮罩。
+- **能力不变**：整页拆解、剧情出分镜、批量导演、实验选项（默认关）都还在。
+- **1.6.6 修复保留**：透视文字存档、竖排气泡贴格、CTD 加速、OCR 复查等。
 
 ## 下载与验证
 
@@ -17,4 +15,4 @@ Windows 安装版与便携版内置基础运行环境和文字检测 CTD（约 9
 
 ## English
 
-Novice regroup + whats-new tour. Perspective text persists; vertical balloons fit panels; faster CTD masks; safer OCR recheck. Experiments stay off by default.
+Restyle novice home to match Desu (flat tiles, light labels, compact tip). Capabilities from 1.6.5–1.6.6 unchanged.

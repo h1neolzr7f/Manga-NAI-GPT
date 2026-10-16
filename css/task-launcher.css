@@ -177,18 +177,43 @@ body.pa-on .pa-bar{display:flex}
 .pa-chip.is-add{border-color:#3fb950;color:#3fb950}.pa-chip.is-del{border-color:#e0564b;color:#e0564b;text-decoration:line-through}
 .pa-tokens{display:block;font-size:11px;text-align:right;margin-top:-2px}.pa-tokens.is-over{color:#e0564b}
 
-.task-section { margin: var(--ui-space-3) 0 0; }
-.task-section-title { margin: 0 0 var(--ui-space-2); font-size: 13px; font-weight: 600; letter-spacing: 0.02em; }
-.task-section-title .ui-muted { font-weight: 400; margin-left: 6px; font-size: 12px; }
-.task-whatsnew {
-  position: fixed; inset: 0; z-index: 10050; background: rgba(0,0,0,.45);
-  display: flex; align-items: center; justify-content: center; padding: 16px;
+/* Light section rails inside the flat Desu home grid (not heavy cards) */
+.task-rail-label {
+  grid-column: 1 / -1;
+  margin: var(--ui-space-2) 0 0;
+  padding: 0 2px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ui-text-muted);
+  text-transform: none;
+  border: 0;
+  background: transparent;
 }
-.task-whatsnew[hidden] { display: none; }
-.task-whatsnew-card {
-  max-width: 520px; width: 100%; background: var(--ui-surface, #fff); color: var(--ui-text, #111);
-  border-radius: 12px; padding: 20px 22px; box-shadow: 0 12px 40px rgba(0,0,0,.25);
+.task-rail-label:first-child { margin-top: 0; }
+.task-tile-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--ui-accent-text);
+  background: var(--ui-accent);
+  vertical-align: 1px;
 }
-.task-whatsnew-card h2 { margin: 0 0 8px; font-size: 18px; }
-.task-whatsnew-card ol { margin: 8px 0 14px; padding-left: 1.2em; line-height: 1.55; }
-.task-whatsnew-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+/* Compact update tip — corner card, Desu tokens, no dim overlay */
+.task-whatsnew-tip {
+  position: fixed;
+  z-index: 10050;
+  right: 18px;
+  bottom: 18px;
+  width: min(320px, calc(100vw - 28px));
+  padding: var(--ui-space-3);
+  display: grid;
+  gap: var(--ui-space-2);
+}
+.task-whatsnew-tip strong { font: var(--ui-font-title); }
+.task-whatsnew-tip p { margin: 0; color: var(--ui-text-muted); font-size: 12px; line-height: 1.45; }
+.task-whatsnew-tip .ui-btn { justify-self: end; min-height: 28px; }

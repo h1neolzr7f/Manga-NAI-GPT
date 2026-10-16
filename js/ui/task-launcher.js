@@ -109,7 +109,7 @@ sep();
 item('privacyToggle','visibility_off','隐私模式（模糊缩略图）：'+(privacyOn()?'开':'关'),function(){setPrivacy(!privacyOn());var b=$('privacyToggle');if(b)b.lastChild.textContent='隐私模式（模糊缩略图）：'+(privacyOn()?'开':'关');});
 item('themeToggle','contrast','浅色 / 深色界面',function(){var box=$('mode-toggle');if(!box)return;box.checked=!box.checked;box.dispatchEvent(new Event('change'));});
 item('taskShortcuts','keyboard','快捷键一览 (F1)',call('openShortcutModal'));
-item('taskWhatsNewMenu','auto_awesome','1.6.6 新功能导览',function(){try{localStorage.removeItem(WHATSNEW_KEY);}catch(e){}showWhatsNew(true);});
+item('taskWhatsNewMenu','auto_awesome','更新说明',function(){try{localStorage.removeItem(WHATSNEW_KEY);}catch(e){}showWhatsNew(true);});
 item('uiModeToggle','tune','专业模式',function(){setMode(mode()==='beginner'?'pro':'beginner');});
 function closeMenu(){menu.hidden=true;more.setAttribute('aria-expanded','false');}
 more.addEventListener('click',function(e){e.stopPropagation();menu.hidden=!menu.hidden;
@@ -157,24 +157,27 @@ if($('taskHome'))return;
 var area=$('canvas-area');
 if(!area)return;
 var home=el('section',{id:'taskHome',class:'ui-card task-home','aria-labelledby':'taskHomeTitle'});
-home.innerHTML='<h2 id="taskHomeTitle">想做什么？</h2><p class="ui-muted">先导入漫画页，或直接「画一页漫画」。任务按「常用 / 进阶 / 专业」分组，参数已经帮你选好。</p>';
+home.innerHTML='<h2 id="taskHomeTitle">想做什么？</h2><p class="ui-muted">先导入漫画页，再选一个任务。每个任务只有几步，参数已经帮你选好。</p>';
 var imp=el('button',{type:'button',class:'ui-btn ui-btn-primary task-import',id:'taskHomeImport'},'<i class="material-icons" aria-hidden="true">upload_file</i>导入漫画页（可多选）');
 imp.addEventListener('click',function(){var input=$('imageInput');if(input)input.click();});
 home.appendChild(imp);
-var SECTIONS=[{id:'常用',hint:'改图、换角、改字'},{id:'进阶',hint:'1.6.5 新能力：拆页、剧情出分镜'},{id:'专业',hint:'直接调 NovelAI'}];
-SECTIONS.forEach(function(sec){
-var list=TASKS.filter(function(t){return !t.hidden&&(t.section||'常用')===sec.id;});
-if(!list.length)return;
-var wrap=el('div',{class:'task-section','data-section':sec.id});
-wrap.appendChild(el('h3',{class:'task-section-title'},sec.id+' <span class="ui-muted">'+sec.hint+'</span>'));
+// Flat Desu-style grid; light rail labels only (no heavy 常用/进阶/专业 cards).
 var grid=el('div',{class:'task-grid'});
-list.forEach(function(t){
-var c=el('button',{type:'button',class:'task-tile','data-task':t.id},'<i class="material-icons" aria-hidden="true">'+t.icon+'</i><strong>'+t.title+'</strong><span>'+t.desc+'</span>');
+var lastSection=null;
+TASKS.forEach(function(t){
+if(t.hidden)return;
+var sec=t.section||'常用';
+if(sec!==lastSection){
+lastSection=sec;
+grid.appendChild(el('div',{class:'task-rail-label','aria-hidden':'true'},sec));
+}
+var badge=(t.id==='decompose'||t.id==='story')?'<em class="task-tile-badge">新</em>':'';
+var c=el('button',{type:'button',class:'task-tile','data-task':t.id,'data-section':sec},
+'<i class="material-icons" aria-hidden="true">'+t.icon+'</i><strong>'+t.title+badge+'</strong><span>'+t.desc+'</span>');
 c.addEventListener('click',function(){start(t.id);});
 grid.appendChild(c);
 });
-wrap.appendChild(grid);home.appendChild(wrap);
-});
+home.appendChild(grid);
 var close=el('button',{type:'button',class:'ui-btn ui-btn-ghost task-home-close',title:'先不选','aria-label':'关闭'},'×');
 close.addEventListener('click',function(){home.dataset.dismissed='1';updateHome();});
 home.appendChild(close);
@@ -835,38 +838,27 @@ TASKS.forEach(function(t){if(t.hidden)Commands.register({id:'task.'+t.id,label:t
 function privacyOn(){try{return localStorage.getItem('mnai.privacyBlur')==='1';}catch(e){return false;}}
 function setPrivacy(on){try{localStorage.setItem('mnai.privacyBlur',on?'1':'0');}catch(e){/* private window */}document.body.classList.toggle('privacy-blur',!!on);}
 
-var WHATSNEW_KEY='mnai.whatsNew.1.6.6';
+var WHATSNEW_KEY='mnai.whatsNew.1.6.7';
 function showWhatsNew(force){
 try{if(!force&&localStorage.getItem(WHATSNEW_KEY)==='1')return;}catch(e){}
 if($('taskWhatsNew'))return;
-// Playwright / automated browsers set navigator.webdriver: skip the modal so e2e can click the task bar
+// Playwright / automated browsers set navigator.webdriver: skip so e2e can click the task bar
 if(!force&&typeof navigator!=='undefined'&&navigator.webdriver){
 try{localStorage.setItem(WHATSNEW_KEY,'1');}catch(e){}
 return;
 }
-// wait for the tutorial overlay to go away so first-run is not blocked by two overlays
 if(!force&&document.querySelector('.tutorial-overlay')){
 setTimeout(function(){showWhatsNew(false);},800);return;
 }
-var ov=el('div',{id:'taskWhatsNew',class:'task-whatsnew',role:'dialog','aria-labelledby':'taskWhatsNewTitle'});
-ov.innerHTML='<div class="task-whatsnew-card">'+
-'<h2 id="taskWhatsNewTitle">1.6.6 新功能导览</h2>'+
-'<p class="ui-muted">这一版把「整页拆解、剧情出分镜、批量导演」收进新手任务，并修好了透视文字存档等小问题。</p>'+
-'<ol>'+
-'<li><b>拆成可编辑页</b>：导入漫画后点任务栏「拆成可编辑页」，本机切格、擦字、提出文字层。</li>'+
-'<li><b>剧情出分镜</b>：在「剧情」写对白，用批量导演一次规划整页（默认开）。</li>'+
-'<li><b>画一页漫画</b>：仍是最快出图路径；竖排气泡更贴格子，不会轻易撑爆。</li>'+
-'<li><b>实验功能</b>：服务设置里四项默认全关（换采样、减少串脸、擦场景字、招牌透视文字）。</li>'+
-'</ol>'+
-'<div class="task-whatsnew-actions">'+
-'<button type="button" class="ui-btn ui-btn-ghost" id="taskWhatsNewSkip">稍后</button>'+
-'<button type="button" class="ui-btn ui-btn-primary" id="taskWhatsNewGo">知道了</button>'+
-'</div></div>';
-document.body.appendChild(ov);
-function done(){try{localStorage.setItem(WHATSNEW_KEY,'1');}catch(e){}ov.remove();}
-$('taskWhatsNewSkip').addEventListener('click',done);
+// Compact tip (Desu card tokens) — not a full-screen tour modal
+var tip=el('div',{id:'taskWhatsNew',class:'task-whatsnew-tip ui-card',role:'status','aria-labelledby':'taskWhatsNewTitle'});
+tip.innerHTML='<strong id="taskWhatsNewTitle">1.6.7</strong>'+
+'<p>任务栏多了「拆成可编辑页」「剧情出分镜」。实验功能仍在「服务设置」里，默认关。</p>'+
+'<button type="button" class="ui-btn ui-btn-primary" id="taskWhatsNewGo">知道了</button>';
+document.body.appendChild(tip);
+function done(){try{localStorage.setItem(WHATSNEW_KEY,'1');}catch(e){}tip.remove();}
 $('taskWhatsNewGo').addEventListener('click',done);
-ov.addEventListener('keydown',function(e){if(e.key==='Escape')done();});
+tip.addEventListener('keydown',function(e){if(e.key==='Escape')done();});
 }
 function init(){
 setPrivacy(privacyOn());
