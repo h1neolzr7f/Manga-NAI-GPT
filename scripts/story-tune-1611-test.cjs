@@ -1,0 +1,21 @@
+// 1.6.11 story planning: cast-aware paging (≤2 main characters a page), 独白 is narration, long lines split, 然后 split.
+const assert = require('node:assert/strict');
+const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
+const root = path.resolve(__dirname, '..');
+const c = { console, Math, JSON, Object, Array, Set, Map, RegExp, String }; c.window = c; c.globalThis = c; vm.createContext(c);
+['js/ai/balloon-layout-core.js', 'js/ai/page-layout-core.js', 'js/ai/manga-page-plan-core.js', 'js/ai/story-mode-core.js'].forEach(p => vm.runInContext(fs.readFileSync(path.join(root, p), 'utf8'), c));
+const S = c.StoryModeCore;
+const dinner = '爸爸：谁做的饭？\n妈妈：小雪做的。\n小雪：别期待。\n哥哥：好咸。\n小雪：哥！\n爸爸：挺好吃。\n妈妈：你爸说谎。\n哥哥：我去倒水。';
+const p = S.buildPlan(S.parseStory(dinner), { perPage: 4 });
+assert.ok(p.pages.every(pg => pg.cast.length <= 2), JSON.stringify(p.pages.map(x => x.cast)));
+assert.equal(S.lintStory(p).warnings.filter(w => /主要人物/.test(w)).length, 0);
+const fixed = S.buildPlan(S.parseStory(dinner), { perPage: 4, castAware: false });
+assert.ok(fixed.pages.some(pg => pg.cast.length > 2), 'opt-out keeps fixed paging');
+const b = S.parseStory('独白：雨越下越大。\n林然：我叫林然，毕业于本地的一所大学，学的是机械工程，做过三年的设备维护。').beats;
+assert.equal(b[0].type, 'narrator');
+assert.ok(b.filter(x => x.type === 'speech').length === 2 && b.every(x => Array.from(x.content).length <= 30));
+const n = S.parseStory('她沉默了很久，然后笑了一下。').beats;
+assert.equal(n.length, 2); assert.ok(!/然后/.test(n[1].content));
+const named = S.buildPlan(S.parseStory('阿凯：站住！\n小偷：追不上的！\n阿凯纵身一跃。'), {});
+assert.ok(named.pages[0].panels[2].characters.includes('阿凯'), 'narration mentions a speaker');
+console.log('story tune 1611 ok');

@@ -840,7 +840,7 @@ TASKS.forEach(function(t){if(t.hidden)Commands.register({id:'task.'+t.id,label:t
 function privacyOn(){try{return localStorage.getItem('mnai.privacyBlur')==='1';}catch(e){return false;}}
 function setPrivacy(on){try{localStorage.setItem('mnai.privacyBlur',on?'1':'0');}catch(e){/* private window */}document.body.classList.toggle('privacy-blur',!!on);}
 
-var WHATSNEW_KEY='mnai.whatsNew.1.6.10';
+var WHATSNEW_KEY='mnai.whatsNew.1.6.11';
 function showWhatsNew(force){
 try{if(!force&&localStorage.getItem(WHATSNEW_KEY)==='1')return;}catch(e){}
 if($('taskWhatsNew'))return;
@@ -854,8 +854,8 @@ setTimeout(function(){showWhatsNew(false);},800);return;
 }
 // Compact tip (Desu card tokens) — not a full-screen tour modal
 var tip=el('div',{id:'taskWhatsNew',class:'task-whatsnew-tip ui-card',role:'status','aria-labelledby':'taskWhatsNewTitle'});
-tip.innerHTML='<strong id="taskWhatsNewTitle">1.6.10</strong>'+
-'<p>AI 导演更会讲故事：六拍场景、每页进入/重点/离开、失败→修法表作为参考喂给 LLM；分镜检查有问题时自动请导演修一次。</p>'+
+tip.innerHTML='<strong id="taskWhatsNewTitle">1.6.11</strong>'+
+'<p>故事模式分页更聪明：每页主要人物不超过 2 个、长台词自动拆成两句、「然后」自动拆格、旁白里提到的人也算出场；导演可把第三人改成画外音。</p>'+
 '<button type="button" class="ui-btn ui-btn-primary" id="taskWhatsNewGo">知道了</button>';
 document.body.appendChild(tip);
 function done(){try{localStorage.setItem(WHATSNEW_KEY,'1');}catch(e){}tip.remove();}
