@@ -125,6 +125,19 @@
     return Object.assign({ planned: p, actual: d, match: p === d, status: 'generated', at: new Date().toISOString() }, extra || {});
   }
 
+  /** Planned panel count of a built page spec: its panel positions, never the text-line hints. */
+  function plannedPanels(spec) {
+    if (spec && Array.isArray(spec.positions)) return spec.positions.length;
+    if (spec && Array.isArray(spec.panels)) return spec.panels.length;
+    return 0;
+  }
+  /** Contact-sheet label "P<n> <layout> actual/planned格"; an unknown plan (0) shows "?" instead of a fake 0. */
+  function sheetLabel(rec, i) {
+    const r = rec || {};
+    const planned = r.planned > 0 ? r.planned : '?';
+    return ('P' + (i + 1) + ' ' + (r.layout || '')).trim() + ' ' + (r.actual | 0) + '/' + planned + '格' + (r.qa ? ' QA ' + r.qa.total : '');
+  }
+
   /** Page-level caption edits: strip tags / override tags in every character caption of this page only. */
   function applyCaptionEdits(chars, strip, over) {
     const st = (strip || []).map(t => clean(t).toLowerCase()).filter(Boolean);
@@ -196,7 +209,7 @@
     return result;
   }
   const STATUSES = ['planned', 'generated', 'visual_reviewed', 'lettering_reviewed', 'accepted'];
-  const api = Object.freeze({ LAYOUTS, GENRES, MARGINS, BUBBLE_WORDS, BUBBLE_SHAPES, STYLES, QA_ITEMS, QA_BLOCKERS, STATUSES, parseLine, deconflictNegative, lintPlan, scoreQA, panelRecord, family, applyCaptionEdits, hueToGray, spreadSize, bubbleForSpeaker, elementCount, propContinuity, recheckText });
+  const api = Object.freeze({ LAYOUTS, GENRES, MARGINS, BUBBLE_WORDS, BUBBLE_SHAPES, STYLES, QA_ITEMS, QA_BLOCKERS, STATUSES, parseLine, deconflictNegative, lintPlan, scoreQA, panelRecord, plannedPanels, sheetLabel, family, applyCaptionEdits, hueToGray, spreadSize, bubbleForSpeaker, elementCount, propContinuity, recheckText });
   root.MangaPagePlanCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

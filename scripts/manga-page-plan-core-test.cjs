@@ -61,3 +61,13 @@ require('../js/ai/director/scene-plan-schema.js');
   assert.ok(r.pass && r.ok === 2 && r.unexpected.length === 1, JSON.stringify(r));
   console.log('recheck join/punct ok');
 }
+
+{
+  // Regression: planned count comes from panel positions, not text hints (flashback page: 3 panels, 2 lines).
+  const spec = { positions: ['top wide', 'middle wide', 'bottom wide'], hints: ['a', 'b'] };
+  assert.strictEqual(C.plannedPanels(spec), 3);
+  assert.strictEqual(C.plannedPanels(null), 0);
+  assert.strictEqual(C.sheetLabel(C.panelRecord(3, 3, { layout: 'R1' }), 3), 'P4 R1 3/3格');
+  assert.strictEqual(C.sheetLabel(C.panelRecord(0, 4, { layout: 'R1' }), 5), 'P6 R1 4/?格');
+  console.log('contact sheet label ok');
+}

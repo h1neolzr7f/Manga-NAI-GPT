@@ -119,7 +119,7 @@
     hints = spec.hints;
     const r = await decomposeDataUrl(out.image, spec.hints, { rtl: true });   // builder names two-column rows right first
     // Planned vs actual panel count, kept per generated page (also the QA record).
-    const rec = P ? P.panelRecord(spec.positions.length, r && r.panels ? r.panels.length : 0, { sha256: r && r.sha256, genre: gk || '', margin: mk || '' }) : null;
+    const rec = P ? P.panelRecord(P.plannedPanels(spec), r && r.panels ? r.panels.length : 0, { sha256: r && r.sha256, genre: gk || '', margin: mk || '', layout: gk || '' }) : null;
     if (rec) {
       // Final-image recheck: what OCR actually reads in the generated page vs the script.
       rec.recheck = P.recheckText(spec.hints, (r && r.texts || []).map(t => t.ocrText || t.text));
@@ -147,7 +147,7 @@
     recs.forEach((r, i) => {
       const col = cols - 1 - (i % cols), row = Math.floor(i / cols), x = gap + col * (cw + gap), y = gap + row * (ch + 28);
       if (ims[i]) g.drawImage(ims[i], x, y, cw, Math.round(ims[i].height * cw / ims[i].width));
-      g.fillText('P' + (i + 1) + ' ' + (r.layout || '') + ' ' + r.actual + '/' + r.planned + '格' + (r.qa ? ' QA ' + r.qa.total : ''), x, y + ch + 18);
+      g.fillText(window.MangaPagePlanCore.sheetLabel(r, i), x, y + ch + 18);
     });
     return c.toDataURL('image/png');
   }
