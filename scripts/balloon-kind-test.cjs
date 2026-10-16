@@ -10,8 +10,8 @@ for (const [t, [kind, text, tail, shape]] of Object.entries(cases)) {
   assert.ok(!/[「」『』【】{}*（）()]/.test(k.text), 'no markup left: ' + t);
 }
 assert.strictEqual(C.kindOf('（远处）喂').dashed, true);
-// the layout measures and letters the stripped text, and shapes stay off by default (awaits blind pick)
+// the layout measures and letters the stripped text, and shapes are on by default (user pick), opt-out '0'
 const src = fs.readFileSync('js/ai/balloon-layout.js', 'utf8');
 assert.ok(src.includes('measure(k.text'), 'stripped text is lettered');
-assert.ok(src.includes("getItem('mnai.bubbleKinds') === '1'"), 'v2 shapes behind a flag');
+assert.ok(src.includes("getItem('mnai.bubbleKinds') === '0'"), 'v2 shapes on by default with an opt-out');
 console.log('balloon kind ok');

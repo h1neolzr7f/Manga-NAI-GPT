@@ -9,18 +9,21 @@ const E = context.NaiComicStoryEngine, M = context.NaiComicStoryToManga;
 const script = '标题：放学后\n小林：等一下！\n小林：你的伞忘了。\n美咲：啊，谢谢。\n独白：雨越下越大。\n美咲：要一起走吗？\n小林：好。\n小林：走吧。\n小林：我送你到车站。\n美咲：嗯。';
 const story = E.parseScript(script, { title: '放学后' });
 const lines = M.beatsFromStory(story).filter(b => b.content).length;
-// old behaviour unchanged by default: one line per panel, everything on page 1
-const old = M.storyToPlan(story);
+// legacy behaviour via opt-out ({v2:false} / mnai.storyV2='0'): one line per panel, everything on page 1
+const old = M.storyToPlan(story, { v2: false });
 assert.equal(old.pages.length, 1);
 assert.equal(old.pages[0].panels.length, M.beatsFromStory(story).length);
 // v2: same speaker consecutive lines share a panel (≤2), narration alone, 2–4 panels per page, no line lost or duplicated
-const v2 = M.storyToPlan(story, { v2: true });
+const v2 = M.storyToPlan(story);
+assert.equal(JSON.stringify(v2), JSON.stringify(M.storyToPlan(story, { v2: true })), 'v2 is the default');
 const panels = [].concat(...v2.pages.map(p => p.panels));
 assert.ok(v2.pages.every(p => p.panels.length >= 2 && p.panels.length <= 4), 'pages hold 2–4 panels');
 assert.ok(panels.every(p => p.dialogue.length <= 2), '≤2 bubbles per panel');
 assert.ok(panels.every(p => new Set(p.dialogue.map(d => d.speaker)).size <= 1), 'one speaker per merged panel');
 assert.equal(panels.reduce((a, p) => a + p.dialogue.length, 0), lines, 'every line kept once');
 assert.ok(panels.length < old.pages[0].panels.length, 'fewer, fuller panels');
-// layout hook: without v2 flag the legacy grid is returned bit-identically
-const g = M.layoutCells(1000, 1400, 5); assert.equal(g.cols, 3); assert.equal(g.cells.length, 5);
+// layout hook: varied layout on by default; mnai.layoutV2='0' returns the legacy grid bit-identically
+const g = M.layoutCells(1000, 1400, 5); assert.ok(g.code); assert.equal(g.cells.length, 5);
+context.localStorage = { getItem: k => k === 'mnai.layoutV2' ? '0' : null };
+const g0 = M.layoutCells(1000, 1400, 5); assert.equal(g0.cols, 3); assert.equal(g0.cells.length, 5); delete context.localStorage;
 console.log('story-to-manga v2 ok', v2.pages.map(p => p.panels.length).join('+'));

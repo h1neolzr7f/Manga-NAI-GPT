@@ -52,11 +52,11 @@ height:cellH
 return {cols:cols,rows:rows,cells:cells};
 }
 
-/* v2 pacing (behind localStorage mnai.storyV2='1' until the user's blind pick): one moment per panel —
+/* v2 pacing (ON by default after the user's pick; opt out with localStorage mnai.storyV2='0'): one moment per panel —
  * consecutive lines of the same speaker share a panel (at most 2 bubbles), narration/titles get their own,
  * and pages hold 2–4 panels instead of every line on page 1. */
 var MAX_LINES_V2=2,PAGE_PANELS_V2=4;
-function storyV2Enabled(){try{return !!(root.localStorage&&root.localStorage.getItem('mnai.storyV2')==='1');}catch(e){return false;}}
+function storyV2Enabled(){try{return!(root.localStorage&&root.localStorage.getItem('mnai.storyV2')==='0');}catch(e){return true;}}
 function groupBeats(beats){
 var groups=[];
 beats.forEach(function(beat){
@@ -148,8 +148,50 @@ rect.scenePlanPanelIndex=panel.panel;
 return rect;
 }
 
-function enrichPlanWithDirector(plan){
+/* Batch director (behind localStorage mnai.batchDirector='1' until the user's blind pick): one call plans the whole
+ * story with a shared bible plus page purpose / continuity and per-panel shot, cast, must_show, must_not_show;
+ * the merged plan is rechecked with MangaPagePlanCore.lintPlan. Falls back to the per-panel director. */
+function batchDirectorEnabled(){try{return!!(root.localStorage&&root.localStorage.getItem('mnai.batchDirector')==='1');}catch(e){return false;}}
+function batchContextFromPlan(plan){
+var names=[],panels=[];
+plan.pages.forEach(function(page){page.panels.forEach(function(panel){
+(panel.characters||[]).forEach(function(n){if(n&&names.indexOf(n)<0)names.push(n);});
+if(panel.mode==='simulator')return;
+panels.push({page:page.page,panel:panel.panel,description:panel.description||'',characters:panel.characters||[],dialogue:(panel.dialogue||[]).map(function(d){return (d.speaker||'')+'：'+(d.content||'');})});
+});});
+return {user_story:plan.title||'',page_count:plan.pages.length,panel_count:panels.length,characters:names,panels:panels,page_fields:true,
+requirements:['Keep each page 2-4 panels as given; do not add or remove panels.','Only characters listed in a panel may appear in that panel prompt.']};
+}
+function lintPages(plan){
+var P=root.MangaPagePlanCore;if(!P||!P.lintPlan)return null;
+return P.lintPlan(plan.pages.map(function(p){var cast=[];p.panels.forEach(function(q){(q.characters||[]).forEach(function(c){if(cast.indexOf(c)<0)cast.push(c);});});
+return {purpose:p.purpose||'',continuityIn:p.continuityIn||'',continuityOut:p.continuityOut||'',cast:cast,panels:p.panels.map(function(q){return {description:q.description,shot:q.shot,cast:q.characters,mustShow:q.mustShow,mustNotShow:q.mustNotShow,lines:(q.dialogue||[]).map(function(d){return d.content||'';})};})};}));
+}
+function mergeBatch(plan,sb){
+var byKey={};sb.panels.forEach(function(it){byKey[it.page+'-'+it.panel]=it;});
+var pages={};(sb.pages||[]).forEach(function(p){pages[p.page]=p;});
+var shared=(sb.series_positive_tags||[]).join(', '),sharedNeg=(sb.series_negative_tags||[]).join(', ');
+plan.pages.forEach(function(page){
+var pg=pages[page.page];if(pg){page.purpose=pg.purpose;page.continuityIn=pg.continuity_in;page.continuityOut=pg.continuity_out;}
+page.panels.forEach(function(panel){var it=byKey[page.page+'-'+panel.panel];if(!it)return;
+panel.prompt=[shared,it.prompt].filter(Boolean).join(', ');panel.negative_prompt=[sharedNeg,it.negative_prompt].filter(Boolean).join(', ');
+panel.shot=it.shot;panel.mustShow=it.must_show;panel.mustNotShow=it.must_not_show;
+var known=panel.characters||[];if(it.cast&&it.cast.length)panel.cast=it.cast.filter(function(c){return known.indexOf(c)>=0;});
+panel.directorSource='api-batch';});
+});
+plan.continuityNotes=sb.continuity_notes||'';
+return plan;
+}
+function enrichPlanWithDirector(plan,opts){
 var director=root.NovelAICompositionDirector;
+var useBatch=(opts&&opts.batch)||(!(opts&&opts.batch===false)&&batchDirectorEnabled());
+if(useBatch&&director&&typeof director.callBatchStoryboardApi==='function'){
+return director.callBatchStoryboardApi(batchContextFromPlan(plan)).then(function(sb){
+if(!sb)return enrichPlanWithDirector(plan,{batch:false});
+mergeBatch(plan,sb);
+return {plan:plan,source:'api-batch',lint:lintPages(plan)};
+},function(){return enrichPlanWithDirector(plan,{batch:false});});
+}
 if(!director||typeof director.draftLayerPromptAsync!=='function'){
 return Promise.resolve({plan:plan,source:'heuristic'});
 }
@@ -218,6 +260,9 @@ groupBeats:groupBeats,
 fillDirectorPrompt:fillDirectorPrompt,
 makeMangaPanel:makeMangaPanel,
 enrichPlanWithDirector:enrichPlanWithDirector,
+batchContextFromPlan:batchContextFromPlan,
+lintPages:lintPages,
+mergeBatch:mergeBatch,
 createPanelsFromPlan:createPanelsFromPlan
 };
 })(typeof window!=='undefined'?window:globalThis);

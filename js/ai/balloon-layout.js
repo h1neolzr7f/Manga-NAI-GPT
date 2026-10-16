@@ -45,11 +45,11 @@
     const w = Math.max(longest * fontSize * 1.08 / 0.66, fontSize * 4), h = Math.max(tb.height * 1.75, fontSize * 2.6);
     return { w, h, tb };
   }
-  function kindsOn() { try { return root.localStorage && root.localStorage.getItem('mnai.bubbleKinds') === '1'; } catch { return false; } }
+  function kindsOn() { try { return !(root.localStorage && root.localStorage.getItem('mnai.bubbleKinds') === '0'); } catch { return true; } }
   function build(m, spot, meta) {
     const c = root.canvas, id = 'bl-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const parts = [];
-    // balloon kind (v2 shapes behind localStorage mnai.bubbleKinds='1' until the user's blind pick)
+    // balloon kind (v2 shapes ON by default after the user's pick; opt out with localStorage mnai.bubbleKinds='0')
     const k = kindsOn() && meta.kind ? meta.kind : { tail: true, shape: 'ellipse', dashed: false };
     const line = { fill: '#fff', stroke: '#111', strokeWidth: 3 }; if (k.dashed) line.strokeDashArray = [10, 7];
     if (spot.tail && k.tail) parts.push(new root.fabric.Polygon(tailPoints(spot), Object.assign({ strokeLineJoin: 'round' }, line)));

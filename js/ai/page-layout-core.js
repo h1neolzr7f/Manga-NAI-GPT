@@ -73,7 +73,7 @@
     return { cols, rows, cells: out };
   }
   /** Varied, code-based layouts for story → manga / ScenePlan and layout rotation in 画一页漫画.
-   * Default OFF until the user's blind pick says it is better (localStorage mnai.layoutV2 = '1'). */
-  function v2Enabled() { try { return !!(root.localStorage && root.localStorage.getItem('mnai.layoutV2') === '1'); } catch (e) { return false; } }
+   * Default ON after the user's blind pick (new 5 / old 0 / same 1); opt out with localStorage mnai.layoutV2 = '0'. */
+  function v2Enabled() { try { return !(root.localStorage && root.localStorage.getItem('mnai.layoutV2') === '0'); } catch (e) { return true; } }
   root.PageLayoutCore = Object.freeze({ TEMPLATES: T, BY_COUNT, options, pick, cells, posName, grid, v2Enabled });
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -22,6 +22,6 @@ for (const n of Object.keys(L.BY_COUNT)) for (const id of L.BY_COUNT[n]) {
 assert.notStrictEqual(L.TEMPLATES[L.pick(3, { recent: ['A1', 'A1'] })].code, 'A1');
 assert.strictEqual(L.TEMPLATES[L.pick(3, { genre: 'mystery' })].code, 'A2');
 assert.strictEqual(L.TEMPLATES[L.pick(4, { code: 'R2' })].code, 'R2');
-// 5) v2 is off by default (awaits blind pick).
-assert.strictEqual(L.v2Enabled(), false);
+// 5) v2 is ON by default (blind pick item1: 5/0/1); opt-out '0' restores legacy.
+assert.strictEqual(L.v2Enabled(), true);
 console.log('page layout core ok');

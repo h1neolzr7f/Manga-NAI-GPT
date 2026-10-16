@@ -71,7 +71,7 @@
     "test:bubble-ocr": "node scripts/run-python.cjs scripts/manga-bubble-ocr-test.py",
     "test:drift": "node scripts/gpt-drift-regression-test.cjs && node scripts/auto-swap-drift-test.cjs && node scripts/auto-swap-session-test.cjs && node scripts/fabric-text-focus-nested-test.cjs && node scripts/task-page-continuity-test.cjs && node scripts/select-manga-page-test.cjs",
     "test:bubble-fill": "node scripts/run-python.cjs scripts/manga-bubble-fill-test.py",
-    "test:page-decompose": "node scripts/balloon-kind-test.cjs && node scripts/director-border-test.cjs && node scripts/story-to-manga-v2-test.cjs && node scripts/page-layout-core-test.cjs && node scripts/provider-route-test.cjs && node scripts/manga-page-decompose-core-test.cjs && node scripts/manga-page-plan-core-test.cjs && node scripts/run-python.cjs scripts/manga-page-decompose-test.py",
+    "test:page-decompose": "node scripts/batch-director-test.cjs && node scripts/balloon-kind-test.cjs && node scripts/director-border-test.cjs && node scripts/story-to-manga-v2-test.cjs && node scripts/page-layout-core-test.cjs && node scripts/provider-route-test.cjs && node scripts/manga-page-decompose-core-test.cjs && node scripts/manga-page-plan-core-test.cjs && node scripts/run-python.cjs scripts/manga-page-decompose-test.py",
     "test:model-catalog": "node scripts/run-python.cjs scripts/manga-model-catalog-test.py"
   },
   "devDependencies": {

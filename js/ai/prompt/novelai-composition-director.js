@@ -655,7 +655,22 @@ var context=buildDirectorContext(layer,requestData,type,planSeed);
 return buildDirectorApiMessages('请把下面中文/自然语言需求改写成 NovelAI 可用提示词。只返回 JSON，不要 Markdown。\n'+JSON.stringify(context,null,2));
 }
 
+// Page-level storyboard fields (story → manga batch route, behind mnai.batchDirector until the user's blind pick).
+var BATCH_PAGE_FIELDS_RULE=[
+'额外要求（page_fields）：每页先写一句 purpose（中文：这页必须让读者看懂什么），并写 continuity_in / continuity_out（中文短句，上一页结尾＝本页开头）。',
+'panels 的每一项还要包含："shot"（只能是 extreme close-up / close-up / medium shot / cowboy shot / full body / wide shot 之一，同一页至少两种），"cast"（本格画面里真正出现的角色名，必须来自输入的 characters，没出场的人不要写），"must_show"（1–3 个英文短语：这一格必须画出的关键动作或道具），"must_not_show"（0–2 个英文短语：这一格不能出现的东西，例如不在场的人）。',
+'prompt 只写本格看得见的东西（3–5 个要素），不要把不在本格的角色写进去。',
+'顶层再加 "pages":[{"page":1,"purpose":"","continuity_in":"","continuity_out":""}]。'
+].join('\n');
 function buildBatchStoryboardMessages(batchContext){
+if(batchContext&&batchContext.page_fields){
+var msgs=buildBatchStoryboardMessagesBase(batchContext);
+msgs[msgs.length-1].content+='\n'+BATCH_PAGE_FIELDS_RULE;
+return msgs;
+}
+return buildBatchStoryboardMessagesBase(batchContext);
+}
+function buildBatchStoryboardMessagesBase(batchContext){
 return buildDirectorApiMessages([
 '你现在不是逐格写 prompt，而是为整套漫画先做统一 tag/story bible，然后把差异分配到每个分镜。',
 '目标：保证角色、服装、发色、画风、世界观、总体氛围、边框规则和反向词全局一致，同时让每格镜头、动作、构图、光影推进不重复。',
@@ -710,6 +725,8 @@ return null;
 
 function getChatContent(json){
 if(!json)return '';
+// some OpenAI-compatible gateways (e.g. Cline) wrap the completion as {data:{choices:[...]}}
+if(!json.choices&&json.data&&typeof json.data==='object'&&json.data.choices)json=json.data;
 if(json.prompt||json.negative_prompt)return JSON.stringify(json);
 var choice=json.choices&&json.choices[0];
 if(choice&&choice.message&&choice.message.content)return choice.message.content;
@@ -844,7 +861,11 @@ composition:textOf(item.composition||''),
 lighting:textOf(item.lighting||''),
 atmosphere:textOf(item.atmosphere||''),
 border:textOf(item.border||''),
-story_beat:textOf(item.story_beat||'')
+story_beat:textOf(item.story_beat||''),
+shot:textOf(item.shot||''),
+cast:Array.isArray(item.cast)?item.cast.map(textOf).filter(Boolean):[],
+must_show:Array.isArray(item.must_show)?item.must_show.map(textOf).filter(Boolean).slice(0,3):[],
+must_not_show:Array.isArray(item.must_not_show)?item.must_not_show.map(textOf).filter(Boolean).slice(0,3):[]
 };
 }
 
@@ -868,6 +889,7 @@ style_bible:normalizePromptText(parsed.style_bible||'',{allowCjk:false}),
 character_bible:normalizePromptText(parsed.character_bible||'',{allowCjk:false}),
 world_bible:normalizePromptText(parsed.world_bible||'',{allowCjk:false}),
 continuity_notes:textOf(parsed.continuity_notes||''),
+pages:Array.isArray(parsed.pages)?parsed.pages.map(function(p){return {page:parseInt(p&&p.page,10)||0,purpose:textOf(p&&p.purpose||''),continuity_in:textOf(p&&p.continuity_in||''),continuity_out:textOf(p&&p.continuity_out||'')};}).filter(function(p){return p.page>0;}):[],
 panels:panels
 };
 }
