@@ -4,6 +4,22 @@ Version numbers apply to **this fork only**, not to upstream Manga Editor Desu.
 
 ## Unreleased
 
+## 1.6.5 — 2026-10-16（整页拆解 + 批量导演 + 竖排气泡）
+
+### 中文
+- **整页拆解**：整张漫画页拆成可编辑的分格、气泡、文字图层；分格优先走智能分格；OCR 先用 RapidOCR，Tesseract 限时 8s，拆解进度分阶段显示。
+- **故事计划到整页**：分镜计划可以直接生成整页 NAI 规格。
+- **文档吸收**：漫画创作文档里的规则写进分镜/提示词：节奏 v2、共享版式表、气泡类型、按文字类型定字号、拟声词/旁白样式。
+- **批量导演**：默认开启，多格一起规划；分格批量生成有 Anlas 保护，角色 DNA 保持一致，计划和实际结果都有日志。
+- **竖排气泡**：竖排文字框与气泡（默认开）；ScenePlan 一次只应用一页，对白和台词保持同步。
+- **嵌字复查**：先按图层检查，再对横排文字做 OCR（auto）复查。
+- **实验选项（默认关）**：服务设置里的 NAI 画风 P 档、角色自动负面、擦除场景文字、透视文字工具，都要手动打开。
+
+### English
+- Page decompose to editable panels/balloons/text; RapidOCR-first with stage progress.
+- Batch director (default on), shared layouts, vertical balloons, lettering recheck.
+- Experimental options are opt-in and off by default.
+
 ## 1.6.4 — 2026-10-15（气泡填底色 + 轻量内置模型）
 
 ### 中文

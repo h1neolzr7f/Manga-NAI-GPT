@@ -201,7 +201,7 @@ def _sha256_file(path):
 
 
 def _open_url(url, start=0, timeout=180):
-    headers = {"User-Agent": "Manga-NAI-GPT-model-download/1.6.4"}
+    headers = {"User-Agent": "Manga-NAI-GPT-model-download/1.6.5"}
     if start > 0:
         headers["Range"] = "bytes=%d-" % start
     req = urllib.request.Request(url, headers=headers)
