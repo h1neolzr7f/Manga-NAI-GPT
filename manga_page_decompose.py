@@ -107,6 +107,16 @@ def _has_cjk(text):
     return any(("\u3040" <= ch <= "\u30ff") or ("\u3400" <= ch <= "\u9fff") or ("\uac00" <= ch <= "\ud7af") for ch in text or "")
 
 
+def is_garbled(text):
+    """Mostly non-CJK OCR output (leaked prompt English, symbol soup) must never become a text layer."""
+    compact = "".join((text or "").split())
+    if not compact:
+        return True
+    cjk = sum(1 for ch in compact if _has_cjk(ch))
+    latin = sum(1 for ch in compact if ch.isalnum() and not _has_cjk(ch))   # punctuation (……！——) is neutral
+    return cjk == 0 or latin / float(cjk + latin) > 0.3
+
+
 def find_bubble(gray, box):
     """White region enclosing a text box -> (bbox, is_bubble, paper_level)."""
     cv2, np = _np()
@@ -232,14 +242,23 @@ def apply_hints(texts, hints):
     for score, i, j in sorted(pairs, reverse=True):
         if score < 0.3 or i in used_t or j in used_h:
             continue
-        texts[i].update(text=hints[j], ocrText=texts[i]["text"], suspect=False, ocr="hint", hintScore=round(score, 2))
+        texts[i].update(text=hints[j], ocrText=texts[i]["text"], suspect=False, ocr="hint", hintScore=round(score, 2), hintIndex=j)
         used_t.add(i)
         used_h.add(j)
-    left_t = [i for i, t in enumerate(texts) if i not in used_t and t.get("suspect")]
+    # Remaining script lines go to remaining bubbles, monotonic in reading order between matched anchors.
     left_h = [j for j in range(len(hints)) if j not in used_h]
-    if left_t and len(left_t) == len(left_h):
-        for i, j in zip(left_t, left_h):
-            texts[i].update(text=hints[j], ocrText=texts[i]["text"], ocr="hint-order", suspect=True)
+    for j in left_h:
+        prev_t = max([i for i in used_t if texts[i].get("hintIndex", -1) < j] or [-1])
+        nxt = [i for i in used_t if texts[i].get("hintIndex", 1 << 30) > j]
+        next_t = min(nxt) if nxt else len(texts)
+        cand = [i for i in range(prev_t + 1, next_t) if i not in used_t and texts[i].get("isBubble")]
+        if cand:
+            i = cand[0]
+            texts[i].update(text=hints[j], ocrText=texts[i]["text"], ocr="hint-order", suspect=True, hintIndex=j)
+            used_t.add(i)
+    for i, t in enumerate(texts):   # generated page: a bubble with no script line is not ours to rewrite
+        if i not in used_t:
+            t.update(unmatched=True)
     return texts
 
 
@@ -276,6 +295,28 @@ def erase_block(rgb, mask, bubble, is_bubble, use_lama=True):
     return "opencv-telea"
 
 
+def safe_rect(gray, box, bubble):
+    """Largest-ish axis-aligned rectangle inside the bubble interior (grown from the deepest point)."""
+    cv2, np = _np()
+    inner = bubble_interior(gray, box, bubble)
+    if inner.sum() < 16:
+        return None
+    dist = cv2.distanceTransform(inner, cv2.DIST_L2, 3)
+    cy, cx = np.unravel_index(int(dist.argmax()), dist.shape)
+    x0 = x1 = int(cx); y0 = y1 = int(cy)
+    H, W = inner.shape
+    grew = True
+    while grew:
+        grew = False
+        if x0 > 0 and inner[y0:y1 + 1, x0 - 1].all(): x0 -= 1; grew = True
+        if x1 < W - 1 and inner[y0:y1 + 1, x1 + 1].all(): x1 += 1; grew = True
+        if y0 > 0 and inner[y0 - 1, x0:x1 + 1].all(): y0 -= 1; grew = True
+        if y1 < H - 1 and inner[y1 + 1, x0:x1 + 1].all(): y1 += 1; grew = True
+    bx, by = bubble[0], bubble[1]
+    pad = 3
+    return [int(bx + x0 + pad), int(by + y0 + pad), int(max(4, x1 - x0 - 2 * pad)), int(max(4, y1 - y0 - 2 * pad))]
+
+
 def order_texts(texts, panels, rtl=False):
     def key(t):
         x, y, w, h = t["bbox"]
@@ -286,7 +327,7 @@ def order_texts(texts, panels, rtl=False):
 def fit_font(text, bubble, vertical):
     n = max(1, len("".join((text or "").split())))
     x, y, w, h = bubble
-    iw, ih = w * 0.72, h * 0.72
+    iw, ih = w, h
     long_side, short_side = (ih, iw) if vertical else (iw, ih)
     best = 12
     for s in range(12, 80):
@@ -310,16 +351,35 @@ def decompose_array(rgb, mask=None, session=None, use_manga_ocr=False, use_lama=
         from manga_text_detector import text_mask_array
         mask, _boxes = text_mask_array(rgb, session)
     blocks = _group_text(mask, None, w, h)
-    cleaned = rgb.copy()
     texts = []
-    for b in blocks:
+    for b in blocks:   # pass 1: detect + read, nothing written yet
         bw, bh = b[2] - b[0], b[3] - b[1]
         vertical = bh > bw * 1.4
         bubble, is_bubble = find_bubble(gray, b)
         text, conf, engine, suspect = read_text(rgb, b, vertical, use_manga_ocr)
-        sub = np.zeros_like(mask)
-        sub[b[1]:b[3], b[0]:b[2]] = mask[b[1]:b[3], b[0]:b[2]]
-        if is_bubble:
+        cx, cy = (b[0] + b[2]) / 2, (b[1] + b[3]) / 2
+        pi = next((i for i, p in enumerate(panels)
+                   if cv2.pointPolygonTest(np.array(p["polygon"], np.int32), (cx, cy), False) >= 0), -1)
+        safe = safe_rect(gray, b, bubble) if is_bubble else None
+        texts.append({"bbox": [b[0], b[1], bw, bh], "_box": b, "bubble": bubble, "safe": safe, "isBubble": bool(is_bubble),
+                      "vertical": bool(vertical), "text": text, "confidence": round(conf, 1), "ocr": engine,
+                      "suspect": bool(suspect), "panel": pi})
+    texts = order_texts(texts, panels, rtl)
+    if hints:
+        apply_hints(texts, hints)
+    # Protect mask: panel frame lines (never repainted).
+    protect = np.zeros((h, w), np.uint8)
+    for p in panels:
+        cv2.polylines(protect, [np.array(p["polygon"], np.int32)], True, 1, max(5, int(min(h, w) * 0.008)))
+    protect &= (gray < 200).astype(np.uint8)
+    cleaned = rgb.copy()
+    for t in texts:   # pass 2: erase only what will be re-lettered
+        b, bubble = t.pop("_box"), t["bubble"]
+        keep = (t.get("unmatched") or is_garbled(t["text"]) or (t["suspect"] and t["ocr"] not in ("hint", "hint-order")))
+        if keep and not (t["isBubble"] and not hints and not is_garbled(t["text"])):
+            t["erase"] = "skipped"   # garbled / non-CJK / unmatched: leave the art untouched, no text layer
+            continue
+        if t["isBubble"]:
             inner = bubble_interior(gray, b, bubble)
             x, y, bw2, bh2 = bubble
             region = cleaned[y:y + bh2, x:x + bw2]
@@ -329,23 +389,20 @@ def decompose_array(rgb, mask=None, session=None, use_manga_ocr=False, use_lama=
             near = np.zeros_like(inner)
             px0, py0 = max(0, b[0] - x - 4), max(0, b[1] - y - 4)
             near[py0:b[3] - y + 4, px0:b[2] - x + 4] = 1
-            region[(inner > 0) & (near > 0)] = paper.astype(np.uint8)
-            erased = "bubble-paper"
-        elif (suspect or not _has_cjk(text)) and not use_lama_for_art:
-            erased = "skipped"  # unreadable mark on the art (SFX / speed lines): leave it
+            # only repaint ink (incl. anti-aliased edges); paper pixels stay byte-identical
+            region[(inner > 0) & (near > 0) & (np.abs(region.astype(int) - paper).sum(2) > 12)] = paper.astype(np.uint8)
+            t["erase"] = "bubble-paper"
+        elif use_lama_for_art or (not t["suspect"] and sum(1 for ch in t["text"] if _has_cjk(ch)) >= 2):
+            sub = np.zeros_like(mask)
+            sub[b[1]:b[3], b[0]:b[2]] = mask[b[1]:b[3], b[0]:b[2]]
+            t["erase"] = erase_block(cleaned, sub, bubble, False, use_lama)
         else:
-            erased = erase_block(cleaned, sub, bubble, is_bubble, use_lama)
-        cx, cy = (b[0] + b[2]) / 2, (b[1] + b[3]) / 2
-        pi = next((i for i, p in enumerate(panels)
-                   if cv2.pointPolygonTest(np.array(p["polygon"], np.int32), (cx, cy), False) >= 0), -1)
-        texts.append({"bbox": [b[0], b[1], bw, bh], "bubble": bubble, "isBubble": bool(is_bubble),
-                      "vertical": bool(vertical), "text": text, "confidence": round(conf, 1), "ocr": engine,
-                      "suspect": bool(suspect), "fontSize": fit_font(text, bubble if is_bubble else [b[0], b[1], bw, bh], vertical),
-                      "erase": erased, "panel": pi})
-    texts = order_texts(texts, panels, rtl)
-    apply_hints(texts, hints)
+            t["erase"] = "skipped"
+    changed = (cleaned != rgb).any(2) & (protect > 0)
+    cleaned[changed] = rgb[changed]
     for t in texts:
-        t["fontSize"] = fit_font(t["text"], t["bubble"] if t["isBubble"] else t["bbox"], t["vertical"])
+        t["layer"] = t["erase"] != "skipped" and not is_garbled(t["text"])
+        t["fontSize"] = fit_font(t["text"], t["safe"] or (t["bubble"] if t["isBubble"] else t["bbox"]), t["vertical"])
     return {"width": w, "height": h, "panels": panels, "texts": texts, "cleaned": cleaned, "mask": mask}
 
 

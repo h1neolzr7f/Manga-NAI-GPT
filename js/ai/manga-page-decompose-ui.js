@@ -10,12 +10,14 @@
   const fimg = src => new Promise(ok => fabric.Image.fromURL(src, ok));
   let hints = null;
 
-  async function decomposeDataUrl(dataUrl) {
+  async function decomposeDataUrl(dataUrl, scriptLines, options) {
+    const rtl = !!(options && options.rtl);
+    if (Array.isArray(scriptLines)) hints = scriptLines;
     const c = typeof canvas !== 'undefined' ? canvas : null;
     if (!c || !window.MangaModelRequest) throw new Error('编辑器未就绪');
     if (c.getObjects().length && !window.confirm('拆解会清空当前页对象（原图会作为隐藏图层保留）。继续？')) return;
     say('正在拆解：分镜、气泡、文字（CPU 约 10 秒）…');
-    const r = await window.MangaModelRequest.post('/manga-smart/decompose', { image: dataUrl, hints: hints || [] });
+    const r = await window.MangaModelRequest.post('/manga-smart/decompose', { image: dataUrl, hints: hints || [], rtl });
     hints = null;
     if (!r || !r.ok) throw new Error((r && r.error) || '拆解失败');
     const src = await load(dataUrl);
@@ -41,8 +43,8 @@
       for (const t of plan.texts) {
         const V = t.vertical && typeof fabric.VerticalTextbox === 'function';
         const Cls = V ? fabric.VerticalTextbox : fabric.Textbox;
-        const tb = new Cls(t.text, { left: t.box.x, top: t.box.y, width: Math.max(24, t.box.width), fontSize: t.fontSize,
-          fontFamily: 'Noto Sans SC, Microsoft YaHei, sans-serif', fill: '#111', textAlign: 'center', angle: 0, lineHeight: 1.12, splitByGrapheme: true });
+        const tb = new Cls(t.lines.join('\n'), { left: t.box.x, top: t.box.y, width: V ? Math.max(24, t.box.width) : Math.max(24, t.box.width + t.fontSize), fontSize: t.fontSize,
+          fontFamily: 'Noto Sans SC, Microsoft YaHei, sans-serif', fill: '#111', textAlign: 'center', angle: 0, lineHeight: 1.15, splitByGrapheme: !V, mangaSafeBox: t.box, mangaBubbleBox: t.bubbleBox });
         if (V) tb.set({ height: t.box.height });
         tb.setCoords();
         const b = tb.getBoundingRect(true, true);   // centre by rendered bbox inside the bubble
@@ -52,6 +54,8 @@
         c.add(tb);
       }
       c.requestRenderAll();
+      const over = c.getObjects().filter(o => o.mangaDecomposeText).filter(o => { const r = o.getBoundingRect(true, true), b = o.mangaBubbleBox; return b && (r.left < b.x - 1 || r.top < b.y - 1 || r.left + r.width > b.x + b.width + 1 || r.top + r.height > b.y + b.height + 1); }).length;
+      window.__decomposeOverflow = over;
       say('拆解完成：' + plan.panels.length + ' 格，' + plan.texts.length + ' 段文字（' + suspect + ' 段待校对，图层名带 ⚠）。结果是建议，请检查。');
     } finally { if (typeof changeDoSaveHistory === 'function') changeDoSaveHistory(); }
     if (typeof saveStateByManual === 'function') saveStateByManual();
@@ -79,7 +83,7 @@
     const out = await window.NaiEngine.run({ prompt: spec.prompt, negative: spec.negative, characters: spec.characters,
       width: spec.width, height: spec.height, steps: spec.steps, preservePositiveStyle: true }, null, say);
     hints = spec.hints;
-    await decomposeDataUrl(out.image);
+    await decomposeDataUrl(out.image, spec.hints, { rtl: true });   // builder names two-column rows right first
   }
 
   function bind() {
