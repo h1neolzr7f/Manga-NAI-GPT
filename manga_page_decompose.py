@@ -54,6 +54,7 @@ def detect_panels(gray, min_area_ratio=0.015):
             poly = np.array([[x, y], [x + bw, y], [x + bw, y + bh], [x, y + bh]])
         panels.append({"polygon": poly.astype(int).tolist(), "bbox": [int(x), int(y), int(bw), int(bh)],
                        "fill": round(area / float(bw * bh), 3)})
+    panels = _drop_contained(panels)
     if not panels:  # borderless page: single panel covering the content
         ys, xs = np.where(gray < 225)
         if len(xs):
@@ -63,6 +64,23 @@ def detect_panels(gray, min_area_ratio=0.015):
         panels = [{"polygon": [[x0, y0], [x1, y0], [x1, y1], [x0, y1]],
                    "bbox": [x0, y0, x1 - x0 + 1, y1 - y0 + 1], "fill": 1.0, "borderless": True}]
     return order_panels(panels)
+
+
+def _contains(a, b, slack=4):
+    ax, ay, aw, ah = a
+    bx, by, bw, bh = b
+    return bx >= ax - slack and by >= ay - slack and bx + bw <= ax + aw + slack and by + bh <= ay + bh + slack + (ah - bh)
+
+
+def _drop_contained(panels):
+    """A blob fully inside another panel's box is a hole left by a white leak, not a panel."""
+    out = []
+    for i, p in enumerate(panels):
+        if any(j != i and q["bbox"][2] * q["bbox"][3] > p["bbox"][2] * p["bbox"][3] and _contains(q["bbox"], p["bbox"])
+               for j, q in enumerate(panels)):
+            continue
+        out.append(p)
+    return out
 
 
 def order_panels(panels, rtl=False):
@@ -195,6 +213,40 @@ def _tesseract_text(rgb_crop, vertical, lang="chi_sim", psm=None):
     return "".join(words), (sum(confs) / len(confs) if confs else 0)
 
 
+_rapid = None
+
+
+def _rapid_text(crop, vertical):
+    """RapidOCR (PP-OCRv3 Chinese, Apache-2.0, ~14 MB bundled with the pip wheel). '' when unavailable."""
+    global _rapid
+    cv2, np = _np()
+    try:
+        if _rapid is None:
+            from rapidocr_onnxruntime import RapidOCR
+            _rapid = RapidOCR()
+    except Exception:
+        _rapid = False
+    if not _rapid:
+        return ""
+    # Vertical columns: rotate counter-clockwise so the right-most column becomes the first row.
+    c = np.ascontiguousarray(np.rot90(crop, 1)) if vertical else crop
+    c = cv2.copyMakeBorder(c, 16, 16, 16, 16, cv2.BORDER_CONSTANT, value=(255, 255, 255))
+    try:
+        res, _ = _rapid(c)
+    except Exception:
+        return ""
+    if not res:
+        return ""
+    res = sorted(res, key=lambda r: (r[0][0][1], r[0][0][0]))
+    return "".join(r[1] for r in res)
+
+
+def _ocr_score(text):
+    cjk = sum(1 for ch in text or "" if _has_cjk(ch))
+    latin = sum(1 for ch in text or "" if ch.isascii() and ch.isalnum())
+    return cjk - 2 * latin
+
+
 def read_text(rgb, box, vertical, use_manga_ocr=False):
     x0, y0, x1, y1 = box
     p = 4
@@ -206,6 +258,9 @@ def read_text(rgb, box, vertical, use_manga_ocr=False):
         import numpy as _np2
         c2 = crop if not vertical else _np2.array(_I.fromarray(crop))
         text, conf = _tesseract_text(c2, False, "chi_sim", psm="7" if not vertical else "5")
+    r_text = _rapid_text(crop, vertical)
+    if r_text and _ocr_score(r_text) >= _ocr_score(text):
+        text, conf, engine = r_text, 0, "rapidocr"
     if use_manga_ocr:
         try:
             from manga_ocr_refiner import get_model

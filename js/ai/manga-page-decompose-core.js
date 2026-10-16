@@ -23,11 +23,13 @@
   function buildPagePrompt(spec) {
     spec = spec || {};
     const panels = (spec.panels || []).filter(p => p && (clean(p.description) || clean(p.text))).slice(0, 8);
-    const n = panels.length || 1, pos = positions(n);
+    const n = panels.length || 1, pos = (spec.layout && Array.isArray(spec.layout.positions) && spec.layout.positions.length === n) ? spec.layout.positions : positions(n);
     const lines = [], hints = [];
     const style = 'manga, comic page, monochrome, greyscale, screentone, speech bubble, text, chinese text';
-    const layout = n + (n === 1 ? ' panel' : ' panels') + ' exactly, read ' + (spec.rtl ? 'right to left, ' : '') + 'top to bottom, ' +
-      'black panel borders, white gutters, no extra inset frames';
+    const L = spec.layout || {};
+    const layout = n + (n === 1 ? ' panel' : ' panels') + ' exactly' + (clean(L.sentence) ? ', ' + clean(L.sentence) : '') +
+      ', read ' + (spec.rtl ? 'right to left, ' : '') + 'top to bottom, ' +
+      (clean(L.frame) || 'black panel borders, white gutters') + (L.inset ? '' : ', no extra inset frames');
     const cast = clean(spec.page);
     const perPanel = panels.map((p, i) => pos[i] + ' panel ONLY: ' + clean(p.description).replace(/,?\s*no text$/i, '') + ', no text');
     const placement = panels.map((p, i) => {
@@ -43,6 +45,30 @@
     // Negative never excludes what the page needs (text, bubbles, panels).
     const negative = 'english text, prompt text, frame labels, panel numbers, watermark, signature, lowres, worst quality, bad quality, jpeg artifacts, bad anatomy';
     return { prompt: base, characters, hints, width: 832, height: 1216, steps: 28, negative, profile: 'page', positions: pos.slice(0, n) };
+  }
+  /** Pre-generation lint for a page spec. Returns {ok, errors, warnings}. */
+  function lintPageSpec(spec) {
+    spec = spec || {};
+    const errors = [], warnings = [];
+    const panels = (spec.panels || []).filter(Boolean);
+    if (!panels.length) errors.push('没有分格。');
+    if (panels.length > 8) errors.push('分格超过 8 个（' + panels.length + '）。');
+    panels.forEach((p, i) => {
+      if (!clean(p.description)) errors.push('第 ' + (i + 1) + ' 格缺少画面描述。');
+      if (p.text != null && !stripText(p.text) && p.wordless !== true) warnings.push('第 ' + (i + 1) + ' 格台词为空；若无台词请标 wordless。');
+      if (/\bText:/i.test(String(p.description || ''))) errors.push('第 ' + (i + 1) + ' 格描述里含有 Text:，台词只能写在 text 字段。');
+      if (stripText(p.text).length > 40) warnings.push('第 ' + (i + 1) + ' 格台词超过 40 字，气泡可能放不下。');
+    });
+    const chars = (spec.characters || []).filter(c => c && clean(c.prompt));
+    if (chars.length > 6) errors.push('角色超过 6 个（NAI 上限）。');
+    if (chars.length >= 2 && chars.some(c => !c.center)) warnings.push('多角色未全部设置位置，将自动分配。');
+    const L = spec.layout && spec.layout.positions;
+    if (L && L.length !== panels.length) errors.push('布局位置数 ' + L.length + ' 与分格数 ' + panels.length + ' 不一致。');
+    const w = spec.width || 832, h = spec.height || 1216;
+    if (w % 64 || h % 64) errors.push('尺寸必须是 64 的倍数。');
+    if (w * h > 1048576) errors.push('面积超过 1048576（免费档上限）。');
+    if ((spec.steps || 28) > 28) errors.push('步数超过 28（免费档上限）。');
+    return { ok: !errors.length, errors, warnings };
   }
   const NO_LINE_START = /^[，。、！？：；…）」』】〉》!?,.:;)\]—～·]/;
   /** Break CJK text into lines of at most `per` chars; closing punctuation never starts a line. */
@@ -90,7 +116,7 @@
     });
     return { panels, texts };
   }
-  const api = Object.freeze({ buildPagePrompt, planLayers, positions, fitInRect, breakLines, PAGE_STYLE });
+  const api = Object.freeze({ buildPagePrompt, planLayers, positions, fitInRect, breakLines, PAGE_STYLE, lintPageSpec });
   root.MangaPageDecomposeCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

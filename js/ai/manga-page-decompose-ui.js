@@ -69,14 +69,24 @@
     input.click();
   }
 
+  let genBusy = false;
   async function generateAndDecompose() {
+    if (genBusy) throw new Error('上一张还在生成，请稍候（一次只跑一个任务）。');
+    genBusy = true;
+    try { return await generateOnce(); } finally { genBusy = false; }
+  }
+  async function generateOnce() {
     if (!window.NaiEngine || !window.NaiEngine.configured()) throw new Error('请先在「服务设置」填写 NovelAI Token。');
     const page = window.prompt('整页场景（英文 tag，例：school gate, morning）', '') ;
     if (page === null) return;
     const raw = window.prompt('每格一行：画面描述 | 台词（台词可空），例：girl waving | 早上好！', '');
     if (raw === null) return;
     const panels = raw.split(/\n|;|；/).map(l => { const [d, t] = l.split('|'); return { description: d, text: t }; });
+    const lint = core.lintPageSpec({ page, panels });
+    if (!lint.ok) throw new Error('生成前检查未通过：' + lint.errors.join(' '));
+    if (lint.warnings.length) say('提示：' + lint.warnings.join(' '));
     const spec = core.buildPagePrompt({ page, panels });
+    delete spec.seed; // reroll = new random seed every run
     const cost = await window.NaiEngine.costText(spec, 1);
     if (!cost.free && !window.confirm('这张会花 ' + cost.text + '，继续？')) return;
     say('NovelAI 正在生成整页（' + cost.text + '）…');

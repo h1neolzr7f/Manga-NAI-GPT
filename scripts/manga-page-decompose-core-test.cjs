@@ -24,3 +24,16 @@ assert.strictEqual(plan.texts.length, 1, 'garbled / empty / skipped never become
 assert.deepStrictEqual(plan.texts[0].box, { x: 40, y: 40, width: 60, height: 60 }, 'safe rect, not OCR box');
 assert.strictEqual(plan.texts[0].angle, 0);
 console.log('manga-page-decompose-core ok');
+
+// lintPageSpec
+{
+  const C = globalThis.MangaPageDecomposeCore, assert = require('assert');
+  assert.ok(C.lintPageSpec({ panels: [{ description: 'a', text: '你好' }] }).ok);
+  assert.ok(!C.lintPageSpec({ panels: [] }).ok);
+  assert.ok(!C.lintPageSpec({ panels: [{ description: 'x Text: hi' }] }).ok);
+  assert.ok(!C.lintPageSpec({ panels: [{ description: 'a' }], width: 1024, height: 1088 }).ok);
+  assert.ok(!C.lintPageSpec({ panels: [{ description: 'a' }], steps: 30 }).ok);
+  assert.ok(!C.lintPageSpec({ panels: [{ description: 'a' }, { description: 'b' }], layout: { positions: ['top'] } }).ok);
+  assert.ok(C.lintPageSpec({ panels: [{ description: 'a', text: '' }] }).warnings.length === 1);
+  console.log('lintPageSpec ok');
+}
