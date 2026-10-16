@@ -2411,6 +2411,14 @@ const b = `<svg viewBox="0 0 100 100" width="100%" height="100%" style="position
 <td></td>
 </tr>
 <tr>
+<td class="us-field-label">实验选项</td>
+<td><label class="nai-inline-check" title="社区预设的采样参数（scale 4.7 / k_euler / cfg rescale 0.25）。之前同 seed 对比没有更好，默认关闭。"><input type="checkbox" data-optin="mnai.naiProfileP"> 采样档 P</label>
+<label class="nai-inline-check" title="多人画面里，每个角色的负面词自动加上其他角色的特征，减少串色。之前对比没有提升，默认关闭。"><input type="checkbox" data-optin="mnai.charAutoNeg"> 角色自动互斥负面</label>
+<label class="nai-inline-check" title="整页拆解时连气泡外的拟声词/场景字一起擦掉。之前对比效果更差，默认关闭。"><input type="checkbox" data-optin="mnai.eraseSceneText"> 拆解时擦拟声词/场景字</label>
+<label class="nai-inline-check" title="在「分层」里显示「透视文字」工具：框出招牌上的字，擦掉后换成可拖四角的透视文字层。"><input type="checkbox" data-optin="mnai.perspectiveText"> 透视招牌文字工具</label></td>
+<td></td>
+</tr>
+<tr>
 <td class="us-field-label">细节增强</td>
 <td><label class="nai-inline-check"><input type="checkbox" id="novelaiSM"> SMEA</label><label class="nai-inline-check"><input type="checkbox" id="novelaiSMDyn"> SMEA Dyn</label></td>
 <td></td>
@@ -3099,6 +3107,9 @@ setAutoSizeingControlMini();
     <script src="js/ui/file-pick.js?v=3" defer></script>
     <script src="js/ai/panel-auto.js?v=3" defer></script>
     <script src="js/ai/character-library.js?v=1.6.3" defer></script>
+    <script src="js/ai/opt-in-settings.js?v=1" defer></script>
+    <script src="js/ai/perspective-text-core.js?v=1" defer></script>
+    <script src="js/ai/perspective-text.js?v=1" defer></script>
     <script src="js/ai/nai-engine-core.js?v=1.6.3" defer></script>
     <script src="js/ai/nai-engine.js?v=m1" defer></script>
     <script src="js/ai/prompt-assist-core.js?v=m1" defer></script>

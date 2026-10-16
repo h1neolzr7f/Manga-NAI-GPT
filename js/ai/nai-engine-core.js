@@ -58,7 +58,23 @@
    * opts: { prompt, negative, model, width, height, steps, scale, seed, sampler, ucPreset, quality, safeMode,
    *         characters: [{ prompt, negative, center:{x,y} }], action: 'generate'|'infill'|'img2img', image, mask, strength }
    */
+  /** Opt-in sampling profile 'P' (community preset numbers; earlier same-seed A/B did not beat the default, so it is
+   *  never on by default). Only fills what the caller did not set explicitly. */
+  const PROFILE_P = { scale: 4.7, sampler: 'k_euler', cfgRescale: 0.25, ucPreset: 3, quality: false };
+  /** Opt-in per-character automatic negatives: each character's negative gets the other characters' own tags, so
+   *  traits do not bleed between people (earlier A/B: no gain → off by default). */
+  function autoCharacterNegatives(chars) {
+    const tags = chars.map(c => splitTags(c.prompt));
+    const COMMON = /^(\d+\+?(girl|boy|other)s?|solo|smile|looking at viewer|standing|sitting|upper body|full body|portrait)$/i;
+    return chars.map((c, i) => {
+      const own = new Set(tags[i].map(t => t.toLowerCase()));
+      const other = [].concat.apply([], tags.filter((_, j) => j !== i)).filter(t => !own.has(t.toLowerCase()) && !COMMON.test(t));
+      return Object.assign({}, c, { negative: joinTags(c.negative, Array.from(new Set(other)).slice(0, 12).join(', ')) });
+    });
+  }
+  function splitTags(s) { return String(s || '').split(',').map(t => t.trim()).filter(Boolean); }
   function payload(opts) {
+    if (opts && opts.profile === 'P') opts = Object.assign({}, opts, { scale: PROFILE_P.scale, sampler: PROFILE_P.sampler, cfgRescale: PROFILE_P.cfgRescale, ucPreset: PROFILE_P.ucPreset, quality: PROFILE_P.quality });
     const m = model(opts.model);
     const action = opts.action || 'generate';
     const size = sizeFor(opts.width || 1024, opts.height || 1024);
@@ -69,14 +85,15 @@
     const styleTags = opts.preservePositiveStyle ? String(opts.prompt || '').split(',').map(t => t.trim().toLowerCase()) : [];
     const presetText = uc.text.split(',').map(t => t.trim()).filter(t => !(['screentone', 'halftone'].includes(t) && styleTags.includes(t))).join(', ');
     const negative = joinTags(presetText, opts.negative, opts.safeMode ? 'nsfw' : '');
-    const chars = (opts.characters || []).filter(c => c && String(c.prompt || '').trim()).slice(0, 6);
+    let chars = (opts.characters || []).filter(c => c && String(c.prompt || '').trim()).slice(0, 6);
+    if (opts.charAutoNegative && chars.length > 1) chars = autoCharacterNegatives(chars);
     const useCoords = chars.some(c => c.center);
     const seed = Number.isFinite(opts.seed) && opts.seed >= 0 ? Math.floor(opts.seed) : Math.floor(Math.random() * 4294967295);
     const steps = Math.max(1, Math.min(FREE.maxSteps, opts.steps || 28));
     const params = {
       params_version: 3, width: size.width, height: size.height, scale: opts.scale || 5, sampler: opts.sampler || 'k_euler_ancestral',
       steps, n_samples: 1, ucPreset: uc.id, qualityToggle: opts.quality !== false, seed, negative_prompt: negative,
-      noise_schedule: m.v4 ? 'karras' : 'native', cfg_rescale: 0, sm: false, sm_dyn: false, dynamic_thresholding: false,
+      noise_schedule: m.v4 ? 'karras' : 'native', cfg_rescale: opts.cfgRescale || 0, sm: false, sm_dyn: false, dynamic_thresholding: false,
       legacy: false, legacy_v3_extend: false, prefer_brownian: true, deliberate_euler_ancestral_bug: false, add_original_image: action === 'infill',
       characterPrompts: chars.map(c => ({ prompt: c.prompt, uc: c.negative || '', center: c.center || { x: 0.5, y: 0.5 }, enabled: true })),
       use_coords: useCoords,
@@ -135,5 +152,5 @@
   }
   /** Space consecutive queued generations (NovelAI dislikes back-to-back bursts). */
   const SPACING_MS = 1500;
-  root.NaiEngineCore = Object.freeze({ FREE, MODELS, UC_PRESETS, QUALITY_TAGS, MANGA_STYLE, model, sizeFor, cost, gridCenter, payload, isRefusal, httpError, joinTags, features, readPngMeta, tokenEstimate, bumpWeight, SPACING_MS });
+  root.NaiEngineCore = Object.freeze({ PROFILE_P, autoCharacterNegatives, FREE, MODELS, UC_PRESETS, QUALITY_TAGS, MANGA_STYLE, model, sizeFor, cost, gridCenter, payload, isRefusal, httpError, joinTags, features, readPngMeta, tokenEstimate, bumpWeight, SPACING_MS });
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -484,7 +484,7 @@ def fit_font(text, bubble, vertical):
 
 
 # ---------------------------------------------------------------- page
-def decompose_array(rgb, mask=None, session=None, use_manga_ocr=False, use_lama=True, rtl=False, hints=None, use_lama_for_art=False):
+def decompose_array(rgb, mask=None, session=None, use_manga_ocr=False, use_lama=True, rtl=False, hints=None, use_lama_for_art=False, erase_scene_text=False):
     cv2, np = _np()
     h, w = rgb.shape[:2]
     gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
@@ -521,6 +521,13 @@ def decompose_array(rgb, mask=None, session=None, use_manga_ocr=False, use_lama=
         b, bubble = t.pop("_box"), t["bubble"]
         keep = (t.get("unmatched") or is_garbled(t["text"]) or (t["suspect"] and t["ocr"] not in ("hint", "hint-order")))
         if keep and not (t["isBubble"] and not hints and not is_garbled(t["text"])):
+            if erase_scene_text and not t["isBubble"] and mask is not None:
+                # opt-in (default off, earlier A/B worse): SFX / scene text outside bubbles is erased too, no text layer
+                sub = np.zeros_like(mask)
+                sub[b[1]:b[3], b[0]:b[2]] = mask[b[1]:b[3], b[0]:b[2]]
+                erase_block(cleaned, sub, bubble, False, use_lama)
+                t["erase"] = "scene-erased"; t["relayer"] = False
+                continue
             t["erase"] = "skipped"   # garbled / non-CJK / unmatched: leave the art untouched, no text layer
             continue
         if t["isBubble"]:
@@ -545,7 +552,7 @@ def decompose_array(rgb, mask=None, session=None, use_manga_ocr=False, use_lama=
     changed = (cleaned != rgb).any(2) & (protect > 0)
     cleaned[changed] = rgb[changed]
     for t in texts:
-        t["layer"] = t["erase"] != "skipped" and not is_garbled(t["text"])
+        t["layer"] = t["erase"] not in ("skipped", "scene-erased") and not is_garbled(t["text"])
         t["fontSize"] = fit_font(t["text"], t["safe"] or (t["bubble"] if t["isBubble"] else t["bbox"]), t["vertical"])
     return {"width": w, "height": h, "panels": panels, "texts": texts, "cleaned": cleaned, "mask": mask}
 
@@ -567,7 +574,7 @@ def panels_only(image_url, rtl=False):
     return {"ok": True, "width": w, "height": h, "panels": [{"bbox": [int(v) for v in p["bbox"]]} for p in panels]}
 
 
-def decompose(image_url, allow_download=False, use_manga_ocr=None, rtl=False, hints=None):
+def decompose(image_url, allow_download=False, use_manga_ocr=None, rtl=False, hints=None, erase_scene_text=False):
     from manga_smart_ocr import read_image
     from manga_model_guard import exclusive, manga_ocr_cached
     from PIL import Image
@@ -577,7 +584,7 @@ def decompose(image_url, allow_download=False, use_manga_ocr=None, rtl=False, hi
         raise SmartOcrError("整页拆解最多 420 万像素，请先缩小图片。", 413)
     # Cache by image SHA-256 + parameters: an edited image never reuses an old result.
     import hashlib, json
-    key = hashlib.sha256(raw + json.dumps([bool(use_manga_ocr), bool(rtl), list(hints or [])], ensure_ascii=False).encode("utf-8")).hexdigest()
+    key = hashlib.sha256(raw + json.dumps([bool(use_manga_ocr), bool(rtl), list(hints or []), bool(erase_scene_text)], ensure_ascii=False).encode("utf-8")).hexdigest()
     if key in _CACHE:
         _CACHE.move_to_end(key)
         return dict(_CACHE[key], cached=True)
@@ -587,7 +594,7 @@ def decompose(image_url, allow_download=False, use_manga_ocr=None, rtl=False, hi
         mask, _ = text_mask_array(rgb, _get_session(allow_download))
     if use_manga_ocr is None:
         use_manga_ocr = False
-    res = decompose_array(rgb, mask=mask, use_manga_ocr=bool(use_manga_ocr and manga_ocr_cached()), rtl=rtl, hints=hints)
+    res = decompose_array(rgb, mask=mask, use_manga_ocr=bool(use_manga_ocr and manga_ocr_cached()), rtl=rtl, hints=hints, erase_scene_text=bool(erase_scene_text))
     buf = io.BytesIO()
     Image.fromarray(res.pop("cleaned")).save(buf, "PNG")
     res.pop("mask")

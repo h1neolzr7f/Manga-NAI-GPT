@@ -27,7 +27,7 @@
     if (!c || !window.MangaModelRequest) throw new Error('编辑器未就绪');
     if (c.getObjects().length && !window.confirm('拆解会清空当前页对象（原图会作为隐藏图层保留）。继续？')) return;
     say('正在拆解：分镜、气泡、文字（CPU 约 10 秒）…');
-    const r = await window.MangaModelRequest.post('/manga-smart/decompose', { image: dataUrl, hints: hints || [], rtl });
+    const r = await window.MangaModelRequest.post('/manga-smart/decompose', { image: dataUrl, hints: hints || [], rtl, erase_scene_text: !!(window.MangaOptIn && window.MangaOptIn.get('mnai.eraseSceneText')) });
     hints = null;
     if (!r || !r.ok) throw new Error((r && r.error) || '拆解失败');
     const src = await load(dataUrl);
