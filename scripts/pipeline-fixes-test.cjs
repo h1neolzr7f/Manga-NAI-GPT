@@ -30,3 +30,11 @@ assert.ok(bl.includes("method: 'layers'") && bl.includes("language: 'auto'") && 
 const LANG = /LANGUAGES = frozenset\(\(([^)]*)\)\)/.exec(fs.readFileSync(path.join(root, 'manga_smart_ocr.py'), 'utf8'))[1];
 assert.ok(LANG.includes('"auto"'));
 console.log('pipeline fixes ok');
+// Weakness 5: UI polls decompose progress while the page runs.
+{
+  const ui = fs.readFileSync(path.join(root, 'js/ai/manga-page-decompose-ui.js'), 'utf8');
+  assert.ok(ui.includes('function pollDecomposeProgress'), 'progress poll helper');
+  assert.ok(ui.includes('/manga-smart/decompose-progress'), 'progress route');
+  assert.ok(ui.includes("job = 'dec-'") || ui.includes('job = "dec-"') || ui.includes("const job = 'dec-"), 'job id passed to decompose');
+  console.log('decompose progress UI ok');
+}

@@ -290,7 +290,7 @@ def _tesseract_text(rgb_crop, vertical, lang="chi_sim", psm=None):
     psm = psm or ("5" if vertical else "6")
     try:
         out = subprocess.run([exe, "stdin", "stdout", "-l", langs, "--psm", psm, "tsv"], input=buf.getvalue(),
-                             capture_output=True, timeout=30).stdout.decode("utf-8", "ignore")
+                             capture_output=True, timeout=8).stdout.decode("utf-8", "ignore")
     except Exception:
         return "", 0
     words, confs = [], []
@@ -337,25 +337,29 @@ def _ocr_score(text):
 
 
 def read_text(rgb, box, vertical, use_manga_ocr=False):
+    """OCR one text block. RapidOCR first (fast on CJK); Tesseract only as fallback. Tesseract used to run
+    first with a 30s timeout per attempt — a page of vertical Chinese could stall for minutes when
+    jpn_vert returned empty and each block retried (weakness 5: one page took 342s)."""
     x0, y0, x1, y1 = box
     p = 4
     crop = rgb[max(0, y0 - p):y1 + p, max(0, x0 - p):x1 + p]
-    engine = "tesseract"
-    text, conf = _tesseract_text(crop, vertical, "jpn_vert" if vertical else "chi_sim")
-    if not text.strip():  # short single line / tiny column: retry as one line
-        from PIL import Image as _I
-        import numpy as _np2
-        c2 = crop if not vertical else _np2.array(_I.fromarray(crop))
-        text, conf = _tesseract_text(c2, False, "chi_sim", psm="7" if not vertical else "5")
+    text, conf, engine = "", 0, "none"
     r_text = _rapid_text(crop, vertical)
-    if r_text and _ocr_score(r_text) >= _ocr_score(text):
+    if r_text and _ocr_score(r_text) > 0:
         text, conf, engine = r_text, 0, "rapidocr"
+    if _ocr_score(text) < 1:  # RapidOCR empty / all-latin garbage → Tesseract fallback
+        lang = "jpn_vert" if vertical else "chi_sim"
+        t_text, t_conf = _tesseract_text(crop, vertical, lang)
+        if not t_text.strip():
+            t_text, t_conf = _tesseract_text(crop, False, "chi_sim", psm="7" if not vertical else "5")
+        if _ocr_score(t_text) > _ocr_score(text):
+            text, conf, engine = t_text, t_conf, "tesseract"
     if use_manga_ocr:
         try:
             from manga_ocr_refiner import get_model
             from PIL import Image
             t2 = get_model(False)(Image.fromarray(crop))
-            if t2 and t2.strip():
+            if t2 and t2.strip() and _ocr_score(t2) >= _ocr_score(text):
                 text, conf, engine = t2.strip(), 0, "manga-ocr"
         except Exception:
             pass
@@ -484,19 +488,26 @@ def fit_font(text, bubble, vertical):
 
 
 # ---------------------------------------------------------------- page
-def decompose_array(rgb, mask=None, session=None, use_manga_ocr=False, use_lama=True, rtl=False, hints=None, use_lama_for_art=False, erase_scene_text=False):
+def decompose_array(rgb, mask=None, session=None, use_manga_ocr=False, use_lama=True, rtl=False, hints=None, use_lama_for_art=False, erase_scene_text=False, on_progress=None):
     cv2, np = _np()
     h, w = rgb.shape[:2]
+    def prog(stage, i=0, n=0, detail=""):
+        if on_progress:
+            try: on_progress(stage, i, n, detail)
+            except Exception: pass
     gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+    prog("panels", 0, 1, "切格")
     panels = detect_panels(gray)
     if rtl:
         panels = order_panels(panels, rtl=True)
     if mask is None:
+        prog("textmask", 0, 1, "检测文字区域")
         from manga_text_detector import text_mask_array
         mask, _boxes = text_mask_array(rgb, session)
     blocks = _group_text(mask, None, w, h)
     texts = []
-    for b in blocks:   # pass 1: detect + read, nothing written yet
+    for bi, b in enumerate(blocks):   # pass 1: detect + read, nothing written yet
+        prog("ocr", bi, len(blocks), "识别文字 %d/%d" % (bi + 1, len(blocks)))
         bw, bh = b[2] - b[0], b[3] - b[1]
         vertical = bh > bw * 1.4
         bubble, is_bubble = find_bubble(gray, b)
@@ -517,7 +528,8 @@ def decompose_array(rgb, mask=None, session=None, use_manga_ocr=False, use_lama=
         cv2.polylines(protect, [np.array(p["polygon"], np.int32)], True, 1, max(5, int(min(h, w) * 0.008)))
     protect &= (gray < 200).astype(np.uint8)
     cleaned = rgb.copy()
-    for t in texts:   # pass 2: erase only what will be re-lettered
+    for ei, t in enumerate(texts):   # pass 2: erase only what will be re-lettered
+        prog("erase", ei, len(texts), "擦字 %d/%d" % (ei + 1, len(texts)))
         b, bubble = t.pop("_box"), t["bubble"]
         keep = (t.get("unmatched") or is_garbled(t["text"]) or (t["suspect"] and t["ocr"] not in ("hint", "hint-order")))
         if keep and not (t["isBubble"] and not hints and not is_garbled(t["text"])):
@@ -554,11 +566,45 @@ def decompose_array(rgb, mask=None, session=None, use_manga_ocr=False, use_lama=
     for t in texts:
         t["layer"] = t["erase"] not in ("skipped", "scene-erased") and not is_garbled(t["text"])
         t["fontSize"] = fit_font(t["text"], t["safe"] or (t["bubble"] if t["isBubble"] else t["bbox"]), t["vertical"])
+    prog("done", 1, 1, "完成")
     return {"width": w, "height": h, "panels": panels, "texts": texts, "cleaned": cleaned, "mask": mask}
 
 
 from collections import OrderedDict
 _CACHE = OrderedDict()
+
+# ---- job progress (UI polls /manga-smart/decompose-progress while a long page runs) ----
+_JOBS = OrderedDict()
+_JOBS_MAX = 8
+
+
+def begin_job(job_id):
+    if not job_id:
+        return None
+    job_id = str(job_id)[:64]
+    _JOBS[job_id] = {"stage": "start", "i": 0, "n": 0, "detail": "准备中", "t0": __import__("time").time()}
+    while len(_JOBS) > _JOBS_MAX:
+        _JOBS.popitem(False)
+    return job_id
+
+
+def job_progress(job_id, stage, i=0, n=0, detail=""):
+    if job_id and job_id in _JOBS:
+        _JOBS[job_id] = {"stage": stage, "i": int(i), "n": int(n), "detail": str(detail or "")[:80],
+                         "t0": _JOBS[job_id].get("t0", __import__("time").time()),
+                         "elapsed": round(__import__("time").time() - _JOBS[job_id].get("t0", __import__("time").time()), 1)}
+
+
+def job_status(job_id):
+    j = _JOBS.get(str(job_id or ""))
+    return dict(j, ok=True, job=str(job_id or "")) if j else {"ok": True, "job": str(job_id or ""), "stage": "unknown", "detail": ""}
+
+
+def end_job(job_id):
+    if job_id and job_id in _JOBS:
+        job_progress(job_id, "done", 1, 1, "完成")
+
+
 
 
 def panels_only(image_url, rtl=False):
@@ -574,7 +620,10 @@ def panels_only(image_url, rtl=False):
     return {"ok": True, "width": w, "height": h, "panels": [{"bbox": [int(v) for v in p["bbox"]]} for p in panels]}
 
 
-def decompose(image_url, allow_download=False, use_manga_ocr=None, rtl=False, hints=None, erase_scene_text=False):
+def decompose(image_url, allow_download=False, use_manga_ocr=None, rtl=False, hints=None, erase_scene_text=False, on_progress=None, job_id=None):
+    job_id = begin_job(job_id)
+    if job_id and on_progress is None:
+        on_progress = lambda stage, i=0, n=0, detail="": job_progress(job_id, stage, i, n, detail)
     from manga_smart_ocr import read_image
     from manga_model_guard import exclusive, manga_ocr_cached
     from PIL import Image
@@ -587,6 +636,7 @@ def decompose(image_url, allow_download=False, use_manga_ocr=None, rtl=False, hi
     key = hashlib.sha256(raw + json.dumps([bool(use_manga_ocr), bool(rtl), list(hints or []), bool(erase_scene_text)], ensure_ascii=False).encode("utf-8")).hexdigest()
     if key in _CACHE:
         _CACHE.move_to_end(key)
+        end_job(job_id)
         return dict(_CACHE[key], cached=True)
     rgb = np.array(Image.open(io.BytesIO(raw)).convert("RGB"))
     from manga_text_detector import _get_session, text_mask_array
@@ -594,7 +644,7 @@ def decompose(image_url, allow_download=False, use_manga_ocr=None, rtl=False, hi
         mask, _ = text_mask_array(rgb, _get_session(allow_download))
     if use_manga_ocr is None:
         use_manga_ocr = False
-    res = decompose_array(rgb, mask=mask, use_manga_ocr=bool(use_manga_ocr and manga_ocr_cached()), rtl=rtl, hints=hints, erase_scene_text=bool(erase_scene_text))
+    res = decompose_array(rgb, mask=mask, use_manga_ocr=bool(use_manga_ocr and manga_ocr_cached()), rtl=rtl, hints=hints, erase_scene_text=bool(erase_scene_text), on_progress=on_progress)
     buf = io.BytesIO()
     Image.fromarray(res.pop("cleaned")).save(buf, "PNG")
     res.pop("mask")
@@ -605,4 +655,5 @@ def decompose(image_url, allow_download=False, use_manga_ocr=None, rtl=False, hi
     _CACHE[key] = res
     while len(_CACHE) > 6:
         _CACHE.popitem(last=False)
+    end_job(job_id)
     return dict(res, cached=False)

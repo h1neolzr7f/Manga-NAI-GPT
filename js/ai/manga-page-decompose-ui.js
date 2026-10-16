@@ -20,14 +20,34 @@
     } catch (_) { /* tainted or headless canvas: use the box */ }
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   }
+  /** Poll /manga-smart/decompose-progress while a long page runs (weakness 5: one page sat for 342s with no UI). */
+  function pollDecomposeProgress(job, sayFn) {
+    let alive = true, last = '';
+    const tick = async () => {
+      if (!alive) return;
+      try {
+        const r = await fetch('/manga-smart/decompose-progress', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ job }) });
+        const j = await r.json();
+        if (j && j.detail && j.detail !== last) { last = j.detail; sayFn('正在拆解：' + j.detail + (j.elapsed ? '（已 ' + Math.round(j.elapsed) + ' 秒）' : '') + '…'); }
+      } catch (e) { /* service busy or down: keep the last message */ }
+      if (alive) setTimeout(tick, 700);
+    };
+    setTimeout(tick, 400);
+    return () => { alive = false; };
+  }
   async function decomposeDataUrl(dataUrl, scriptLines, options) {
     const rtl = !!(options && options.rtl);
     if (Array.isArray(scriptLines)) hints = scriptLines;
     const c = typeof canvas !== 'undefined' ? canvas : null;
     if (!c || !window.MangaModelRequest) throw new Error('编辑器未就绪');
     if (c.getObjects().length && !window.confirm('拆解会清空当前页对象（原图会作为隐藏图层保留）。继续？')) return;
-    say('正在拆解：分镜、气泡、文字（CPU 约 10 秒）…');
-    const r = await window.MangaModelRequest.post('/manga-smart/decompose', { image: dataUrl, hints: hints || [], rtl, erase_scene_text: !!(window.MangaOptIn && window.MangaOptIn.get('mnai.eraseSceneText')) });
+    const job = 'dec-' + Date.now().toString(36);
+    say('正在拆解：切格…');
+    const stopProg = pollDecomposeProgress(job, say);
+    let r;
+    try {
+      r = await window.MangaModelRequest.post('/manga-smart/decompose', { image: dataUrl, hints: hints || [], rtl, erase_scene_text: !!(window.MangaOptIn && window.MangaOptIn.get('mnai.eraseSceneText')), job });
+    } finally { stopProg(); }
     hints = null;
     if (!r || !r.ok) throw new Error((r && r.error) || '拆解失败');
     const src = await load(dataUrl);

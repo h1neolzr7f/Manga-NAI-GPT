@@ -393,7 +393,7 @@ def local_model_status():
 
 def handle_smart_ocr_post(handler):
     route = handler.path.split("?", 1)[0]
-    if route not in ("/manga-smart/ocr", "/manga-smart/manga-ocr", "/manga-smart/lama-inpaint", "/manga-smart/status", "/manga-smart/text-mask", "/manga-smart/sam-click", "/manga-smart/sam-warm", "/manga-smart/ocr-warm", "/manga-smart/characters", "/manga-smart/faces", "/manga-smart/character-embed", "/manga-smart/character-identify", "/manga-smart/download-progress", "/manga-smart/prompt-helper-status", "/manga-smart/prompt-helper-download", "/manga-smart/models", "/manga-smart/model-download", "/manga-smart/decompose", "/manga-smart/panels", "/manga-smart/perspective-text"):
+    if route not in ("/manga-smart/ocr", "/manga-smart/manga-ocr", "/manga-smart/lama-inpaint", "/manga-smart/status", "/manga-smart/text-mask", "/manga-smart/sam-click", "/manga-smart/sam-warm", "/manga-smart/ocr-warm", "/manga-smart/characters", "/manga-smart/faces", "/manga-smart/character-embed", "/manga-smart/character-identify", "/manga-smart/download-progress", "/manga-smart/prompt-helper-status", "/manga-smart/prompt-helper-download", "/manga-smart/models", "/manga-smart/model-download", "/manga-smart/decompose", "/manga-smart/decompose-progress", "/manga-smart/panels", "/manga-smart/perspective-text"):
         return False
     if not _authorized_local_request(handler):
         handler.close_connection = True
@@ -466,12 +466,16 @@ def handle_smart_ocr_post(handler):
         elif route == "/manga-smart/panels":
             from manga_page_decompose import panels_only
             result = panels_only(data.get("image"), rtl=data.get("rtl") is not False)
+        elif route == "/manga-smart/decompose-progress":
+            from manga_page_decompose import job_status
+            result = job_status(data.get("job") or data.get("job_id"))
         elif route == "/manga-smart/decompose":
             from manga_page_decompose import decompose
             hints = data.get("hints") if isinstance(data.get("hints"), list) else None
             result = decompose(data.get("image"), allow_download, use_manga_ocr=data.get("manga_ocr") is True,
                                rtl=data.get("rtl") is True, hints=[str(h)[:200] for h in (hints or [])[:60]],
-                               erase_scene_text=data.get("erase_scene_text") is True)
+                               erase_scene_text=data.get("erase_scene_text") is True,
+                               job_id=data.get("job") or data.get("job_id"))
         elif route == "/manga-smart/text-mask":
             from manga_text_detector import detect
             result = detect(data.get("image"), allow_download)
