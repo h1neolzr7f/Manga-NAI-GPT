@@ -31,22 +31,30 @@
       ', read ' + (spec.rtl ? 'right to left, ' : '') + 'top to bottom, ' +
       (clean(L.frame) || 'black panel borders, white gutters') + (L.inset ? '' : ', no extra inset frames');
     const cast = clean(spec.page);
-    const perPanel = panels.map((p, i) => pos[i] + ' panel ONLY: ' + clean(p.description).replace(/,?\s*no text$/i, '') + ', no text');
+    const PL = root.MangaPagePlanCore;
+    const gray = s2 => (spec.grayHues !== false && !spec.color && PL ? PL.hueToGray(s2) : s2);
+    const perPanel = panels.map((p, i) => pos[i] + ' panel ONLY: ' + gray(clean(p.description).replace(/,?\s*no text$/i, '')) +
+      ((p.mustShow || []).length ? ', clearly showing ' + p.mustShow.map(clean).join(' and ') : '') + ', no text');
     const placement = panels.map((p, i) => {
       const raw = clean(p.text), kind = /^\*.*\*$/.test(raw) ? 'thought' : /^【.*】$/.test(raw) ? 'sfx' : /^\{.*\}$/.test(raw) ? 'narration' : 'speech';
       const t = stripText(raw.replace(/^\*(.*)\*$/, '$1'));
       if (!t) return pos[i] + ' panel: wordless';
       lines.push(t); hints.push(t);
+      const special = kind === 'speech' && spec.speakerShapes !== false && PL ? PL.bubbleForSpeaker(p.speaker) : null;
+      if (special) return pos[i] + ' panel: text block ' + lines.length + ' in a ' + special;
       const holder = { speech: 'in a white speech bubble', thought: 'in a cloud-shaped thought bubble', sfx: 'as hand-drawn sound effect lettering without a bubble', narration: 'in a rectangular narration box' }[kind];
       return pos[i] + ' panel: text block ' + lines.length + ' ' + holder + (clean(p.speaker) && kind !== 'sfx' && kind !== 'narration' ? ' from ' + clean(p.speaker) : '');
     });
     const base = [style, layout, cast].filter(Boolean).join(', ') + '.\n' + perPanel.join('.\n') + '.\n' + placement.join('.\n') + '.' +
       (lines.length ? '\nDo not print frame labels, block numbers, character names or any English words.\nText: ' + lines.join('\n\n') : '');
-    const characters = (spec.characters || []).filter(c => c && clean(c.prompt)).slice(0, 6)
-      .map(c => ({ prompt: clean(c.prompt), negative: clean(c.negative), center: c.center }));
+    let characters = (spec.characters || []).filter(c => c && clean(c.prompt)).slice(0, 6)
+      .map(c => ({ prompt: gray(clean(c.prompt)), negative: clean(c.negative), center: c.center }));
+    if (PL && ((spec.captionStrip || []).length || Object.keys(spec.captionOver || {}).length)) characters = PL.applyCaptionEdits(characters, spec.captionStrip, spec.captionOver);
+    const mustNot = Array.from(new Set([].concat.apply([], panels.map(p => (p.mustNotShow || []).map(clean))).filter(Boolean)));
     // Negative never excludes what the page needs (text, bubbles, panels).
-    const negative = (spec.color ? 'monochrome, greyscale, ' : '') + 'english text, prompt text, frame labels, panel numbers, watermark, signature, lowres, worst quality, bad quality, jpeg artifacts, bad anatomy';
-    return { prompt: base, characters, hints, width: 832, height: 1216, steps: 28, negative, profile: 'page', positions: pos.slice(0, n) };
+    const negative = (spec.color ? 'monochrome, greyscale, ' : '') + 'english text, prompt text, frame labels, panel numbers, watermark, signature, lowres, worst quality, bad quality, jpeg artifacts, bad anatomy' + (mustNot.length ? ', ' + mustNot.join(', ') : '');
+    const size = PL ? PL.spreadSize(spec.page) : { width: 832, height: 1216 };
+    return { prompt: base, characters, hints, width: size.width, height: size.height, steps: 28, negative, profile: 'page', positions: pos.slice(0, n) };
   }
   /** Pre-generation lint for a page spec. Returns {ok, errors, warnings}. */
   function lintPageSpec(spec) {

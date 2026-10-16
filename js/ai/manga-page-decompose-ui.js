@@ -120,10 +120,37 @@
     const r = await decomposeDataUrl(out.image, spec.hints, { rtl: true });   // builder names two-column rows right first
     // Planned vs actual panel count, kept per generated page (also the QA record).
     const rec = P ? P.panelRecord(spec.positions.length, r && r.panels ? r.panels.length : 0, { sha256: r && r.sha256, genre: gk || '', margin: mk || '' }) : null;
-    if (rec) { (window.__mangaPageRecords = window.__mangaPageRecords || []).push(rec); if (!rec.match) say('注意：计划 ' + rec.planned + ' 格，实际切出 ' + rec.actual + ' 格。'); }
+    if (rec) {
+      // Final-image recheck: what OCR actually reads in the generated page vs the script.
+      rec.recheck = P.recheckText(spec.hints, (r && r.texts || []).map(t => t.ocrText || t.text));
+      rec.thumb = await thumb(out.image, 240);
+      (window.__mangaPageRecords = window.__mangaPageRecords || []).push(rec);
+      const notes = [];
+      if (!rec.match) notes.push('计划 ' + rec.planned + ' 格，实际切出 ' + rec.actual + ' 格');
+      if (!rec.recheck.pass) notes.push('图里的字与台本不一致：缺 ' + rec.recheck.missing.length + ' 句、不符 ' + rec.recheck.mismatched.length + ' 句（文字层已按台本嵌字）');
+      if (notes.length) say('注意：' + notes.join('；') + '。');
+    }
     return rec;
   }
 
+  function thumb(dataUrl, w) {
+    return new Promise(res => { const im = new Image(); im.onload = () => { const c = document.createElement('canvas'); c.width = w; c.height = Math.round(im.height * w / im.width); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', 0.8)); }; im.onerror = () => res(''); im.src = dataUrl; });
+  }
+  /** Contact sheet of the last six generated pages (reading order right to left), for rhythm review. */
+  async function contactSheet(records) {
+    const recs = (records || window.__mangaPageRecords || []).filter(r => r.thumb).slice(-6);
+    if (!recs.length) return '';
+    const ims = await Promise.all(recs.map(r => new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = r.thumb; })));
+    const cw = 240, ch = Math.max(...ims.map(im => im ? Math.round(im.height * cw / im.width) : 0)), gap = 12, cols = Math.min(3, recs.length), rows = Math.ceil(recs.length / cols);
+    const c = document.createElement('canvas'); c.width = cols * cw + (cols + 1) * gap; c.height = rows * (ch + 28) + gap;
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.font = '14px sans-serif'; g.fillStyle = '#111';
+    recs.forEach((r, i) => {
+      const col = cols - 1 - (i % cols), row = Math.floor(i / cols), x = gap + col * (cw + gap), y = gap + row * (ch + 28);
+      if (ims[i]) g.drawImage(ims[i], x, y, cw, Math.round(ims[i].height * cw / ims[i].width));
+      g.fillText('P' + (i + 1) + ' ' + (r.layout || '') + ' ' + r.actual + '/' + r.planned + '格' + (r.qa ? ' QA ' + r.qa.total : ''), x, y + ch + 18);
+    });
+    return c.toDataURL('image/png');
+  }
   /** Five-item QA scoring dialog for the current page (each 0–2; pass = total ≥ 8, no zero, no blocker). */
   function openQa() {
     const P = window.MangaPagePlanCore;
@@ -138,13 +165,14 @@
     const chk = (k, label) => '<label style="margin-right:8px"><input type="checkbox" data-block="' + k + '">' + label + '</label>';
     box.innerHTML = '<b>整页 QA（每项 0–2 分）</b>' + P.QA_ITEMS.map(([k, l]) => sel(k, l)).join('') +
       '<div style="margin:6px 0">阻断项：' + P.QA_BLOCKERS.map(([k, l]) => chk(k, l)).join('') + '</div>' +
-      '<div id="mangaPageQaResult" aria-live="polite"></div><button type="button" id="mangaPageQaSave">记录</button> <button type="button" id="mangaPageQaClose">关闭</button>';
+      '<div id="mangaPageQaResult" aria-live="polite"></div><button type="button" id="mangaPageQaSave">记录</button> <button type="button" id="mangaPageQaSheet" title="最近 6 页并排看节奏">6 页联系表</button> <button type="button" id="mangaPageQaClose">关闭</button>';
     document.body.appendChild(box);
     const read = () => { const sc = {}, bl = {}; box.querySelectorAll('[data-qa]').forEach(e => { sc[e.dataset.qa] = +e.value; }); box.querySelectorAll('[data-block]').forEach(e => { bl[e.dataset.block] = e.checked; }); return P.scoreQA(sc, bl); };
     const show = () => { const q = read(); $('mangaPageQaResult').textContent = '总分 ' + q.total + '/10 · ' + (q.pass ? '通过' : '未通过' + (q.zeros.length ? '（0 分：' + q.zeros.join('、') + '）' : '') + (q.blocked.length ? '（阻断：' + q.blocked.join('、') + '）' : '')); return q; };
     box.addEventListener('change', show); show();
     $('mangaPageQaSave').onclick = () => { const q = show(); const recs = window.__mangaPageRecords = window.__mangaPageRecords || []; const last = recs[recs.length - 1] || P.panelRecord(0, 0); if (!recs.length) recs.push(last); last.qa = q; last.status = q.pass ? 'visual_reviewed' : 'generated'; say('QA 已记录：' + $('mangaPageQaResult').textContent); };
     $('mangaPageQaClose').onclick = () => box.remove();
+    $('mangaPageQaSheet').onclick = async () => { const u = await contactSheet(); if (!u) { say('还没有生成过整页，联系表为空。'); return; } const w = window.open(''); if (w) w.document.write('<title>6 页联系表</title><img src="' + u + '" style="max-width:100%">'); else say('浏览器拦截了新窗口。'); };
   }
 
   function bind() {
@@ -154,5 +182,5 @@
     if (g) g.addEventListener('click', () => generateAndDecompose().catch(e => say('整页生成失败：' + (e.message || e), true)));
   }
   document.addEventListener('DOMContentLoaded', bind);
-  window.MangaPageDecompose = { decomposeDataUrl, generateAndDecompose, pickAndDecompose, openQa };
+  window.MangaPageDecompose = { decomposeDataUrl, generateAndDecompose, pickAndDecompose, openQa, contactSheet };
 })();

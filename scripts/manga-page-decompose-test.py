@@ -101,3 +101,29 @@ def _cache_by_sha():
 
 
 _cache_by_sha()
+
+
+def _flashback_and_inset():
+    try:
+        import numpy as np, cv2  # noqa: F401
+    except ImportError:
+        return
+    import manga_page_decompose as D
+    # black margins/gutters, three tiers whose art is dark on one side
+    g = np.zeros((1216, 832), np.uint8)
+    for y0 in (60, 460, 860):
+        g[y0:y0 + 320, 50:780] = 200
+        g[y0 + 40:y0 + 320, 300:340] = 10   # dark art touching the gutter
+    assert len(D.detect_panels(g)) == 3, len(D.detect_panels(g))
+    # white page: big panel with an inset in its lower-right corner (white halo + black frame)
+    g = np.full((1216, 832), 255, np.uint8)
+    cv2.rectangle(g, (40, 40), (790, 860), 0, 4); g[44:857, 44:787] = 90
+    g[600:870, 500:832] = 255                                            # halo
+    cv2.rectangle(g, (510, 610), (826, 864), 0, 5); g[615:860, 515:821] = 170
+    cv2.rectangle(g, (40, 900), (790, 1170), 0, 4)
+    n = len(D.detect_panels(g))
+    assert n == 3, n
+    print("flashback + corner inset ok")
+
+
+_flashback_and_inset()

@@ -39,3 +39,25 @@ require('../js/ai/director/scene-plan-schema.js');
   assert.strictEqual(S.validate({ title: 't', pages: [{ panels: [{ description: 'a' }] }] }).warnings.length, 0);
   console.log('scene-plan lint hook ok');
 }
+{
+  const C = globalThis.MangaPagePlanCore;
+  assert.strictEqual(C.applyCaptionEdits([{ prompt: 'girl, school uniform, smile' }], ['school uniform'], { smile: 'crying' })[0].prompt, 'girl, crying');
+  assert.strictEqual(C.hueToGray('girl, blonde hair, red eyes, blue skirt'), 'girl, light grey hair, dark grey eyes, dark grey skirt');
+  assert.deepStrictEqual(C.spreadSize('見開きページ, battle'), { width: 1216, height: 832, spread: true });
+  assert.ok(!C.spreadSize('school').spread);
+  assert.ok(/rectangular/.test(C.bubbleForSpeaker('电话里的妈妈')) && C.bubbleForSpeaker('她') === null && /tailless/.test(C.bubbleForSpeaker('众人')));
+  assert.strictEqual(C.elementCount('girl, desk, window、cat；rain, lamp'), 6);
+  const pw = C.propContinuity([{ panels: [{ props: { 信: { holder: 'A', hand: 'right' } } }, { props: { 信: { holder: 'B' } } }, { props: { 信: { holder: 'A', change: '还给她' } } }] }]);
+  assert.strictEqual(pw.length, 1);
+  const r = C.recheckText(['你又迟到了！', '对不起', '走吧'], ['你又迟到了', '对不超', '路人']);
+  assert.ok(r.ok === 1 && r.mismatched.length === 1 && r.missing.length === 1 && r.unexpected.length === 1 && !r.pass);
+  const L = C.lintPlan([{ purpose: 'x', layout: 'R2', cast: ['A'], continuityOut: '门开着', panels: [{ description: 'a, b, c, d, e, f', mustShow: ['信'], mustNotShow: ['信'] }, { description: 'b' }] }, { purpose: 'y', layout: 'X1', cast: ['A'], continuityIn: '门关着', panels: [{ description: 'a' }, { description: 'b' }] }]);
+  assert.ok(!L.ok && L.warnings.some(w => w.includes('3–5 个')) && L.warnings.some(w => w.includes('continuity')));
+  console.log('r6 plan helpers ok');
+}
+{
+  const C = globalThis.MangaPagePlanCore;
+  const r = C.recheckText(['早点回家，听到没有？', '奶奶……'], ['早点回家,', '听到没有？', '奶奶·', 'AiB']);
+  assert.ok(r.pass && r.ok === 2 && r.unexpected.length === 1, JSON.stringify(r));
+  console.log('recheck join/punct ok');
+}

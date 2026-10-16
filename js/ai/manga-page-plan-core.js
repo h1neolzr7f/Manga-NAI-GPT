@@ -75,6 +75,10 @@
       panels.forEach((q, k) => {
         const where = tag(i) + '第 ' + (k + 1) + ' 格';
         if (MULTI_MOMENT.test(q.description || '')) warnings.push(where + '像是写了多个时刻（含「然后/接着」），一格只放一个瞬间。');
+        const n = elementCount(q.description);
+        if (n > 5) warnings.push(where + '写了 ' + n + ' 个画面要素，建议 3–5 个。');
+        const ms = (q.mustShow || []).map(clean), mn = (q.mustNotShow || []).map(clean);
+        ms.filter(x => mn.indexOf(x) >= 0).forEach(x => errors.push(where + '「' + x + '」同时出现在 must_show 和 must_not_show。'));
         const lines = q.lines || [];
         if (lines.length > 2) warnings.push(where + '有 ' + lines.length + ' 个气泡，建议 0–2 个。');
         lines.forEach(l => { const n = Array.from(parseLine(l).text).length; if (n > 30) warnings.push(where + '有一句 ' + n + ' 字，超过 30 字的气泡很难放下。'); });
@@ -82,6 +86,11 @@
       });
       if (panels.length >= 2 && new Set(panels.map(q => q.shot).filter(Boolean)).size === 1) warnings.push(tag(i) + '所有格景别相同，建议至少两种。');
     });
+    propContinuity(pages).forEach(w => warnings.push(w));
+    for (let k = 1; k < (pages || []).length; k++) {
+      const a = pages[k - 1].continuityOut, b = pages[k].continuityIn;
+      if (a && b && clean(a) !== clean(b)) warnings.push('第 ' + k + ' 页的 continuity_out 与第 ' + (k + 1) + ' 页的 continuity_in 不一致。');
+    }
     // Six-page rhythm windows.
     const codes = (pages || []).map(p => p.layout).filter(Boolean);
     for (let s = 0; s + 6 <= codes.length; s++) {
@@ -115,8 +124,79 @@
     const p = Math.max(0, planned | 0), d = Math.max(0, detected | 0);
     return Object.assign({ planned: p, actual: d, match: p === d, status: 'generated', at: new Date().toISOString() }, extra || {});
   }
+
+  /** Page-level caption edits: strip tags / override tags in every character caption of this page only. */
+  function applyCaptionEdits(chars, strip, over) {
+    const st = (strip || []).map(t => clean(t).toLowerCase()).filter(Boolean);
+    const ov = over || {};
+    return (chars || []).map(c => {
+      const tags = String(c.prompt || '').split(',').map(clean).filter(Boolean)
+        .filter(t => st.indexOf(t.toLowerCase()) < 0)
+        .map(t => Object.prototype.hasOwnProperty.call(ov, t) ? clean(ov[t]) : t).filter(Boolean);
+      return Object.assign({}, c, { prompt: tags.join(', ') });
+    });
+  }
+  const HUES = /\b(red|blue|green|yellow|orange|purple|pink|brown|blonde|blond|golden|silver|aqua|cyan|teal|violet|crimson|scarlet|navy|beige)\b/gi;
+  const LIGHT = /^(blonde|blond|golden|silver|yellow|pink|aqua|cyan|beige)$/i;
+  /** Black-and-white mode: turn hue words into dark/light grey so the model does not fight the monochrome style. */
+  function hueToGray(text) {
+    return String(text || '').replace(HUES, w => (LIGHT.test(w) ? 'light grey' : 'dark grey'));
+  }
+  /** Is this page a double-page spread? Then the canvas turns landscape. */
+  function spreadSize(page, w, h) {
+    const spread = /見開き|见开|double-page spread|two-page spread|跨页/i.test(String(page || ''));
+    w = w || 832; h = h || 1216;
+    return spread ? { width: Math.max(w, h), height: Math.min(w, h), spread: true } : { width: w, height: h, spread: false };
+  }
+  /** Speaker kind -> bubble wording (null = plain speech bubble). */
+  function bubbleForSpeaker(speaker) {
+    const s = String(speaker || '');
+    if (/电话|手机|广播|phone|radio|speaker/i.test(s)) return BUBBLE_SHAPES.phone;
+    if (/远处|远方|distant|far away/i.test(s)) return BUBBLE_SHAPES.distant;
+    if (/画外|off-?screen|门外/i.test(s)) return BUBBLE_SHAPES.offscreen;
+    if (/众人|大家|群|crowd|everyone/i.test(s)) return BUBBLE_SHAPES.crowd;
+    return null;
+  }
+  /** Element count of a panel description (comma/、 separated visible items). */
+  function elementCount(desc) { return String(desc || '').split(/[,，、;；]/).map(clean).filter(Boolean).length; }
+  /** Prop state continuity: panels [{props:{name:{holder, hand, state}}}] -> warnings when a prop changes with no panel saying so. */
+  function propContinuity(pages) {
+    const warns = [], last = {};
+    (pages || []).forEach((p, i) => (p.panels || []).forEach((q, k) => {
+      const props = q.props || {};
+      Object.keys(props).forEach(name => {
+        const now = props[name] || {}, prev = last[name];
+        if (prev && !now.change) ['holder', 'hand', 'state'].forEach(f => {
+          if (prev[f] && now[f] && prev[f] !== now[f]) warns.push('第 ' + (i + 1) + ' 页第 ' + (k + 1) + ' 格：道具「' + name + '」的' + { holder: '持有人', hand: '左右手', state: '状态' }[f] + '从「' + prev[f] + '」变成「' + now[f] + '」，没写变化原因（change）。');
+        });
+        last[name] = Object.assign({}, prev, now);
+      });
+    }));
+    return warns;
+  }
+  /** Final-image recheck: compare re-OCR'd text to the script lines; returns missing / unexpected / mismatched. */
+  function recheckText(script, found) {
+    const norm = s => String(s || '').replace(/[\s「」『』【】{}*，。、！？!?,.…·•‥⋯—\-~～：:；;一]/g, '');
+    const want = (script || []).map(norm).filter(Boolean);
+    found = (found || []).filter(x => norm(x));
+    // OCR often splits one bubble into two blocks: also offer each adjacent pair joined.
+    const cand = found.map((f, j) => ({ text: f, idx: [j] }));
+    for (let j = 0; j + 1 < found.length; j++) cand.push({ text: found[j] + found[j + 1], idx: [j, j + 1] });
+    const got = cand.map(c => norm(c.text));
+    const sim = (a, b) => { const A = Array.from(a), B = new Set(Array.from(b)); const hit = A.filter(c => B.has(c)).length; return hit / Math.max(A.length, Array.from(b).length, 1); };
+    const used = new Set(), result = { missing: [], mismatched: [], unexpected: [], ok: 0 };
+    want.forEach((w, i) => {
+      let best = -1, bs = 0;
+      got.forEach((g, j) => { if (cand[j].idx.some(k => used.has(k))) return; const v = sim(w, g); if (v > bs + 1e-9) { bs = v; best = j; } });
+      if (best < 0 || bs < 0.34) result.missing.push(script[i]);
+      else { cand[best].idx.forEach(k => used.add(k)); if (bs < 0.999) result.mismatched.push({ want: script[i], got: cand[best].text, score: +bs.toFixed(2) }); else result.ok++; }
+    });
+    found.forEach((f, j) => { if (!used.has(j)) result.unexpected.push(f); });
+    result.pass = !result.missing.length && !result.mismatched.length;
+    return result;
+  }
   const STATUSES = ['planned', 'generated', 'visual_reviewed', 'lettering_reviewed', 'accepted'];
-  const api = Object.freeze({ LAYOUTS, GENRES, MARGINS, BUBBLE_WORDS, BUBBLE_SHAPES, STYLES, QA_ITEMS, QA_BLOCKERS, STATUSES, parseLine, deconflictNegative, lintPlan, scoreQA, panelRecord, family });
+  const api = Object.freeze({ LAYOUTS, GENRES, MARGINS, BUBBLE_WORDS, BUBBLE_SHAPES, STYLES, QA_ITEMS, QA_BLOCKERS, STATUSES, parseLine, deconflictNegative, lintPlan, scoreQA, panelRecord, family, applyCaptionEdits, hueToGray, spreadSize, bubbleForSpeaker, elementCount, propContinuity, recheckText });
   root.MangaPagePlanCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

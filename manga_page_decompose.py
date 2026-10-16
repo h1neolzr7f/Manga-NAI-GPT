@@ -30,7 +30,9 @@ def detect_panels(gray, min_area_ratio=0.015):
     """gray: HxW uint8. Returns list of {polygon,bbox} sorted top->bottom, left->right."""
     cv2, np = _np()
     h, w = gray.shape
-    white = (gray >= 225).astype(np.uint8)
+    edge = np.concatenate([gray[:4].ravel(), gray[-4:].ravel(), gray[:, :4].ravel(), gray[:, -4:].ravel()])
+    dark_page = float((edge < 40).mean()) > 0.8   # flashback style: black margins and gutters
+    white = (gray <= 30).astype(np.uint8) if dark_page else (gray >= 225).astype(np.uint8)
     # Gutter = white pixels connected to the page margin. Pad so every margin pixel connects.
     pad = np.pad(white, 2, constant_values=1)
     n, lab = cv2.connectedComponents(pad, connectivity=4)
@@ -55,7 +57,11 @@ def detect_panels(gray, min_area_ratio=0.015):
         panels.append({"polygon": poly.astype(int).tolist(), "bbox": [int(x), int(y), int(bw), int(bh)],
                        "fill": round(area / float(bw * bh), 3)})
     panels = _drop_contained(panels)
+    if dark_page:
+        panels = _merge_row_fragments(panels, w)
     panels = _prefer_line_grid(gray, panels)
+    if not dark_page:
+        panels = panels + _corner_insets(gray, panels)
     if not panels:  # borderless page: single panel covering the content
         ys, xs = np.where(gray < 225)
         if len(xs):
@@ -65,6 +71,55 @@ def detect_panels(gray, min_area_ratio=0.015):
         panels = [{"polygon": [[x0, y0], [x1, y0], [x1, y1], [x0, y1]],
                    "bbox": [x0, y0, x1 - x0 + 1, y1 - y0 + 1], "fill": 1.0, "borderless": True}]
     return order_panels(panels)
+
+
+def _corner_insets(gray, panels):
+    """Inset frame in a panel's lower-right corner: a white halo row that runs to the panel edge,
+    with a dark frame line right under it and down its left side."""
+    cv2, np = _np()
+    h, w = gray.shape
+    white = (gray >= 225).astype(np.uint8)
+    pad = np.pad(white, 2, constant_values=1)
+    _n, lab = cv2.connectedComponents(pad, connectivity=4)
+    gut = (lab == lab[0, 0]).astype(np.uint8)[2:-2, 2:-2]
+    found = []
+    for p in panels:
+        x, y, bw, bh = p["bbox"]
+        run, prev = 0, 0
+        for yy in range(y + int(0.4 * bh), y + int(0.92 * bh)):
+            row = gut[yy, x:x + bw - 6][::-1]
+            L = int(np.argmax(row == 0)) if (row == 0).any() else len(row)
+            if L >= 0.25 * bw:
+                run, prev = run + 1, L
+                continue
+            if run >= 3:
+                x0, x1, y0, y1 = x + bw - 6 - prev, x + bw, yy, y + bh
+                side = float((gray[y0 + 5:y1, max(0, x0 - 3):x0 + 4] < 100).mean())
+                top = float((gray[yy:yy + 6, x0:x1 - 8] < 100).any(0).mean()) if x1 - 8 > x0 else 0.0
+                if side >= 0.75 and top >= 0.8 and (x1 - x0) * (y1 - y0) >= 0.03 * h * w:
+                    found.append({"polygon": [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], "bbox": [int(x0), int(y0), int(x1 - x0), int(y1 - y0)],
+                                  "fill": 1.0, "inset": True})
+                    break
+            run = 0
+    return found
+
+
+def _merge_row_fragments(panels, w):
+    """Black-gutter pages: dark art touching the gutter splits one panel into side-by-side pieces; merge them."""
+    out = []
+    for p in sorted(panels, key=lambda q: q["bbox"][0]):
+        x, y, bw, bh = p["bbox"]
+        for q in out:
+            qx, qy, qw, qh = q["bbox"]
+            ov = min(y + bh, qy + qh) - max(y, qy)
+            if ov > 0.9 * min(bh, qh) and x <= qx + qw + 0.02 * w:
+                nx0, ny0, nx1, ny1 = min(x, qx), min(y, qy), max(x + bw, qx + qw), max(y + bh, qy + qh)
+                q.update(bbox=[nx0, ny0, nx1 - nx0, ny1 - ny0], fill=1.0,
+                         polygon=[[nx0, ny0], [nx1, ny0], [nx1, ny1], [nx0, ny1]])
+                break
+        else:
+            out.append(dict(p))
+    return out
 
 
 def _line_cells(gray):
