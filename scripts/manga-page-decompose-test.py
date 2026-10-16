@@ -127,3 +127,23 @@ def _flashback_and_inset():
 
 
 _flashback_and_inset()
+
+
+def _panels_only_route():
+    try:
+        import numpy as np, cv2  # noqa: F401
+    except ImportError:
+        return
+    import base64
+    import manga_page_decompose as D
+    g = np.zeros((1216, 832), np.uint8)
+    for y0 in (60, 460, 860):
+        g[y0:y0 + 320, 50:780] = 200
+    ok, buf = cv2.imencode(".png", g)
+    r = D.panels_only("data:image/png;base64," + base64.b64encode(buf.tobytes()).decode(), rtl=True)
+    assert r["ok"] and r["width"] == 832 and len(r["panels"]) == 3, r
+    assert [p["bbox"][1] < q["bbox"][1] for p, q in zip(r["panels"], r["panels"][1:])] == [True, True]
+
+
+_panels_only_route()
+print("panels-only route ok")

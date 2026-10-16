@@ -554,6 +554,19 @@ from collections import OrderedDict
 _CACHE = OrderedDict()
 
 
+def panels_only(image_url, rtl=False):
+    """Panel split only (no OCR / erase): the JS splitter prefers this when the local service is up (AUDIT-v2 #9)."""
+    from manga_smart_ocr import read_image
+    from PIL import Image
+    cv2, np = _np()
+    raw, w, h = read_image(image_url)
+    if w * h > MAX_PIXELS:
+        raise SmartOcrError("整页拆解最多 420 万像素，请先缩小图片。", 413)
+    gray = cv2.cvtColor(np.array(Image.open(io.BytesIO(raw)).convert("RGB")), cv2.COLOR_RGB2GRAY)
+    panels = order_panels(detect_panels(gray), rtl=rtl)
+    return {"ok": True, "width": w, "height": h, "panels": [{"bbox": [int(v) for v in p["bbox"]]} for p in panels]}
+
+
 def decompose(image_url, allow_download=False, use_manga_ocr=None, rtl=False, hints=None):
     from manga_smart_ocr import read_image
     from manga_model_guard import exclusive, manga_ocr_cached
