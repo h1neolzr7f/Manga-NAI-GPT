@@ -97,7 +97,14 @@
     for (let size = natural; size >= minimum; size--) {
       if (longest(size) <= along && lines.length * size * stackGap <= across) return { fontSize: size, text: clean, lines: lines.length, wrapped: false };
     }
+    const CJ = (typeof root !== 'undefined' && root.CjkBreak) || (typeof globalThis !== 'undefined' && globalThis.CjkBreak);
     const wrapAt = size => {
+      // Kinsoku + balanced lines (shared CjkBreak): closing punctuation never starts a line, no lone last glyph.
+      if (CJ && typeof CJ.breakLines === 'function') {
+        const unit = vertical ? size * 1.02 : Math.max(1, measure('国', size));
+        const per = Math.max(1, Math.floor(along / unit));
+        return [].concat.apply([], lines.map(line => CJ.breakLines(line, per)));
+      }
       const out = [];
       for (const line of lines) {
         let current = '';
