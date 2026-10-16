@@ -71,3 +71,13 @@ require('../js/ai/director/scene-plan-schema.js');
   assert.strictEqual(C.sheetLabel(C.panelRecord(0, 4, { layout: 'R1' }), 5), 'P6 R1 4/?格');
   console.log('contact sheet label ok');
 }
+
+{
+  // Vertical Chinese OCR may return bottom→top; reverse match should accept without lowering thresholds.
+  const C = globalThis.MangaPagePlanCore;
+  const r = C.recheckText(['早上好'], ['上好早']); // reversed glyphs
+  assert.ok(r.ok === 1 && r.pass, 'reverse CJK counts as match: ' + JSON.stringify(r));
+  const miss = C.recheckText(['完全不同的句子'], ['另一个']);
+  assert.ok(miss.missing.length === 1 && !miss.pass, 'unrelated still missing');
+  console.log('recheck reverse CJK ok');
+}

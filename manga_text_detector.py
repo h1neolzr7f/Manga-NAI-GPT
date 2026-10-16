@@ -22,8 +22,12 @@ MODEL_URL = "https://github.com/zyddnys/manga-image-translator/releases/download
 MODEL_SHA256 = "1a86ace74961413cbd650002e7bb4dcec4980ffa21b2f19b86933372071d718f"
 MODEL_BYTES = 94669756
 INPUT = 1024
+# Fast path for erase masks / decompose: 768 is enough for lettering blobs and ~1.7× fewer pixels than 1024.
+INPUT_FAST = 768
 _session = None
 _lock = threading.Lock()
+_mask_cache = {}  # sha1(rgb bytes + params) -> (mask, boxes); keep a few recent pages
+_MASK_CACHE_MAX = 4
 
 
 def weights_path():
@@ -88,14 +92,26 @@ def _get_session(allow_download):
     return _session
 
 
-def text_mask_array(rgb, session, threshold=0.3, dilate=7):
-    """rgb: HxWx3 uint8 -> (HxW uint8 mask 0/255, boxes [[x0,y0,x1,y1],...])."""
+def text_mask_array(rgb, session, threshold=0.3, dilate=7, input_size=None):
+    """rgb: HxWx3 uint8 -> (HxW uint8 mask 0/255, boxes [[x0,y0,x1,y1],...]).
+
+    input_size defaults to INPUT (1024). Pass INPUT_FAST (768) for erase/decompose masks when
+    lettering blobs matter more than tiny glyph edges (~40% fewer ONNX pixels).
+    """
     import cv2
     import numpy as np
+    size = int(input_size or INPUT)
+    if size < 256 or size > 2048:
+        size = INPUT
     h, w = rgb.shape[:2]
-    s = INPUT / max(h, w)
+    # cache: same page often requests mask twice (detect + decompose)
+    key = hashlib.sha1(rgb.tobytes() + f"|{threshold}|{dilate}|{size}".encode()).hexdigest()
+    hit = _mask_cache.get(key)
+    if hit is not None:
+        return hit[0].copy(), [list(b) for b in hit[1]]
+    s = size / max(h, w)
     nh, nw = max(1, int(h * s)), max(1, int(w * s))
-    pad = np.zeros((INPUT, INPUT, 3), np.uint8)
+    pad = np.zeros((size, size, 3), np.uint8)
     pad[:nh, :nw] = cv2.resize(rgb, (nw, nh), interpolation=cv2.INTER_AREA)
     x = pad.transpose(2, 0, 1)[None].astype(np.float32) / 255
     blks, seg, _lines = session.run(None, {session.get_inputs()[0].name: x})
@@ -107,6 +123,9 @@ def text_mask_array(rgb, session, threshold=0.3, dilate=7):
     b = b[b[:, 4] * b[:, 5:].max(1) > 0.4]
     boxes = [[float((cx - bw / 2) / s), float((cy - bh / 2) / s), float((cx + bw / 2) / s), float((cy + bh / 2) / s)]
              for cx, cy, bw, bh, *_ in b]
+    if len(_mask_cache) >= _MASK_CACHE_MAX:
+        _mask_cache.pop(next(iter(_mask_cache)))
+    _mask_cache[key] = (mask, boxes)
     return mask, boxes
 
 
@@ -119,10 +138,12 @@ def detect(image_url, allow_download=False):
     with exclusive("ctd", wait=90):  # ~8 s per page: queue a second page instead of failing (a failure would fall back to the rule mask)
         session = _get_session(allow_download)
         t = time.time()
-        mask, boxes = text_mask_array(rgb, session)
+        # Fast 768 input for the HTTP text-mask path (erase / UI preview); full 1024 stays available via input_size.
+        mask, boxes = text_mask_array(rgb, session, input_size=INPUT_FAST)
         dt = time.time() - t
     buf = io.BytesIO()
-    Image.fromarray(mask).save(buf, "PNG", optimize=True)
+    # optimize=True re-filters the whole PNG and added ~0.3–0.8s on large pages; compress_level=1 is enough
+    Image.fromarray(mask).save(buf, "PNG", compress_level=1)
     return {"ok": True, "width": int(rgb.shape[1]), "height": int(rgb.shape[0]), "seconds": round(dt, 2),
             "mask": "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii"),
             "boxes": [[round(v, 1) for v in bx] for bx in boxes], "model": "comic-text-detector"}

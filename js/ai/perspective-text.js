@@ -96,5 +96,19 @@
       if ((done && hooked) || ++n > 40) clearInterval(t);
     }, 250);
   }
-  root.PerspectiveText = Object.freeze({ run, makeLayer, attach, render, on, register });
+  /** Re-attach corner controls after project / history load (pt* fields survive via commonProperties). */
+  function hydrateAll() {
+    const c = root.canvas; if (!c || !c.getObjects) return 0;
+    let n = 0;
+    c.getObjects().forEach(o => {
+      if (!o || !o.ptQuad) return;
+      // fabric may revive ptQuad points as plain objects; normalise to {x,y}
+      o.ptQuad = o.ptQuad.map(q => ({ x: +((q && (q.x != null ? q.x : q[0])) || 0), y: +((q && (q.y != null ? q.y : q[1])) || 0) }));
+      if (o.ptText == null) o.ptText = '';
+      attach(o); n++;
+    });
+    if (n && c.requestRenderAll) c.requestRenderAll();
+    return n;
+  }
+  root.PerspectiveText = Object.freeze({ run, makeLayer, attach, render, hydrateAll, on, register });
 })(typeof window !== 'undefined' ? window : globalThis);

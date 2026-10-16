@@ -93,7 +93,7 @@ const commonProperties=[
 ,"simulatorType","simulatorSchemaVersion","simulatorTemplateId","simulatorEditable","simulatorScene","simulatorStory","simulatorMessageId","simulatorMessageIndex","simulatorParentGuid"
 ,"simulatorPlaybackIndex","simulatorPageId","simulatorExplode","simulatorPartIndex","simulatorRole","simulatorExploded","assetId","assetHash","backgroundRemovalResult","backgroundRemovalModel","backgroundRemovalSourceGuid","backgroundRemovalAction"
 ,"scenePlanId","scenePlanPanelIndex","scenePlanApplyId","mangaGptSource", "mangaGptCrop", "mangaSmartText","mangaImportReference","mangaImportPanel","mangaImportPanelIndex","mangaImportSourceBox","mangaImportTags","mangaImportCharacterPlaceholder","mangaImportTemplateLayer","mangaImportCharacterReference","mangaImportPlaceholderIndex","mangaImportPlaceholderBounds"
-,"simulatorSourceGuid","pageStudioKind","pageStudioPreset","pageStudioEffect","pageStudioPrevFill","pageStudioGridSize","strokeDashArray"
+,"ptQuad","ptText","ptFontSize","ptFill","ptFont","simulatorSourceGuid","pageStudioKind","pageStudioPreset","pageStudioEffect","pageStudioPrevFill","pageStudioGridSize","strokeDashArray"
 ];
 
 let jscolorOptions={

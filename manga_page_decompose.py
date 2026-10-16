@@ -502,8 +502,8 @@ def decompose_array(rgb, mask=None, session=None, use_manga_ocr=False, use_lama=
         panels = order_panels(panels, rtl=True)
     if mask is None:
         prog("textmask", 0, 1, "检测文字区域")
-        from manga_text_detector import text_mask_array
-        mask, _boxes = text_mask_array(rgb, session)
+        from manga_text_detector import text_mask_array, INPUT_FAST
+        mask, _boxes = text_mask_array(rgb, session, input_size=INPUT_FAST)
     blocks = _group_text(mask, None, w, h)
     texts = []
     for bi, b in enumerate(blocks):   # pass 1: detect + read, nothing written yet
@@ -639,9 +639,9 @@ def decompose(image_url, allow_download=False, use_manga_ocr=None, rtl=False, hi
         end_job(job_id)
         return dict(_CACHE[key], cached=True)
     rgb = np.array(Image.open(io.BytesIO(raw)).convert("RGB"))
-    from manga_text_detector import _get_session, text_mask_array
+    from manga_text_detector import _get_session, text_mask_array, INPUT_FAST
     with exclusive("ctd", wait=90):
-        mask, _ = text_mask_array(rgb, _get_session(allow_download))
+        mask, _ = text_mask_array(rgb, _get_session(allow_download), input_size=INPUT_FAST)
     if use_manga_ocr is None:
         use_manga_ocr = False
     res = decompose_array(rgb, mask=mask, use_manga_ocr=bool(use_manga_ocr and manga_ocr_cached()), rtl=rtl, hints=hints, erase_scene_text=bool(erase_scene_text), on_progress=on_progress)

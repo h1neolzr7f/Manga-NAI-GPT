@@ -36,23 +36,42 @@
 
   /** Measure one balloon: kinsoku lines, font size from the panel; returns size + a builder. */
   function baseSize(rect) { return Math.min(44, Math.max(20, Math.round(Math.min(rect.width || rect.w, rect.height || rect.h) * 0.06))); }
+  /** Safe fill ratio inside an ellipse (inscribed text rect / balloon). Was 0.62/0.66 → balloons often oversize. */
+  const SAFE_W = 0.74, SAFE_H = 0.78;
   function measure(text, rect, size, kind) {
-    const fontSize = size || baseSize(rect);
+    let fontSize = size || baseSize(rect);
+    const panel = rectOf(rect);
+    const maxW = Math.max(40, panel.w * 0.55), maxH = Math.max(60, panel.h * 0.55);
     const n = Array.from(text).length, perLine = n <= 9 ? n : Math.ceil(Math.sqrt(n * 1.6));
     const lines = root.CjkBreak ? root.CjkBreak.breakLines(text, perLine) : [text];
     const longest = Math.max.apply(null, lines.map(l => Array.from(l).length));
     // doc direction rule: dialogue / thought read vertically (縦書き), narration / SFX stay horizontal
     if (verticalOn() && C.verticalKind && C.verticalKind(kind || 'speech') && typeof root.fabric.VerticalTextbox === 'function') {
-      const vt = new root.fabric.VerticalTextbox(lines.join('\n'), { left: 0, top: 0, fontSize, fill: '#111', width: lines.length * fontSize * 1.2, height: longest * fontSize * 1.08,
-        fontFamily: '"Noto Sans SC","Microsoft YaHei",sans-serif', lineHeight: 1.15, textAlign: 'right' });
-      vt.setCoords(); const b = vt.getBoundingRect(true, true);
-      const vw = Math.max(b.width, lines.length * fontSize * 1.15), vh = Math.max(b.height, longest * fontSize);
-      return { w: Math.max(vw / 0.62, fontSize * 2.8), h: Math.max(vh / 0.66, fontSize * 4), tb: vt, vertical: true };
+      let vt, vw, vh, w, h;
+      for (let guard = 0; guard < 6; guard++) {
+        vt = new root.fabric.VerticalTextbox(lines.join('\n'), { left: 0, top: 0, fontSize, fill: '#111', width: lines.length * fontSize * 1.15, height: longest * fontSize * 1.05,
+          fontFamily: '"Noto Sans SC","Microsoft YaHei",sans-serif', lineHeight: 1.12, textAlign: 'right' });
+        vt.setCoords(); const b = vt.getBoundingRect(true, true);
+        vw = Math.max(b.width, lines.length * fontSize * 1.1); vh = Math.max(b.height, longest * fontSize * 0.98);
+        w = Math.max(vw / SAFE_W, fontSize * 2.4); h = Math.max(vh / SAFE_H, fontSize * 3.2);
+        if (w <= maxW && h <= maxH) break;
+        fontSize = Math.max(14, Math.floor(fontSize * Math.min(maxW / w, maxH / h, 0.92)));
+        vt.set({ fontSize, width: lines.length * fontSize * 1.15, height: longest * fontSize * 1.05 });
+      }
+      return { w: Math.min(w, maxW), h: Math.min(h, maxH), tb: vt, vertical: true };
     }
     const tb = new root.fabric.Textbox(lines.join('\n'), { width: longest * fontSize * 1.06, fontSize, textAlign: 'center', fill: '#111', splitByGrapheme: true,
       fontFamily: '"Noto Sans SC","Microsoft YaHei",sans-serif' });
     if (kind && C.textStyle) tb.set(Object.assign(C.textStyle(kind), { fontSize }));
-    const w = Math.max(longest * fontSize * 1.08 / 0.66, fontSize * 4), h = Math.max(tb.height * 1.75, fontSize * 2.6);
+    let w = Math.max(longest * fontSize * 1.08 / SAFE_W, fontSize * 3.6), h = Math.max(tb.height * 1.55, fontSize * 2.4);
+    if (w > maxW || h > maxH) {
+      const k = Math.min(maxW / w, maxH / h, 1);
+      fontSize = Math.max(14, Math.floor(fontSize * k));
+      tb.set({ fontSize, width: longest * fontSize * 1.06 });
+      if (kind && C.textStyle) tb.set(Object.assign(C.textStyle(kind), { fontSize }));
+      w = Math.min(Math.max(longest * fontSize * 1.08 / SAFE_W, fontSize * 3.6), maxW);
+      h = Math.min(Math.max(tb.height * 1.55, fontSize * 2.4), maxH);
+    }
     return { w, h, tb };
   }
   function verticalOn() { try { return !(root.localStorage && root.localStorage.getItem('mnai.verticalBalloons') === '0'); } catch { return true; } }
@@ -238,7 +257,9 @@
     const res = { method: 'layers', missing, mismatched: [], overflow, ok: want.length - missing.length };
     res.hint = missing.length > 0 || overflow > 0;
     // 2) final-image OCR only for horizontal lettering (language 'auto': the earlier Chinese+Japanese code was not a language the service accepts, so it always failed)
-    if (!res.hint && P && P.recheckText && typeof fetch === 'function' && !objs.some(o => o.type === 'vertical-textbox')) {
+    // OCR path: also runs when vertical lettering is present (simVert in recheckText handles reversed CJK).
+    // Keep a high missing bar (≥2/3) so noisy OCR does not false-positive over a clean layer check.
+    if (!res.hint && P && P.recheckText && typeof fetch === 'function') {
       try {
         const image = c.toDataURL({ format: 'png', multiplier: 1 });
         const r = await fetch('/manga-smart/ocr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image, language: 'auto', refine: false }) });
@@ -246,8 +267,7 @@
         const found = j && j.ok ? (j.regions || []).map(g => g.text || '') : [];
         if (found.some(t => /[\u3040-\u30ff\u4e00-\u9fff]/.test(t))) {
           const o = P.recheckText(want, found);
-          // Tesseract misses single lines on busy art: only hint when at least half the lines are missing
-          if (o.missing.length && o.missing.length >= want.length / 2) { res.method = 'ocr'; res.missing = o.missing; res.hint = true; }
+          if (o.missing.length && o.missing.length >= Math.ceil(want.length * 2 / 3)) { res.method = 'ocr'; res.missing = o.missing; res.hint = true; }
         }
       } catch (e) { /* OCR unavailable: layer check stands */ }
     }

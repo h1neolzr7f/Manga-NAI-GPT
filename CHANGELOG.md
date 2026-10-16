@@ -4,6 +4,23 @@ Version numbers apply to **this fork only**, not to upstream Manga Editor Desu.
 
 ## Unreleased
 
+## 1.6.6 — 2026-10-16（新手分区 + 遗留修复）
+
+### 中文
+- **透视文字存档**：`ptQuad` 等字段写入项目，重新打开后四角仍可拖。
+- **竖排气泡**：收紧安全区比例，字号自动缩小以塞进格子，减少撑爆。
+- **CTD 蒙版加速**：文字蒙版默认 768 输入 + 结果缓存 + 更快 PNG；拆解同路径。
+- **OCR 复查**：竖排中文支持倒序匹配；OCR 提示更保守（≥2/3 缺失才提示），降低误报。
+- **实验开关校验**：采样档 P / 减少串脸 / 擦场景字 有 A/B 路径测试；文案更白话，默认仍全关。
+- **新手 UI**：任务按「常用 / 进阶 / 专业」分组；新增「拆成可编辑页」「剧情出分镜」；首次/更新弹出 1.6.6 导览（⋯ 菜单可再开）。
+
+### English
+- Perspective text survives save/reopen with draggable corners.
+- Vertical balloons use a tighter safe-rect and shrink to fit the panel.
+- Faster CTD erase masks (768 input + cache).
+- OCR recheck understands reversed CJK; fewer false hints.
+- Novice home regrouped; whats-new tour; simpler experiment labels.
+
 ## 1.6.5 — 2026-10-16（整页拆解 + 批量导演 + 竖排气泡）
 
 ### 中文

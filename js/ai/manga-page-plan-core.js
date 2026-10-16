@@ -190,6 +190,7 @@
   /** Final-image recheck: compare re-OCR'd text to the script lines; returns missing / unexpected / mismatched. */
   function recheckText(script, found) {
     const norm = s => String(s || '').replace(/[\s「」『』【】{}*，。、！？!?,.…·•‥⋯—\-~～：:；;一]/g, '');
+    const rev = s => Array.from(s).reverse().join('');
     const want = (script || []).map(norm).filter(Boolean);
     found = (found || []).filter(x => norm(x));
     // OCR often splits one bubble into two blocks: also offer each adjacent pair joined.
@@ -197,10 +198,12 @@
     for (let j = 0; j + 1 < found.length; j++) cand.push({ text: found[j] + found[j + 1], idx: [j, j + 1] });
     const got = cand.map(c => norm(c.text));
     const sim = (a, b) => { const A = Array.from(a), B = new Set(Array.from(b)); const hit = A.filter(c => B.has(c)).length; return hit / Math.max(A.length, Array.from(b).length, 1); };
+    // Vertical Chinese OCR sometimes returns bottom→top: also score against the reversed string (never lowers a true match).
+    const simVert = (a, b) => Math.max(sim(a, b), sim(a, rev(b)), sim(rev(a), b));
     const used = new Set(), result = { missing: [], mismatched: [], unexpected: [], ok: 0 };
     want.forEach((w, i) => {
       let best = -1, bs = 0;
-      got.forEach((g, j) => { if (cand[j].idx.some(k => used.has(k))) return; const v = sim(w, g); if (v > bs + 1e-9) { bs = v; best = j; } });
+      got.forEach((g, j) => { if (cand[j].idx.some(k => used.has(k))) return; const v = simVert(w, g); if (v > bs + 1e-9) { bs = v; best = j; } });
       if (best < 0 || bs < 0.34) result.missing.push(script[i]);
       else { cand[best].idx.forEach(k => used.add(k)); if (bs < 0.999) result.mismatched.push({ want: script[i], got: cand[best].text, score: +bs.toFixed(2) }); else result.ok++; }
     });
