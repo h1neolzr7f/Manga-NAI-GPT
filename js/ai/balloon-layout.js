@@ -152,11 +152,6 @@
     const pairs = Array.from(byPanel.values());
     const panels = pairs.map(p => p[0].g.balloon.panelRect);
     const occupied = textObstacles(), placed = [];
-    // one size per text kind across the page (doc lettering rule); opt out together with mnai.bubbleKinds='0'
-    const all = [], sizes = {};
-    for (const pi of order) splitLines(lines[pi]).forEach(t => all.push({ pi, kind: C.kindOf ? C.kindOf(t).kind : 'speech', s: baseSize(panels[pi]) }));
-    const uni = kindsOn() && C.pageFontSizes ? C.pageFontSizes(all.map(a => a.s), all.map(a => a.kind)) : all.map(a => a.s);
-    all.forEach((a, i) => { (sizes[a.pi] = sizes[a.pi] || []).push(uni[i]); });
     let n = 0;
     for (const pi of C.readingOrder(panels, dir())) {
       const list = pairs[pi];

@@ -12,4 +12,5 @@ assert.equal(speech[0], 31); assert.equal(out[3], 22); assert.equal(out[4], 62);
 assert.equal(C.textStyle('sfx').fontWeight, 900); assert.equal(C.textStyle('narration').textAlign, 'left');
 const src = fs.readFileSync(path.join(__dirname, '../js/ai/balloon-layout.js'), 'utf8');
 assert.ok(src.includes('C.pageFontSizes') && src.includes('C.textStyle'), 'auto-lettering uses page sizes and kind styles');
+assert.equal(src.split('C.pageFontSizes(').length, 2, 'page sizes computed once, in layoutNow only (rearrange has no lines)');
 console.log('lettering doc rules ok');
