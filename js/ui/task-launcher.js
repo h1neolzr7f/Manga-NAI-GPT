@@ -840,7 +840,7 @@ TASKS.forEach(function(t){if(t.hidden)Commands.register({id:'task.'+t.id,label:t
 function privacyOn(){try{return localStorage.getItem('mnai.privacyBlur')==='1';}catch(e){return false;}}
 function setPrivacy(on){try{localStorage.setItem('mnai.privacyBlur',on?'1':'0');}catch(e){/* private window */}document.body.classList.toggle('privacy-blur',!!on);}
 
-var WHATSNEW_KEY='mnai.whatsNew.1.6.9';
+var WHATSNEW_KEY='mnai.whatsNew.1.6.10';
 function showWhatsNew(force){
 try{if(!force&&localStorage.getItem(WHATSNEW_KEY)==='1')return;}catch(e){}
 if($('taskWhatsNew'))return;
@@ -854,8 +854,8 @@ setTimeout(function(){showWhatsNew(false);},800);return;
 }
 // Compact tip (Desu card tokens) — not a full-screen tour modal
 var tip=el('div',{id:'taskWhatsNew',class:'task-whatsnew-tip ui-card',role:'status','aria-labelledby':'taskWhatsNewTitle'});
-tip.innerHTML='<strong id="taskWhatsNewTitle">1.6.9</strong>'+
-'<p>故事模式升级：可编辑进入/重点/离开与页说明、角色库 DNA、分镜检查提示、失败页只重拆；故事模式进「常用」。实验功能仍默认关。</p>'+
+tip.innerHTML='<strong id="taskWhatsNewTitle">1.6.10</strong>'+
+'<p>AI 导演更会讲故事：六拍场景、每页进入/重点/离开、失败→修法表作为参考喂给 LLM；分镜检查有问题时自动请导演修一次。</p>'+
 '<button type="button" class="ui-btn ui-btn-primary" id="taskWhatsNewGo">知道了</button>';
 document.body.appendChild(tip);
 function done(){try{localStorage.setItem(WHATSNEW_KEY,'1');}catch(e){}tip.remove();}
