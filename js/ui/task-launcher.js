@@ -840,7 +840,7 @@ TASKS.forEach(function(t){if(t.hidden)Commands.register({id:'task.'+t.id,label:t
 function privacyOn(){try{return localStorage.getItem('mnai.privacyBlur')==='1';}catch(e){return false;}}
 function setPrivacy(on){try{localStorage.setItem('mnai.privacyBlur',on?'1':'0');}catch(e){/* private window */}document.body.classList.toggle('privacy-blur',!!on);}
 
-var WHATSNEW_KEY='mnai.whatsNew.1.6.7';
+var WHATSNEW_KEY='mnai.whatsNew.1.6.8';
 function showWhatsNew(force){
 try{if(!force&&localStorage.getItem(WHATSNEW_KEY)==='1')return;}catch(e){}
 if($('taskWhatsNew'))return;
@@ -854,8 +854,8 @@ setTimeout(function(){showWhatsNew(false);},800);return;
 }
 // Compact tip (Desu card tokens) — not a full-screen tour modal
 var tip=el('div',{id:'taskWhatsNew',class:'task-whatsnew-tip ui-card',role:'status','aria-labelledby':'taskWhatsNewTitle'});
-tip.innerHTML='<strong id="taskWhatsNewTitle">1.6.7</strong>'+
-'<p>任务栏多了「拆成可编辑页」「剧情出分镜」。实验功能仍在「服务设置」里，默认关。</p>'+
+tip.innerHTML='<strong id="taskWhatsNewTitle">1.6.8</strong>'+
+'<p>红黑主题；任务栏多了「故事模式」：贴故事一键出整章。实验功能仍在「服务设置」里，默认关。</p>'+
 '<button type="button" class="ui-btn ui-btn-primary" id="taskWhatsNewGo">知道了</button>';
 document.body.appendChild(tip);
 function done(){try{localStorage.setItem(WHATSNEW_KEY,'1');}catch(e){}tip.remove();}

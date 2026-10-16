@@ -1,13 +1,14 @@
-# Manga-NAI-GPT 1.6.7
+# Manga-NAI-GPT 1.6.8
 
-新手首页回归 Manga Editor Desu 原版画风：奶油底 + 砖红强调色、平铺任务格；新能力保留，导览改成小提示。
+红黑主题（去掉奶油色）+ 故事模式：粘贴一整段故事，一键出成可编辑整章；并修了 CTD 崩溃与批量导演兜底。
 
 ## 更新
 
-- **首页**：不再用「常用 / 进阶 / 专业」大分区，改回原版一张格子；只留浅色分隔标签，新功能带「新」角标。
-- **导览**：右下角小卡片提示「拆成可编辑页 / 剧情出分镜」，不再全屏遮罩。
-- **能力不变**：整页拆解、剧情出分镜、批量导演、实验选项（默认关）都还在。
-- **1.6.6 修复保留**：透视文字存档、竖排气泡贴格、CTD 加速、OCR 复查等。
+- **红黑主题**：底色 #141414 / #212121，强调色 #a31515；去掉奶油浅色主题与切换。
+- **故事模式**：粘贴散文/剧本 → 拆分镜 → 角色外貌预设 → 一键出整章（NovelAI 免费档，不扣 Anlas）→ 自动拆成可编辑气泡页；支持暂停、重试失败页（复用已出图）、导出全部。
+- **CTD 修复**：文字检测 ONNX 固定 1024 输入，1.6.6 的 768 快路径会整页拆解崩溃，已改回安全尺寸。
+- **批量导演**：卡片标签锚点校验更稳；超时随格数缩放；失败有兜底。
+- **1.6.5–1.6.7 能力保留**：整页拆解、剧情出分镜、批量导演、实验选项（默认关）、透视文字、竖排气泡等。
 
 ## 下载与验证
 
@@ -15,4 +16,4 @@ Windows 安装版与便携版内置基础运行环境和文字检测 CTD（约 9
 
 ## English
 
-Restyle novice home to match Desu (flat tiles, light labels, compact tip). Capabilities from 1.6.5–1.6.6 unchanged.
+Red-black theme (no cream) + Story Mode: paste a story → whole chapter of editable pages on free NAI tier (pause / retry / export). CTD fixed-input crash fix and batch director fallback.
