@@ -174,7 +174,7 @@ var byKey={};sb.panels.forEach(function(it){byKey[it.page+'-'+it.panel]=it;});
 var pages={};(sb.pages||[]).forEach(function(p){pages[p.page]=p;});
 var shared=(sb.series_positive_tags||[]).join(', '),sharedNeg=(sb.series_negative_tags||[]).join(', ');
 plan.pages.forEach(function(page){
-var pg=pages[page.page];if(pg){page.purpose=pg.purpose;page.continuityIn=pg.continuity_in;page.continuityOut=pg.continuity_out;}
+var pg=pages[page.page];if(pg){page.purpose=pg.purpose;page.continuityIn=pg.continuity_in;page.continuityOut=pg.continuity_out;if(pg.beats&&(pg.beats.enter||pg.beats.focus||pg.beats.leave))page.beats=pg.beats;}
 page.panels.forEach(function(panel){var it=byKey[page.page+'-'+panel.panel];if(!it)return;
 var D=root.NovelAICompositionDirector,tags=[shared,it.prompt].filter(Boolean).join(', ').split(/\s*,\s*/).filter(Boolean);panel.prompt=(D&&D.docOrderParts?D.docOrderParts(tags):tags).join(', ');panel.negative_prompt=[sharedNeg,it.negative_prompt].filter(Boolean).join(', ');
 panel.shot=it.shot;panel.mustShow=it.must_show;panel.mustNotShow=it.must_not_show;
@@ -184,15 +184,33 @@ panel.directorSource='api-batch';});
 plan.continuityNotes=sb.continuity_notes||'';
 return plan;
 }
+/* 1.6.10 craft repair: if lint finds issues, one extra batch call gets the issues + failure→fix table and
+ * returns a corrected storyboard; kept only when it has fewer lint issues. Off with mnai.craftContext='0'. */
+function repairWithCraft(plan,ctx,sb,opts){
+var lint=lintPages(plan),CC=root.DirectorCraftContext,director=root.NovelAICompositionDirector;
+var count=function(L){return L?L.errors.length*10+L.warnings.length:0;};
+if(!lint||!CC||!CC.enabled()||(opts&&opts.craft===false)||!count(lint))return Promise.resolve({plan:plan,lint:lint,repaired:false});
+ctx.repair_issues=CC.repairIssues(lint).slice(0,12);
+ctx.previous_storyboard={pages:sb.pages,panels:sb.panels.map(function(p){return {page:p.page,panel:p.panel,prompt:p.prompt,shot:p.shot,cast:p.cast,must_show:p.must_show,must_not_show:p.must_not_show};})};
+var backup=JSON.stringify(plan);
+return director.callBatchStoryboardApi(ctx).then(function(sb2){
+if(!sb2)return {plan:plan,lint:lint,repaired:false};
+var p2=mergeBatch(JSON.parse(backup),sb2),l2=lintPages(p2);
+if(count(l2)>=count(lint))return {plan:plan,lint:lint,repaired:false};
+Object.keys(p2).forEach(function(k){plan[k]=p2[k];});   // in place: callers (story mode) keep their reference
+return {plan:plan,lint:l2,repaired:true};
+},function(){return {plan:plan,lint:lint,repaired:false};});
+}
 function enrichPlanWithDirector(plan,opts){
 var director=root.NovelAICompositionDirector;
 var useBatch=(opts&&opts.batch)||(!(opts&&opts.batch===false)&&batchDirectorEnabled());
 if(useBatch&&director&&typeof director.callBatchStoryboardApi==='function'){
 return director.callBatchStoryboardApi(batchContextFromPlan(plan)).then(function(sb){
 if(!sb){if(root.console)console.warn('[batch director] no usable storyboard; per-panel fallback');return enrichPlanWithDirector(plan,{batch:false});}
+var ctx=batchContextFromPlan(plan);if(opts&&opts.craft===false)ctx.craft=false;
 mergeBatch(plan,sb);
 root.__mangaStoryPlan=plan;   // offered by 生成整页 so the full-page route needs no retyping
-return {plan:plan,source:'api-batch',lint:lintPages(plan)};
+return repairWithCraft(plan,ctx,sb,opts).then(function(rp){return {plan:rp.plan,source:'api-batch',lint:rp.lint,repaired:rp.repaired};});
 },function(e){if(root.console)console.warn('[batch director] failed: '+(e&&e.message||e)+'; per-panel fallback');return enrichPlanWithDirector(plan,{batch:false});});
 }
 if(!director||typeof director.draftLayerPromptAsync!=='function'){

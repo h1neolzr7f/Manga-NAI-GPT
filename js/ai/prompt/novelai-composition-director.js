@@ -667,6 +667,11 @@ function buildBatchStoryboardMessages(batchContext){
 if(batchContext&&batchContext.page_fields){
 var msgs=buildBatchStoryboardMessagesBase(batchContext);
 msgs[msgs.length-1].content+='\n'+BATCH_PAGE_FIELDS_RULE;
+var CC=(typeof window!=='undefined'?window:globalThis).DirectorCraftContext;
+if(CC&&CC.enabled()&&batchContext.craft!==false){
+msgs[msgs.length-1].content+='\n'+CC.beatsRule+'\n\n'+CC.planContext();
+if(batchContext.repair_issues&&batchContext.repair_issues.length)msgs[msgs.length-1].content+='\n\n'+CC.fixTableText()+'\n修复任务：上一版分镜 previous_storyboard 有 repair_issues 列出的问题。按每条 fix 修改，只改有问题的页/格，其余保持不变，返回完整 JSON。';
+}
 return msgs;
 }
 return buildBatchStoryboardMessagesBase(batchContext);
@@ -892,7 +897,7 @@ style_bible:normalizePromptText(parsed.style_bible||'',{allowCjk:false}),
 character_bible:normalizePromptText(parsed.character_bible||'',{allowCjk:false}),
 world_bible:normalizePromptText(parsed.world_bible||'',{allowCjk:false}),
 continuity_notes:textOf(parsed.continuity_notes||''),
-pages:Array.isArray(parsed.pages)?parsed.pages.map(function(p){return {page:parseInt(p&&p.page,10)||0,purpose:textOf(p&&p.purpose||''),continuity_in:textOf(p&&p.continuity_in||''),continuity_out:textOf(p&&p.continuity_out||'')};}).filter(function(p){return p.page>0;}):[],
+pages:Array.isArray(parsed.pages)?parsed.pages.map(function(p){return {page:parseInt(p&&p.page,10)||0,purpose:textOf(p&&p.purpose||''),continuity_in:textOf(p&&p.continuity_in||''),continuity_out:textOf(p&&p.continuity_out||''),beats:(p&&p.beats&&typeof p.beats==='object')?{enter:textOf(p.beats.enter||''),focus:textOf(p.beats.focus||''),leave:textOf(p.beats.leave||p.beats.exit||'')}:null};}).filter(function(p){return p.page>0;}):[],
 panels:panels
 };
 }
