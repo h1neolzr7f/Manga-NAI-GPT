@@ -15,6 +15,17 @@
       .map(c=>({rgb:c.rgb.toLowerCase(),share:Math.max(0,Math.min(1,c.share)),lab:c.lab.map(Number)})):[];
     return {features,palette,tags:limitedText(raw.tags,400)};
   }
+  /** Optional character DNA (doc rule): English appearance / outfit tags plus up to 6 distinct features. */
+  function normalizeDna(raw){
+    if(typeof raw!=='object'||Array.isArray(raw)||!raw)throw Error('角色 DNA 数据无效。');
+    const distinct=Array.isArray(raw.distinct)?raw.distinct.map(x=>limitedText(x,60)).filter(Boolean).slice(0,6):[];
+    return {appearance:limitedText(raw.appearance,300),outfit:limitedText(raw.outfit,300),distinct};
+  }
+  /** DNA → tag string for prompts (empty when no DNA). */
+  function dnaTags(card){
+    const d=card&&card.dna;if(!d)return '';
+    return [d.appearance,d.outfit].concat(d.distinct||[]).map(x=>String(x||'').trim()).filter(Boolean).join(', ');
+  }
   function limitedText(value,limit){
     return (typeof value==='string'?value:'')
       .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,'')
@@ -41,7 +52,8 @@
       traits:limitedText(raw.traits,1200),
       notes:limitedText(raw.notes,500),
       references:refs.slice(),
-      ...(raw.identity!=null?{identity:normalizeIdentity(raw.identity)}:{})
+      ...(raw.identity!=null?{identity:normalizeIdentity(raw.identity)}:{}),
+      ...(raw.dna!=null?{dna:normalizeDna(raw.dna)}:{})
     };
   }
   function fromDocument(document) {
@@ -71,7 +83,7 @@
     constraints.push('以提供的参考图为角色外形依据，尽量保持脸、发型、瞳色、服装等可见特征；保留所选原画动作、画风、构图和未选中部分。');
     return (basic?basic+'\n\n':'')+constraints.join('\n');
   }
-  root.MangaCharacterBibleCore=Object.freeze({
+  root.MangaCharacterBibleCore=Object.freeze({dnaTags,normalizeDna,
     VERSION,MAX_CARDS,MAX_REFS,MAX_IMAGE_DATA_LENGTH,
     normalize,fromDocument,toDocument,withCharacterPrompt,validReference,normalizeIdentity,validFeature,MAX_FEATURES
   });

@@ -514,7 +514,7 @@ return (named.length?named:(previous||[]).filter(function(c){return absent.index
 // positions: reading order or library order must never imply character coordinates.
 function libraryCharacters(scene,lib,previous){
 lib=lib||(window.CharacterLibrary&&CharacterLibrary._state&&CharacterLibrary._state.cards)||[];
-return sceneCast(scene,lib,previous).map(function(c){return {prompt:NaiEngineCore.joinTags(c.identity&&c.identity.tags,c.traits)};}).filter(function(c){return c.prompt;});
+return sceneCast(scene,lib,previous).map(function(c){var dna=window.MangaCharacterBibleCore&&MangaCharacterBibleCore.dnaTags?MangaCharacterBibleCore.dnaTags(c):'';return {prompt:NaiEngineCore.joinTags(NaiEngineCore.joinTags(c.identity&&c.identity.tags,dna),c.traits)};}).filter(function(c){return c.prompt;});
 }
 function castSelections(){
 var roles=Array.from(document.querySelectorAll('#taskPagePanels [data-cast-role]'));
@@ -667,6 +667,9 @@ job.panels=panels;
 canvas.renderAll();
 if(engine!=='nai'&&window.ProviderRoute)window.ProviderRoute.notice('gpt');
 var done=0,failed=[];
+// Anlas guard for the batch (AUDIT-v2 #10): on the free tier the balance must not drop; stop the queue if it does.
+var anlasFree=false,anlasPrev=null;
+if(engine==='nai'&&window.NaiEngine&&NaiEngine.subscription){try{anlasFree=!!(await NaiEngine.costText({width:rects[0].width,height:rects[0].height},1)).free;anlasPrev=await NaiEngine.subscription(true);}catch(e){}}
 for(var i=0;i<rects.length;i++){
 if(!current())break;
 status('正在画第 '+(i+1)+' / '+rects.length+' 格…');
@@ -684,6 +687,7 @@ if(!current())break;
 img.name='第'+(i+1)+'格画面';if(data.seed!=null){img.naiSeed=data.seed;img.tempSeed=data.seed;img.tempPrompt=NaiEngineCore.joinTags(style,scenes[i]);}
 putImageInFrame(img,rects[i].left+rects[i].width/2,rects[i].top+rects[i].height/2,true,false,true,panels[i]);
 done++;
+if(anlasFree&&window.MangaPageDecomposeCore){var anlasNow=await NaiEngine.subscription(true),ag=MangaPageDecomposeCore.anlasGuard(anlasPrev&&anlasPrev.anlas,anlasNow&&anlasNow.anlas,true);anlasPrev=anlasNow;if(ag.stop){status(ag.message,true);break;}}
 }catch(error){if(error.name==='AbortError')job.cancel=true;if(!current())break;failed.push(i+1);var em=error.userMessage||error.message||'';status('第 '+(i+1)+' 格没画成：'+(engine==='gpt'&&window.NaiEngine&&NaiEngine.isRefusal(em)?'这个 GPT 服务按它自己的内容规则拒绝了这一格（不是本编辑器的限制）。可以点上面的「NovelAI」改用 NovelAI 再生成。':em),true);if(engine==='gpt'&&window.NaiEngine&&NaiEngine.isRefusal(em))job.refused=true;if(error.status===401||error.network||engine==='nai')break;}
 canvas.renderAll();
 }

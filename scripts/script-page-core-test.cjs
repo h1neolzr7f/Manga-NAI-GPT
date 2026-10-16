@@ -47,4 +47,8 @@ assert.equal(r.stats.panels, 2); assert.equal(r.pages[0].panels[0].lines[0].spea
 r = S.parse('第１コマ 朝の駅\n第２コマ 電車');
 assert.equal(r.stats.panels, 2);
 assert.deepEqual(S.parse('').stats, { pages: 0, panels: 0, lines: 0, explicit: false });
+// doc soft rules: ≤2 bubbles/panel, 3–5 elements/scene, 2–4 panels/page are warnings only (nothing is split)
+r = S.parse('第1格\n教室，窗户，桌子，黑板，夕阳，书包\n小林：一\n小林：二\n小林：三');
+assert.equal(r.stats.panels, 1); assert.equal(r.warnings.length, 2);
+assert.ok(S.parse('第1格 a\n第2格 b\n第3格 c\n第4格 d\n第5格 e').warnings.some(w => w.includes('2–4 格')));
 console.log('PASS script -> page parser: markers, speakers, quotes, narration, sfx, pages, 6-panel split, guessed scenes, merging');

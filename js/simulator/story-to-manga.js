@@ -174,7 +174,7 @@ var shared=(sb.series_positive_tags||[]).join(', '),sharedNeg=(sb.series_negativ
 plan.pages.forEach(function(page){
 var pg=pages[page.page];if(pg){page.purpose=pg.purpose;page.continuityIn=pg.continuity_in;page.continuityOut=pg.continuity_out;}
 page.panels.forEach(function(panel){var it=byKey[page.page+'-'+panel.panel];if(!it)return;
-panel.prompt=[shared,it.prompt].filter(Boolean).join(', ');panel.negative_prompt=[sharedNeg,it.negative_prompt].filter(Boolean).join(', ');
+var D=root.NovelAICompositionDirector,tags=[shared,it.prompt].filter(Boolean).join(', ').split(/\s*,\s*/).filter(Boolean);panel.prompt=(D&&D.docOrderParts?D.docOrderParts(tags):tags).join(', ');panel.negative_prompt=[sharedNeg,it.negative_prompt].filter(Boolean).join(', ');
 panel.shot=it.shot;panel.mustShow=it.must_show;panel.mustNotShow=it.must_not_show;
 var known=panel.characters||[];if(it.cast&&it.cast.length)panel.cast=it.cast.filter(function(c){return known.indexOf(c)>=0;});
 panel.directorSource='api-batch';});

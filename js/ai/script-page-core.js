@@ -56,12 +56,15 @@
       else p.lines.push(Object.defineProperty({ speaker: c.speaker, text: c.text }, 'id', { value: 'L' + (++lineSeq) }));  // stable, non-enumerable line ID
     }
     // drop empty panels; split long pages (one page holds up to MAX_PANELS)
-    const out = [];
+    const out = []; let softLines = 0, softScene = 0, softPanels = 0;
     for (const pg of pages) {
       const ps = [];
       // Too much dialogue for one panel: continue in an extra panel of the same scene instead of
       // merging different speakers into one bubble (audit 49).
       pg.panels.filter(p => p.scene || p.lines.length).forEach(p => {
+        // doc rules (soft): 0–2 bubbles per panel, 3–5 visible elements per scene
+        if (p.lines.length > 2 && p.lines.length <= MAX_LINES && !softLines++) warnings.push('有一格对白超过 2 句：建议每格最多 2 个对白泡，可拆成两格。');
+        if (p.scene && p.scene.split(/[,，、;；。]/).filter(x => x.trim()).length > 5 && !softScene++) warnings.push('有一格场景描写超过 5 个要素：建议只写这一格看得见的 3–5 样东西。');
         if (p.lines.length <= MAX_LINES) { ps.push(p); return; }
         warnings.push('有一格对白超过 ' + MAX_LINES + ' 句，多的句子放进了紧接着的续格（同一场景），可以改。');
         for (let k = 0; k < p.lines.length; k += MAX_LINES) {
@@ -71,6 +74,7 @@
         }
       });
       for (let i = 0; i < ps.length; i += MAX_PANELS) out.push({ panels: ps.slice(i, i + MAX_PANELS) });
+      if (ps.length > 4 && ps.length <= MAX_PANELS && !softPanels++) warnings.push('有一页超过 4 格：建议每页 2–4 格，节奏更清楚。');
       if (ps.length > MAX_PANELS) warnings.push('一页最多 ' + MAX_PANELS + ' 格：多出来的格子放到了下一页。');
     }
     out.forEach((pg, pi) => pg.panels.forEach((p, i) => {

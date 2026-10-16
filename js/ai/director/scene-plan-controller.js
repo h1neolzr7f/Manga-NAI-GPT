@@ -22,6 +22,7 @@ var dialogue=story?story.nodes.filter(function(node){return node.type==='speech'
 var character=story.characters.find(function(item){return item.id===node.speaker;});
 return {speaker:character?character.id:'director_a',content:node.content||node.choices&&node.choices.map(function(choice){return choice.label;}).join('/')||''};
 }):[{speaker:'director_a',content:value||'请继续'}];
+// doc rule (one moment per panel): normal pages spread the lines over the panels in order instead of piling them on the last one
 var panels=[];
 for(var index=1;index<=count;index++){
 var last=index===count;
@@ -31,7 +32,7 @@ mode:last?mode:'normal',
 description:last&&mode==='simulator'?value:'分镜 '+index,
 template:last?template:'',
 characters:story?story.characters.map(function(character){return character.name;}):[],
-dialogue:last?dialogue:[],
+dialogue:mode==='normal'&&story?dialogue.slice(Math.floor((index-1)*dialogue.length/count),Math.floor(index*dialogue.length/count)):(last?dialogue:[]),
 story:last&&story?story:undefined
 });
 }

@@ -35,13 +35,15 @@
   }
 
   /** Measure one balloon: kinsoku lines, font size from the panel; returns size + a builder. */
-  function measure(text, rect) {
-    const fontSize = Math.min(44, Math.max(20, Math.round(Math.min(rect.width || rect.w, rect.height || rect.h) * 0.06)));
+  function baseSize(rect) { return Math.min(44, Math.max(20, Math.round(Math.min(rect.width || rect.w, rect.height || rect.h) * 0.06))); }
+  function measure(text, rect, size, kind) {
+    const fontSize = size || baseSize(rect);
     const n = Array.from(text).length, perLine = n <= 9 ? n : Math.ceil(Math.sqrt(n * 1.6));
     const lines = root.CjkBreak ? root.CjkBreak.breakLines(text, perLine) : [text];
     const longest = Math.max.apply(null, lines.map(l => Array.from(l).length));
     const tb = new root.fabric.Textbox(lines.join('\n'), { width: longest * fontSize * 1.06, fontSize, textAlign: 'center', fill: '#111', splitByGrapheme: true,
       fontFamily: '"Noto Sans SC","Microsoft YaHei",sans-serif' });
+    if (kind && C.textStyle) tb.set(Object.assign(C.textStyle(kind), { fontSize }));
     const w = Math.max(longest * fontSize * 1.08 / 0.66, fontSize * 4), h = Math.max(tb.height * 1.75, fontSize * 2.6);
     return { w, h, tb };
   }
@@ -107,12 +109,17 @@
   function layoutNow(rects, lines, info) {
     const panels = rects.map(rectOf), order = C.readingOrder(panels, dir());
     const occupied = textObstacles(), placed = [];
+    // one size per text kind across the page (doc lettering rule); opt out together with mnai.bubbleKinds='0'
+    const all = [], sizes = {};
+    for (const pi of order) splitLines(lines[pi]).forEach(t => all.push({ pi, kind: C.kindOf ? C.kindOf(t).kind : 'speech', s: baseSize(panels[pi]) }));
+    const uni = kindsOn() && C.pageFontSizes ? C.pageFontSizes(all.map(a => a.s), all.map(a => a.kind)) : all.map(a => a.s);
+    all.forEach((a, i) => { (sizes[a.pi] = sizes[a.pi] || []).push(uni[i]); });
     let n = 0;
     for (const pi of order) {
       const texts = splitLines(lines[pi]); if (!texts.length) continue;
       // markup such as 「」 *…* 【】 {} or a （电话） note picks the balloon kind and is never printed
       const kinds = texts.map(t => C.kindOf ? C.kindOf(t) : { kind: 'speech', text: t, tail: true, shape: 'ellipse' });
-      const ms = kinds.map(k => measure(k.text, panels[pi]));
+      const ms = kinds.map((k, j) => measure(k.text, panels[pi], sizes[pi] && sizes[pi][j], kindsOn() ? k.kind : null));
       const sp = speakers(panels[pi], info.faces, texts.length);
       const spots = C.place(panels[pi], ms.map((m, k) => ({ w: m.w, h: m.h, speaker: sp[k] == null ? null : sp[k] })), { faces: info.faces, energy: info.energy, occupied, dir: dir() });
       // place() wants speaker indexes into its own faces list: pass the full list and map back
@@ -145,6 +152,11 @@
     const pairs = Array.from(byPanel.values());
     const panels = pairs.map(p => p[0].g.balloon.panelRect);
     const occupied = textObstacles(), placed = [];
+    // one size per text kind across the page (doc lettering rule); opt out together with mnai.bubbleKinds='0'
+    const all = [], sizes = {};
+    for (const pi of order) splitLines(lines[pi]).forEach(t => all.push({ pi, kind: C.kindOf ? C.kindOf(t).kind : 'speech', s: baseSize(panels[pi]) }));
+    const uni = kindsOn() && C.pageFontSizes ? C.pageFontSizes(all.map(a => a.s), all.map(a => a.kind)) : all.map(a => a.s);
+    all.forEach((a, i) => { (sizes[a.pi] = sizes[a.pi] || []).push(uni[i]); });
     let n = 0;
     for (const pi of C.readingOrder(panels, dir())) {
       const list = pairs[pi];

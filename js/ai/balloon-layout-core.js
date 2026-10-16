@@ -135,5 +135,19 @@
     else if (/^[「『][^」』]+[」』]$/.test(t)) t = t.slice(1, -1);
     return { kind, text: t.trim(), tail: !/^(thought|sfx|narration|crowd)$/.test(kind), shape: kind === 'narration' || kind === 'phone' ? 'rect' : kind === 'sfx' ? 'none' : 'ellipse', dashed: kind === 'distant' };
   }
-  root.BalloonLayoutCore = Object.freeze({ readingOrder, energyMap, place, tail, metrics, progress, kindOf });
+  /** Doc lettering rule: same kind of text on one page shares one size (median), SFX is bigger, narration a bit smaller. */
+  function pageFontSizes(sizes, kinds) {
+    const by = {}; sizes.forEach((s, i) => { const k = kinds[i] || 'speech'; (by[k] = by[k] || []).push(s); });
+    const med = a => { const b = a.slice().sort((x, y) => x - y); return b[Math.floor((b.length - 1) / 2)]; };
+    const scale = { sfx: 1.4, narration: 0.85 };
+    return sizes.map((s, i) => { const k = kinds[i] || 'speech'; return Math.round(med(by[k]) * (scale[k] || 1)); });
+  }
+  /** Doc SFX/narration styling: SFX heavy, outlined and tilted, no balloon; narration left-aligned in a box. */
+  function textStyle(kind) {
+    if (kind === 'sfx') return { fontWeight: 900, stroke: '#fff', strokeWidth: 5, paintFirst: 'stroke', angle: -8, textAlign: 'center' };
+    if (kind === 'narration') return { textAlign: 'left' };
+    if (kind === 'thought') return { fontStyle: 'normal', textAlign: 'center' };
+    return { textAlign: 'center' };
+  }
+  root.BalloonLayoutCore = Object.freeze({ readingOrder, energyMap, place, tail, metrics, progress, kindOf, pageFontSizes, textStyle });
 })(typeof window !== 'undefined' ? window : globalThis);
