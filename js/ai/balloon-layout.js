@@ -45,11 +45,17 @@
     const w = Math.max(longest * fontSize * 1.08 / 0.66, fontSize * 4), h = Math.max(tb.height * 1.75, fontSize * 2.6);
     return { w, h, tb };
   }
+  function kindsOn() { try { return root.localStorage && root.localStorage.getItem('mnai.bubbleKinds') === '1'; } catch { return false; } }
   function build(m, spot, meta) {
     const c = root.canvas, id = 'bl-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const parts = [];
-    if (spot.tail) parts.push(new root.fabric.Polygon(tailPoints(spot), { fill: '#fff', stroke: '#111', strokeWidth: 3, strokeLineJoin: 'round' }));
-    parts.push(new root.fabric.Ellipse({ left: spot.x, top: spot.y, rx: spot.w / 2, ry: spot.h / 2, fill: '#fff', stroke: '#111', strokeWidth: 3 }));
+    // balloon kind (v2 shapes behind localStorage mnai.bubbleKinds='1' until the user's blind pick)
+    const k = kindsOn() && meta.kind ? meta.kind : { tail: true, shape: 'ellipse', dashed: false };
+    const line = { fill: '#fff', stroke: '#111', strokeWidth: 3 }; if (k.dashed) line.strokeDashArray = [10, 7];
+    if (spot.tail && k.tail) parts.push(new root.fabric.Polygon(tailPoints(spot), Object.assign({ strokeLineJoin: 'round' }, line)));
+    if (k.shape === 'rect') parts.push(new root.fabric.Rect(Object.assign({ left: spot.x + spot.w * .08, top: spot.y + spot.h * .1, width: spot.w * .84, height: spot.h * .8 }, line)));
+    else if (k.shape === 'none') parts.push(new root.fabric.Rect({ left: spot.x, top: spot.y, width: spot.w, height: spot.h, fill: 'rgba(0,0,0,0)', strokeWidth: 0 }));
+    else parts.push(new root.fabric.Ellipse(Object.assign({ left: spot.x, top: spot.y, rx: spot.w / 2, ry: spot.h / 2 }, line)));
     const g = new root.fabric.Group(parts, { name: '对白气泡 ' + meta.order });
     g.balloon = Object.assign({ id, role: 'shape' }, meta, { w: spot.w, h: spot.h, rect: [spot.x, spot.y, spot.w, spot.h], tip: spot.tail ? [spot.tail.x, spot.tail.y] : null });
     c.add(g);
@@ -104,11 +110,13 @@
     let n = 0;
     for (const pi of order) {
       const texts = splitLines(lines[pi]); if (!texts.length) continue;
-      const ms = texts.map(t => measure(t, panels[pi]));
+      // markup such as 「」 *…* 【】 {} or a （电话） note picks the balloon kind and is never printed
+      const kinds = texts.map(t => C.kindOf ? C.kindOf(t) : { kind: 'speech', text: t, tail: true, shape: 'ellipse' });
+      const ms = kinds.map(k => measure(k.text, panels[pi]));
       const sp = speakers(panels[pi], info.faces, texts.length);
       const spots = C.place(panels[pi], ms.map((m, k) => ({ w: m.w, h: m.h, speaker: sp[k] == null ? null : sp[k] })), { faces: info.faces, energy: info.energy, occupied, dir: dir() });
       // place() wants speaker indexes into its own faces list: pass the full list and map back
-      spots.forEach((s, k) => { n++; build(ms[k], s, { order: n, panel: pi, panelRect: panels[pi], speaker: sp[k] }); occupied.push(s); placed.push(Object.assign({ panel: pi, panelRect: panels[pi] }, s)); });
+      spots.forEach((s, k) => { n++; build(ms[k], s, { order: n, panel: pi, panelRect: panels[pi], speaker: sp[k], kind: kinds[k] }); occupied.push(s); placed.push(Object.assign({ panel: pi, panelRect: panels[pi] }, s)); });
     }
     root.canvas.requestRenderAll();
     return { placed, metrics: C.metrics(placed, info.faces, info.energy, dir()), facesAvailable: info.facesAvailable, faces: info.faces.length };

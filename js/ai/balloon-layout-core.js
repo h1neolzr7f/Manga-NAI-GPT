@@ -123,5 +123,17 @@
     });
     return { balloons: placed.length, facesCovered: faceHit, faceAreaCovered: Math.round(faceArea), balloonOverlap: Math.round(overlap), orderViolations: viol, meanDetail: placed.length ? +(en / placed.length).toFixed(3) : 0 };
   }
-  root.BalloonLayoutCore = Object.freeze({ readingOrder, energyMap, place, tail, metrics, progress });
+  /** Balloon kind from the line's own markup (never printed): 「…」speech, *…* thought, 【…】sound effect, {…} narration;
+   * a leading （电话）/（画外）/（远处）/（众人） note picks a phone / off-screen / distant / crowd balloon. */
+  function kindOf(raw) {
+    let t = String(raw || '').trim(), kind = 'speech';
+    const note = /^[（(](电话|手机|广播|画外|门外|远处|远方|众人|大家)[）)]\s*/.exec(t);
+    if (note) { t = t.slice(note[0].length); kind = /电话|手机|广播/.test(note[1]) ? 'phone' : /画外|门外/.test(note[1]) ? 'offscreen' : /远/.test(note[1]) ? 'distant' : 'crowd'; }
+    if (/^\*[^*]+\*$/.test(t)) { kind = 'thought'; t = t.slice(1, -1); }
+    else if (/^【[^】]+】$/.test(t)) { kind = 'sfx'; t = t.slice(1, -1); }
+    else if (/^\{[^}]+\}$/.test(t)) { kind = 'narration'; t = t.slice(1, -1); }
+    else if (/^[「『][^」』]+[」』]$/.test(t)) t = t.slice(1, -1);
+    return { kind, text: t.trim(), tail: !/^(thought|sfx|narration|crowd)$/.test(kind), shape: kind === 'narration' || kind === 'phone' ? 'rect' : kind === 'sfx' ? 'none' : 'ellipse', dashed: kind === 'distant' };
+  }
+  root.BalloonLayoutCore = Object.freeze({ readingOrder, energyMap, place, tail, metrics, progress, kindOf });
 })(typeof window !== 'undefined' ? window : globalThis);
