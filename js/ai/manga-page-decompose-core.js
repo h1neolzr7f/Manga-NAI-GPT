@@ -25,7 +25,7 @@
     const panels = (spec.panels || []).filter(p => p && (clean(p.description) || clean(p.text))).slice(0, 8);
     const n = panels.length || 1, pos = (spec.layout && Array.isArray(spec.layout.positions) && spec.layout.positions.length === n) ? spec.layout.positions : positions(n);
     const lines = [], hints = [];
-    const style = 'manga, comic page, monochrome, greyscale, screentone, speech bubble, text, chinese text';
+    const style = spec.color ? 'manga, comic page, full color, cel shading, clean lineart, speech bubble, text, chinese text' : 'manga, comic page, monochrome, greyscale, screentone, speech bubble, text, chinese text';
     const L = spec.layout || {};
     const layout = n + (n === 1 ? ' panel' : ' panels') + ' exactly' + (clean(L.sentence) ? ', ' + clean(L.sentence) : '') +
       ', read ' + (spec.rtl ? 'right to left, ' : '') + 'top to bottom, ' +
@@ -33,17 +33,19 @@
     const cast = clean(spec.page);
     const perPanel = panels.map((p, i) => pos[i] + ' panel ONLY: ' + clean(p.description).replace(/,?\s*no text$/i, '') + ', no text');
     const placement = panels.map((p, i) => {
-      const t = stripText(p.text);
+      const raw = clean(p.text), kind = /^\*.*\*$/.test(raw) ? 'thought' : /^【.*】$/.test(raw) ? 'sfx' : /^\{.*\}$/.test(raw) ? 'narration' : 'speech';
+      const t = stripText(raw.replace(/^\*(.*)\*$/, '$1'));
       if (!t) return pos[i] + ' panel: wordless';
       lines.push(t); hints.push(t);
-      return pos[i] + ' panel: text block ' + lines.length + ' in a white speech bubble' + (clean(p.speaker) ? ' from ' + clean(p.speaker) : '');
+      const holder = { speech: 'in a white speech bubble', thought: 'in a cloud-shaped thought bubble', sfx: 'as hand-drawn sound effect lettering without a bubble', narration: 'in a rectangular narration box' }[kind];
+      return pos[i] + ' panel: text block ' + lines.length + ' ' + holder + (clean(p.speaker) && kind !== 'sfx' && kind !== 'narration' ? ' from ' + clean(p.speaker) : '');
     });
     const base = [style, layout, cast].filter(Boolean).join(', ') + '.\n' + perPanel.join('.\n') + '.\n' + placement.join('.\n') + '.' +
       (lines.length ? '\nDo not print frame labels, block numbers, character names or any English words.\nText: ' + lines.join('\n\n') : '');
     const characters = (spec.characters || []).filter(c => c && clean(c.prompt)).slice(0, 6)
       .map(c => ({ prompt: clean(c.prompt), negative: clean(c.negative), center: c.center }));
     // Negative never excludes what the page needs (text, bubbles, panels).
-    const negative = 'english text, prompt text, frame labels, panel numbers, watermark, signature, lowres, worst quality, bad quality, jpeg artifacts, bad anatomy';
+    const negative = (spec.color ? 'monochrome, greyscale, ' : '') + 'english text, prompt text, frame labels, panel numbers, watermark, signature, lowres, worst quality, bad quality, jpeg artifacts, bad anatomy';
     return { prompt: base, characters, hints, width: 832, height: 1216, steps: 28, negative, profile: 'page', positions: pos.slice(0, n) };
   }
   /** Pre-generation lint for a page spec. Returns {ok, errors, warnings}. */
@@ -99,7 +101,15 @@
       const per = Math.max(1, Math.floor(along / (size * 1.02)));
       const lines = breakLines(text, per);
       const longest = Math.max.apply(null, lines.map(l => Array.from(l).length + (NO_LINE_START.test(l.slice(-1)) ? 0 : 0)));
-      if (lines.length * size * (vertical ? 1.3 : 1.15) <= across && longest * size * 1.02 <= along + size * 0.6) return { fontSize: size, lines, overflow: false };
+      if (lines.length * size * (vertical ? 1.3 : 1.15) <= across && longest * size * 1.02 <= along + size * 0.6) {
+        // Balance the lines (no lone last character): same line count, shortest even split that still obeys kinsoku.
+        const total = Array.from(text.replace(/\s+/g, '')).length;
+        for (let p2 = Math.ceil(total / lines.length); p2 < per; p2++) {
+          const b = breakLines(text, p2);
+          if (b.length === lines.length) return { fontSize: size, lines: b, overflow: false };
+        }
+        return { fontSize: size, lines, overflow: false };
+      }
     }
     return { fontSize: minSize, lines: breakLines(text, Math.max(1, Math.floor(along / minSize))), overflow: true };
   }
@@ -119,9 +129,17 @@
       const area = t.safe || (t.isBubble ? t.bubble : t.bbox);
       const box = { x: area[0] * s, y: area[1] * s, width: area[2] * s, height: area[3] * s };
       const fit = fitInRect(clean(t.text), box, !!t.vertical);
-      return { text: clean(t.text), lines: fit.lines, vertical: !!t.vertical, suspect: !!t.suspect, box, panel: t.panel,
+      return { text: clean(t.text), lines: fit.lines, vertical: !!t.vertical, isBubble: !!t.isBubble, suspect: !!t.suspect, box, panel: t.panel,
         bubbleBox: { x: (t.isBubble ? t.bubble : t.bbox)[0] * s, y: (t.isBubble ? t.bubble : t.bbox)[1] * s, width: (t.isBubble ? t.bubble : t.bbox)[2] * s, height: (t.isBubble ? t.bubble : t.bbox)[3] * s },
         fontSize: fit.fontSize, overflow: fit.overflow, ocrText: t.ocrText || t.text, angle: 0 };
+    });
+    // One size per region type (bubble vertical / bubble horizontal / other): cap each at the group median.
+    const groups = {};
+    texts.forEach(t => { const k = (t.isBubble ? 'b' : 'o') + (t.vertical ? 'v' : 'h'); (groups[k] = groups[k] || []).push(t); });
+    Object.values(groups).forEach(g => {
+      if (g.length < 2 || root.__noUnify) return;
+      const sz = g.map(t => t.fontSize).sort((a, b) => a - b), med = sz[(sz.length - 1) >> 1];
+      g.forEach(t => { if (t.fontSize > med) { const f = fitInRect(t.text, t.box, t.vertical, med, med); if (!f.overflow) { t.fontSize = med; t.lines = f.lines; } } });
     });
     return { panels, texts };
   }

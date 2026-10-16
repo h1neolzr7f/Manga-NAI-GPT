@@ -495,6 +495,10 @@ def decompose_array(rgb, mask=None, session=None, use_manga_ocr=False, use_lama=
     return {"width": w, "height": h, "panels": panels, "texts": texts, "cleaned": cleaned, "mask": mask}
 
 
+from collections import OrderedDict
+_CACHE = OrderedDict()
+
+
 def decompose(image_url, allow_download=False, use_manga_ocr=None, rtl=False, hints=None):
     from manga_smart_ocr import read_image
     from manga_model_guard import exclusive, manga_ocr_cached
@@ -503,6 +507,12 @@ def decompose(image_url, allow_download=False, use_manga_ocr=None, rtl=False, hi
     raw, w, h = read_image(image_url)
     if w * h > MAX_PIXELS:
         raise SmartOcrError("整页拆解最多 420 万像素，请先缩小图片。", 413)
+    # Cache by image SHA-256 + parameters: an edited image never reuses an old result.
+    import hashlib, json
+    key = hashlib.sha256(raw + json.dumps([bool(use_manga_ocr), bool(rtl), list(hints or [])], ensure_ascii=False).encode("utf-8")).hexdigest()
+    if key in _CACHE:
+        _CACHE.move_to_end(key)
+        return dict(_CACHE[key], cached=True)
     rgb = np.array(Image.open(io.BytesIO(raw)).convert("RGB"))
     from manga_text_detector import _get_session, text_mask_array
     with exclusive("ctd", wait=90):
@@ -516,4 +526,8 @@ def decompose(image_url, allow_download=False, use_manga_ocr=None, rtl=False, hi
     res["cleaned"] = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
     res["ok"] = True
     res["warning"] = "自动拆解结果需人工确认：黄色标记的文字可能识别错误。"
-    return res
+    res["sha256"] = key
+    _CACHE[key] = res
+    while len(_CACHE) > 6:
+        _CACHE.popitem(last=False)
+    return dict(res, cached=False)

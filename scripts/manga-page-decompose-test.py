@@ -73,3 +73,31 @@ def _no_gutter_tiers():
 
 
 _no_gutter_tiers()
+
+
+def _cache_by_sha():
+    try:
+        import numpy as np, cv2  # noqa: F401
+        from PIL import Image
+    except ImportError:
+        return
+    import io, base64
+    import manga_page_decompose as D
+    calls = []
+    real = D.decompose_array
+    D.decompose_array = lambda rgb, **k: (calls.append(1), {"width": rgb.shape[1], "height": rgb.shape[0], "panels": [], "texts": [], "cleaned": rgb, "mask": None})[1]
+    import manga_text_detector as T
+    T._get_session, T.text_mask_array = (lambda *_a: None), (lambda rgb, s: (None, None))
+    def url(v):
+        b = io.BytesIO(); Image.fromarray(np.full((64, 64, 3), v, np.uint8)).save(b, "PNG")
+        return "data:image/png;base64," + base64.b64encode(b.getvalue()).decode()
+    try:
+        a = D.decompose(url(200)); b = D.decompose(url(200)); c = D.decompose(url(201)); d = D.decompose(url(200), hints=["x"])
+        assert not a["cached"] and b["cached"] and not c["cached"] and not d["cached"] and len(calls) == 3, (calls, a["cached"], b["cached"])
+        assert a["sha256"] == b["sha256"] != c["sha256"]
+    finally:
+        D.decompose_array = real
+    print("decompose cache by sha256 ok")
+
+
+_cache_by_sha()

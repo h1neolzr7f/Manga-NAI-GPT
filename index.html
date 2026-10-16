@@ -1041,6 +1041,10 @@ const b = `<svg viewBox="0 0 100 100" width="100%" height="100%" style="position
                                 <i class="material-icons">auto_stories</i>
                                 <span>整页生成并拆解</span>
                             </button>
+                            <button type="button" id="mangaPageQaButton" class="nai-character-mini-button" title="给本页打 5 项 QA 分（叙事、镜头动作、版面焦点、情绪、阅读承接），并记录计划/实际格数">
+                                <i class="material-icons">fact_check</i>
+                                <span>整页 QA</span>
+                            </button>
                             <button type="button" id="mangaImportGenerateButton" class="nai-character-mini-button">
                                 <i class="material-icons">auto_awesome</i>
                                 <span>NAI 重绘本页</span>
@@ -2700,8 +2704,9 @@ const b = `<svg viewBox="0 0 100 100" width="100%" height="100%" style="position
     <script src="js/ai/panel-pipeline-review.js?v=8.10" defer></script>
     <script src="js/ai/prompt/auto/auto-generation.js?v=9.1" defer></script>
     <script src="js/ai/manga-importer.js?v=8.17" defer></script>
-    <script src="js/ai/manga-page-decompose-core.js?v=1.1" defer></script>
-    <script src="js/ai/manga-page-decompose-ui.js?v=1.1" defer></script>
+    <script src="js/ai/manga-page-decompose-core.js?v=1.2" defer></script>
+    <script src="js/ai/manga-page-plan-core.js?v=1.0" defer></script>
+    <script src="js/ai/manga-page-decompose-ui.js?v=1.2" defer></script>
 
     <script src="js/db/user-font-repository.js?v=7.2" defer></script>
     <script src="js/ui/font/user-font-manager.js?v=7.7" defer></script>

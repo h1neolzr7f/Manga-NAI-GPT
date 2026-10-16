@@ -46,3 +46,16 @@ console.log('manga-page-decompose-core ok');
   assert.ok(!C.anlasGuard(3513, 3000, false).stop);
   console.log('anlasGuard ok');
 }
+{
+  const C = globalThis.MangaPageDecomposeCore, assert = require('assert');
+  const s = { panels: [{ description: 'a', text: '*想*' }, { description: 'b', text: '【砰】' }, { description: 'c', text: '{次日}' }, { description: 'd', text: '「好」' }] };
+  const p = C.buildPagePrompt(s).prompt;
+  assert.ok(/thought bubble/.test(p) && /sound effect lettering without a bubble/.test(p) && /narration box/.test(p) && /white speech bubble/.test(p));
+  assert.ok(!/[*【】{}「」]/.test(p.split('Text:')[1]));
+  const c = C.buildPagePrompt(Object.assign({ color: true }, s));
+  assert.ok(/full color/.test(c.prompt) && !/monochrome/.test(c.prompt) && /^monochrome/.test(c.negative));
+  assert.ok(!/monochrome/.test(C.buildPagePrompt(s).negative));
+  // balanced lines: no lone last char
+  assert.deepStrictEqual(C.fitInRect('终于到了', { width: 90, height: 100 }, true, 30, 30).lines, ['终于', '到了']);
+  console.log('bubble kinds / color / balance ok');
+}

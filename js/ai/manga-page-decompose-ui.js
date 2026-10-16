@@ -10,6 +10,16 @@
   const fimg = src => new Promise(ok => fabric.Image.fromURL(src, ok));
   let hints = null;
 
+  /** Centre of the rendered ink (alpha > 40) in canvas coordinates; falls back to the bounding box. */
+  function inkCenter(o, r) {
+    try {
+      const cv = o.toCanvasElement({ multiplier: 1 }), d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+      let x0 = Infinity, y0 = Infinity, x1 = -1, y1 = -1;
+      for (let j = 0; j < cv.height; j++) for (let i = 0; i < cv.width; i++) if (d[(j * cv.width + i) * 4 + 3] > 40) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (j < y0) y0 = j; if (j > y1) y1 = j; }
+      if (x1 >= 0) return { x: r.left + (x0 + x1 + 1) / 2 * r.width / cv.width, y: r.top + (y0 + y1 + 1) / 2 * r.height / cv.height };
+    } catch (_) { /* tainted or headless canvas: use the box */ }
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  }
   async function decomposeDataUrl(dataUrl, scriptLines, options) {
     const rtl = !!(options && options.rtl);
     if (Array.isArray(scriptLines)) hints = scriptLines;
@@ -48,7 +58,8 @@
         if (V) tb.set({ height: t.box.height });
         tb.setCoords();
         const b = tb.getBoundingRect(true, true);   // centre by rendered bbox inside the bubble
-        tb.set({ left: tb.left + (t.box.x + t.box.width / 2) - (b.left + b.width / 2), top: tb.top + (t.box.y + t.box.height / 2) - (b.top + b.height / 2) });
+        const ink = inkCenter(tb, b);   // centre by the glyphs' ink bbox, not the text box
+        tb.set({ left: tb.left + (t.box.x + t.box.width / 2) - ink.x, top: tb.top + (t.box.y + t.box.height / 2) - ink.y });
         tb.set({ name: (t.suspect ? '⚠待校对 · ' : '台词 · ') + t.text.slice(0, 12), mangaDecomposeText: true, mangaOcrText: t.ocrText, mangaSuspect: t.suspect });
         if (t.suspect) suspect++;
         c.add(tb);
@@ -60,6 +71,7 @@
     } finally { if (typeof changeDoSaveHistory === 'function') changeDoSaveHistory(); }
     if (typeof saveStateByManual === 'function') saveStateByManual();
     if (typeof updateLayerPanel === 'function') updateLayerPanel();
+    return r;
   }
 
   function pickAndDecompose() {
@@ -82,10 +94,17 @@
     const raw = window.prompt('每格一行：画面描述 | 台词（台词可空），例：girl waving | 早上好！', '');
     if (raw === null) return;
     const panels = raw.split(/\n|;|；/).map(l => { const [d, t] = l.split('|'); return { description: d, text: t }; });
+    const P = window.MangaPagePlanCore;
+    const opt = P ? window.prompt('可选：题材 和 留白，用逗号分开（可空）。题材：' + Object.keys(P.GENRES).join('/') + '；留白：' + Object.keys(P.MARGINS).join('/') + '；要彩色再加 color', '') : '';
+    if (opt === null) return;
+    const [gk, mk] = String(opt || '').split(/[,，\s]+/).map(x => x.trim()).filter(x => x && !/^colou?r$/i.test(x));
+    const layout = {};
+    if (P && P.GENRES[gk]) layout.sentence = P.GENRES[gk].sentence;
+    if (P && P.MARGINS[mk || gk]) layout.frame = P.MARGINS[mk || gk].frame;
     const lint = core.lintPageSpec({ page, panels });
     if (!lint.ok) throw new Error('生成前检查未通过：' + lint.errors.join(' '));
     if (lint.warnings.length) say('提示：' + lint.warnings.join(' '));
-    const spec = core.buildPagePrompt({ page, panels });
+    const spec = core.buildPagePrompt({ page, panels, layout, color: /\bcolor\b/i.test(opt || '') });
     delete spec.seed; // reroll = new random seed every run
     if (anlasStop) throw new Error(anlasStop);
     const before = await window.NaiEngine.subscription(true);
@@ -98,14 +117,42 @@
     const g = core.anlasGuard(before && before.anlas, after && after.anlas, cost.free);
     if (g.stop) { anlasStop = g.message; say(g.message); }
     hints = spec.hints;
-    await decomposeDataUrl(out.image, spec.hints, { rtl: true });   // builder names two-column rows right first
+    const r = await decomposeDataUrl(out.image, spec.hints, { rtl: true });   // builder names two-column rows right first
+    // Planned vs actual panel count, kept per generated page (also the QA record).
+    const rec = P ? P.panelRecord(spec.positions.length, r && r.panels ? r.panels.length : 0, { sha256: r && r.sha256, genre: gk || '', margin: mk || '' }) : null;
+    if (rec) { (window.__mangaPageRecords = window.__mangaPageRecords || []).push(rec); if (!rec.match) say('注意：计划 ' + rec.planned + ' 格，实际切出 ' + rec.actual + ' 格。'); }
+    return rec;
+  }
+
+  /** Five-item QA scoring dialog for the current page (each 0–2; pass = total ≥ 8, no zero, no blocker). */
+  function openQa() {
+    const P = window.MangaPagePlanCore;
+    if (!P) return;
+    let box = $('mangaPageQa');
+    if (box) box.remove();
+    box = document.createElement('div');
+    box.id = 'mangaPageQa';
+    box.setAttribute('role', 'dialog');
+    box.style.cssText = 'position:fixed;right:16px;top:80px;z-index:9999;background:#fff;border:1px solid #888;border-radius:8px;padding:12px;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.2)';
+    const sel = (k, label) => '<label style="display:block;margin:3px 0">' + label + ' <select data-qa="' + k + '"><option>0</option><option selected>1</option><option>2</option></select></label>';
+    const chk = (k, label) => '<label style="margin-right:8px"><input type="checkbox" data-block="' + k + '">' + label + '</label>';
+    box.innerHTML = '<b>整页 QA（每项 0–2 分）</b>' + P.QA_ITEMS.map(([k, l]) => sel(k, l)).join('') +
+      '<div style="margin:6px 0">阻断项：' + P.QA_BLOCKERS.map(([k, l]) => chk(k, l)).join('') + '</div>' +
+      '<div id="mangaPageQaResult" aria-live="polite"></div><button type="button" id="mangaPageQaSave">记录</button> <button type="button" id="mangaPageQaClose">关闭</button>';
+    document.body.appendChild(box);
+    const read = () => { const sc = {}, bl = {}; box.querySelectorAll('[data-qa]').forEach(e => { sc[e.dataset.qa] = +e.value; }); box.querySelectorAll('[data-block]').forEach(e => { bl[e.dataset.block] = e.checked; }); return P.scoreQA(sc, bl); };
+    const show = () => { const q = read(); $('mangaPageQaResult').textContent = '总分 ' + q.total + '/10 · ' + (q.pass ? '通过' : '未通过' + (q.zeros.length ? '（0 分：' + q.zeros.join('、') + '）' : '') + (q.blocked.length ? '（阻断：' + q.blocked.join('、') + '）' : '')); return q; };
+    box.addEventListener('change', show); show();
+    $('mangaPageQaSave').onclick = () => { const q = show(); const recs = window.__mangaPageRecords = window.__mangaPageRecords || []; const last = recs[recs.length - 1] || P.panelRecord(0, 0); if (!recs.length) recs.push(last); last.qa = q; last.status = q.pass ? 'visual_reviewed' : 'generated'; say('QA 已记录：' + $('mangaPageQaResult').textContent); };
+    $('mangaPageQaClose').onclick = () => box.remove();
   }
 
   function bind() {
-    const a = $('mangaDecomposeButton'), g = $('mangaGenDecomposeButton');
+    const a = $('mangaDecomposeButton'), g = $('mangaGenDecomposeButton'), q = $('mangaPageQaButton');
+    if (q) q.addEventListener('click', openQa);
     if (a) a.addEventListener('click', pickAndDecompose);
     if (g) g.addEventListener('click', () => generateAndDecompose().catch(e => say('整页生成失败：' + (e.message || e), true)));
   }
   document.addEventListener('DOMContentLoaded', bind);
-  window.MangaPageDecompose = { decomposeDataUrl, generateAndDecompose, pickAndDecompose };
+  window.MangaPageDecompose = { decomposeDataUrl, generateAndDecompose, pickAndDecompose, openQa };
 })();
