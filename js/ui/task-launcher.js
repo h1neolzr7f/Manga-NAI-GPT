@@ -667,7 +667,7 @@ try{
 var naiPrompt=NaiEngineCore.joinTags(style,scenes[i]);
 if(engine==='nai'&&!NaiEngineCore.features(settings.model).characters)naiPrompt=NaiEngineCore.joinTags(naiPrompt,characters[i].map(function(c){return c.prompt;}).join(', '));
 var data=engine==='nai'?await NaiEngine.run(Object.assign({},settings,{prompt:naiPrompt,characters:characters[i],width:rects[i].width,height:rects[i].height,seed:lockSeed==null?undefined:lockSeed}),job.ctl.signal,status):
-await ServiceRequest.request('gpt','/gpt-image-proxy',{signal:job.ctl.signal,timeoutMs:300000,headers:key?{Authorization:'Bearer '+key}:{},
+if(window.ProviderRoute)window.ProviderRoute.notice('gpt');await ServiceRequest.request('gpt','/gpt-image-proxy',{signal:job.ctl.signal,timeoutMs:300000,headers:key?{Authorization:'Bearer '+key}:{},
 body:{operation:'generate',baseUrl:gptUrl,model:gptModel,size:sizeFor(rects[i]),
 prompt:pagePrompt(style,scenes[i])+(characters[i].length?'\n本格人物须保持这些外观与服装特征：'+characters[i].map(function(c){return c.prompt;}).join('；'):'')}});
 if(!current())break;

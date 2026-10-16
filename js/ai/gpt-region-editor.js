@@ -1392,6 +1392,7 @@
           await letterboxImage(region.image, plan);
       }
       requestCurrent();
+      if(window.ProviderRoute)window.ProviderRoute.notice('gpt');
       const response = await fetch(imageProxyBase() + '/gpt-image-proxy', {
         method: 'POST',
         headers: Object.assign({ 'Content-Type': 'application/json' },

@@ -191,6 +191,7 @@
   }
   async function gptOnce(payload, signal) {
     const key = (($('mangaGptKey') || {}).value || '').trim().replace(/^Bearer\s+/i, '');
+    if(window.ProviderRoute)window.ProviderRoute.notice('gpt');
     const r = await fetch('/gpt-image-proxy', { method: 'POST', signal, headers: Object.assign({ 'Content-Type': 'application/json' }, key ? { Authorization: 'Bearer ' + key } : {}), body: JSON.stringify(payload) });
     let j; try { j = await r.json(); } catch (_) { throw new Error('本地服务返回了非 JSON 响应（HTTP ' + r.status + '）。'); }
     if (!r.ok || !j.ok || !/^data:image\//.test(j.image || '')) throw new Error(j.error || '上游没有返回图像。');
