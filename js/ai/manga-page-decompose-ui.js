@@ -69,7 +69,7 @@
     input.click();
   }
 
-  let genBusy = false;
+  let genBusy = false, anlasStop = '';
   async function generateAndDecompose() {
     if (genBusy) throw new Error('上一张还在生成，请稍候（一次只跑一个任务）。');
     genBusy = true;
@@ -87,11 +87,16 @@
     if (lint.warnings.length) say('提示：' + lint.warnings.join(' '));
     const spec = core.buildPagePrompt({ page, panels });
     delete spec.seed; // reroll = new random seed every run
+    if (anlasStop) throw new Error(anlasStop);
+    const before = await window.NaiEngine.subscription(true);
     const cost = await window.NaiEngine.costText(spec, 1);
     if (!cost.free && !window.confirm('这张会花 ' + cost.text + '，继续？')) return;
     say('NovelAI 正在生成整页（' + cost.text + '）…');
     const out = await window.NaiEngine.run({ prompt: spec.prompt, negative: spec.negative, characters: spec.characters,
       width: spec.width, height: spec.height, steps: spec.steps, preservePositiveStyle: true }, null, say);
+    const after = await window.NaiEngine.subscription(true);
+    const g = core.anlasGuard(before && before.anlas, after && after.anlas, cost.free);
+    if (g.stop) { anlasStop = g.message; say(g.message); }
     hints = spec.hints;
     await decomposeDataUrl(out.image, spec.hints, { rtl: true });   // builder names two-column rows right first
   }

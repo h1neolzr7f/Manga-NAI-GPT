@@ -51,3 +51,25 @@ assert r2["texts"][0]["erase"] == "skipped" and (r2["cleaned"] == img).all()
 blank = np.full((300, 200), 255, np.uint8); blank[50:250, 50:150] = 30
 assert len(D.detect_panels(blank)) == 1
 print("manga-page-decompose ok")
+
+
+def _no_gutter_tiers():
+    try:
+        import numpy as np, cv2  # noqa: F401
+    except ImportError:
+        return
+    import manga_page_decompose as D
+    g = np.full((1216, 832), 255, np.uint8)
+    rng = np.random.default_rng(1)
+    for i in range(4):   # textured tiers that touch each other, split by thin black lines only
+        y0, y1 = i * 304, (i + 1) * 304
+        g[y0:y1] = rng.integers(150, 256, (y1 - y0, 832), dtype=np.uint8)
+        g[y0:y1:9, ::7] = 240
+        cv2.line(g, (0, y1 - 2), (831, y1 - 2), 0, 4)
+    g[:, :2] = 0; g[:, -2:] = 0; g[:2] = 0
+    assert len(D._line_cells(g)) == 4, len(D._line_cells(g))
+    assert len(D._prefer_line_grid(g, [])) == 4
+    print("no-gutter tiers ok")
+
+
+_no_gutter_tiers()

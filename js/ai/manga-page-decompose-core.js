@@ -70,6 +70,15 @@
     if ((spec.steps || 28) > 28) errors.push('步数超过 28（免费档上限）。');
     return { ok: !errors.length, errors, warnings };
   }
+  /** After a run expected to be free: stop the queue when the Anlas balance dropped (or cannot be read). */
+  function anlasGuard(before, after, expectedFree) {
+    if (!expectedFree) return { stop: false };
+    const num = v => (typeof v === 'number' ? v : (v && typeof v === 'object' ? Object.values(v).reduce((a, b) => a + (+b || 0), 0) : NaN));
+    const b = num(before), a = num(after);
+    if (!Number.isFinite(b) || !Number.isFinite(a)) return { stop: true, message: '无法确认 Anlas 余额，已停止后续生成（刷新页面后可再试）。' };
+    if (a < b) return { stop: true, message: 'Anlas 余额从 ' + b + ' 降到 ' + a + '，已停止后续生成。' };
+    return { stop: false, spent: 0 };
+  }
   const NO_LINE_START = /^[，。、！？：；…）」』】〉》!?,.:;)\]—～·]/;
   /** Break CJK text into lines of at most `per` chars; closing punctuation never starts a line. */
   function breakLines(text, per) {
@@ -116,7 +125,7 @@
     });
     return { panels, texts };
   }
-  const api = Object.freeze({ buildPagePrompt, planLayers, positions, fitInRect, breakLines, PAGE_STYLE, lintPageSpec });
+  const api = Object.freeze({ buildPagePrompt, planLayers, positions, fitInRect, breakLines, PAGE_STYLE, lintPageSpec, anlasGuard });
   root.MangaPageDecomposeCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

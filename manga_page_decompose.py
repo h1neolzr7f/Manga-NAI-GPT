@@ -55,6 +55,7 @@ def detect_panels(gray, min_area_ratio=0.015):
         panels.append({"polygon": poly.astype(int).tolist(), "bbox": [int(x), int(y), int(bw), int(bh)],
                        "fill": round(area / float(bw * bh), 3)})
     panels = _drop_contained(panels)
+    panels = _prefer_line_grid(gray, panels)
     if not panels:  # borderless page: single panel covering the content
         ys, xs = np.where(gray < 225)
         if len(xs):
@@ -64,6 +65,39 @@ def detect_panels(gray, min_area_ratio=0.015):
         panels = [{"polygon": [[x0, y0], [x1, y0], [x1, y1], [x0, y1]],
                    "bbox": [x0, y0, x1 - x0 + 1, y1 - y0 + 1], "fill": 1.0, "borderless": True}]
     return order_panels(panels)
+
+
+def _line_cells(gray):
+    """Cells bounded by thin straight dark frame lines (for pages without white gutters)."""
+    cv2, np = _np()
+    h, w = gray.shape
+    d = (gray < 110).astype(np.uint8)
+
+    def thin_lines(kl, horiz):
+        k = cv2.getStructuringElement(cv2.MORPH_RECT, (kl, 1) if horiz else (1, kl))
+        kt = cv2.getStructuringElement(cv2.MORPH_RECT, (kl, 14) if horiz else (14, kl))
+        thick = cv2.dilate(cv2.morphologyEx(d, cv2.MORPH_OPEN, kt), np.ones((5, 5), np.uint8))
+        return cv2.morphologyEx(d, cv2.MORPH_OPEN, k) & (1 - thick)
+    lines = cv2.dilate(thin_lines(int(w * 0.2), True) | thin_lines(int(h * 0.12), False), np.ones((5, 5), np.uint8))
+    n, _lab, st, _c = cv2.connectedComponentsWithStats(1 - lines, connectivity=4)
+    cells = []
+    for i in range(1, n):
+        x, y, bw, bh, a = (int(v) for v in st[i])
+        if a < 0.03 * h * w or bh < 0.06 * h or a / float(bw * bh) < 0.85:
+            continue
+        cells.append({"polygon": [[x, y], [x + bw, y], [x + bw, y + bh], [x, y + bh]], "bbox": [x, y, bw, bh],
+                      "fill": round(a / float(bw * bh), 3), "lineGrid": True})
+    return cells
+
+
+def _prefer_line_grid(gray, panels):
+    """Use the line grid only when it explains clearly more of the page with clean rectangles."""
+    h, w = gray.shape
+    cells = _line_cells(gray)
+    good = lambda ps: sum(p["bbox"][2] * p["bbox"][3] for p in ps if p["fill"] >= 0.85) / float(h * w)
+    if len(cells) > len(panels) and good(cells) > good(panels) + 0.15:
+        return cells
+    return panels
 
 
 def _contains(a, b, slack=4):

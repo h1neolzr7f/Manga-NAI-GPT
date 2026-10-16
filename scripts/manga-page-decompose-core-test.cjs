@@ -37,3 +37,12 @@ console.log('manga-page-decompose-core ok');
   assert.ok(C.lintPageSpec({ panels: [{ description: 'a', text: '' }] }).warnings.length === 1);
   console.log('lintPageSpec ok');
 }
+{
+  const C = globalThis.MangaPageDecomposeCore, assert = require('assert');
+  assert.ok(!C.anlasGuard(3513, 3513, true).stop);
+  assert.ok(C.anlasGuard(3513, 3500, true).stop);
+  assert.ok(C.anlasGuard({ fixed: 0, purchased: 3513 }, { fixed: 0, purchased: 3512 }, true).stop);
+  assert.ok(C.anlasGuard(null, 3513, true).stop);
+  assert.ok(!C.anlasGuard(3513, 3000, false).stop);
+  console.log('anlasGuard ok');
+}
