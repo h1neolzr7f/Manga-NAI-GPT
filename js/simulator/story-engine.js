@@ -246,7 +246,9 @@ nodes.push(normalizeNode({type:'hint',content:content},nodes.length));
 return;
 }
 if(/^(独白|内心|aside)$/i.test(name)){
-var speaker=characters.length?characters[characters.length-1].id:ensureCharacter('角色A');
+// no speaker yet: an opening monologue is a narration caption, not an invented 角色A
+if(!characters.length){nodes.push(normalizeNode({type:'narrator',content:content},nodes.length));return;}
+var speaker=characters[characters.length-1].id;
 nodes.push(normalizeNode({type:'aside',speaker:speaker,content:content},nodes.length));
 return;
 }

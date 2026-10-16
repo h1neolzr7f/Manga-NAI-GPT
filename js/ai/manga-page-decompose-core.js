@@ -151,7 +151,24 @@
     });
     return { panels, texts };
   }
-  const api = Object.freeze({ buildPagePrompt, planLayers, positions, fitInRect, breakLines, PAGE_STYLE, lintPageSpec, anlasGuard });
+  /** Story/batch-director plan page -> full-page spec (no retyping): panel prompt minus quality/frame tags as the
+   *  description, shot first, must_show/must_not_show kept, first line as the panel text (markup kept for the kind). */
+  function specFromPlanPage(page, opts) {
+    opts = opts || {};
+    const DROP = /^(masterpiece|best quality|amazing quality|very aesthetic|highres|absurdres|manga panel|clean panel border|panel border|clean crop|manga|comic|monochrome|greyscale|screentone|lineart)$/i;
+    const src = (page && page.panels || []).filter(q => q.mode !== 'simulator');
+    const tagsOf = q => String(q.prompt || '').split(/\s*,\s*/).map(clean).filter(t => t && !DROP.test(t) && !/^character_[a-z0-9]+$/i.test(t));
+    // tags every panel repeats (the series bible) are said once for the page, not once per panel
+    const all = src.map(tagsOf), shared = src.length > 1 ? all[0].filter(t => all.every(a => a.includes(t))) : [];
+    const panels = src.map((q, qi) => {
+      const tags = all[qi].filter(t => !shared.includes(t));
+      const desc = [q.shot].concat(tags).filter(Boolean).filter((t, i, a) => a.indexOf(t) === i).slice(0, 14).join(', ') || clean(q.description);
+      const d = (q.dialogue || [])[0];
+      return { description: desc, text: d ? clean(d.content || d.text || '') : '', speaker: d ? clean(d.speaker) : '', mustShow: q.mustShow || [], mustNotShow: q.mustNotShow || [] };
+    });
+    return { page: Array.from(new Set([clean(opts.page)].concat(shared).filter(Boolean))).join(', '), panels, layout: opts.layout || {}, rtl: opts.rtl !== false, color: !!opts.color };
+  }
+  const api = Object.freeze({ buildPagePrompt, specFromPlanPage, planLayers, positions, fitInRect, breakLines, PAGE_STYLE, lintPageSpec, anlasGuard });
   root.MangaPageDecomposeCore = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

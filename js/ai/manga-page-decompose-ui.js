@@ -89,6 +89,15 @@
   }
   async function generateOnce() {
     if (!window.NaiEngine || !window.NaiEngine.configured()) throw new Error('请先在「服务设置」填写 NovelAI Token。');
+    // Story / batch-director plan available: use its next page directly (no retyping in three dialogs)
+    const SP = window.__mangaStoryPlan;
+    if (SP && SP.pages && SP.pages.length && core.specFromPlanPage) {
+      const k = Math.min(SP.pages.length - 1, SP.nextPage || 0);
+      if (window.confirm('用剧情分镜的第 ' + (k + 1) + ' / ' + SP.pages.length + ' 页直接生成整页？\n（画面、景别、必须出现的东西和台词都来自导演；取消 = 手动输入）')) {
+        SP.nextPage = k + 1;
+        return runSpec(core.buildPagePrompt(core.specFromPlanPage(SP.pages[k], { rtl: true })), '', '');
+      }
+    }
     const page = window.prompt('整页场景（英文 tag，例：school gate, morning）', '') ;
     if (page === null) return;
     const raw = window.prompt('每格一行：画面描述 | 台词（台词可空），例：girl waving | 早上好！', '');
@@ -104,7 +113,10 @@
     const lint = core.lintPageSpec({ page, panels });
     if (!lint.ok) throw new Error('生成前检查未通过：' + lint.errors.join(' '));
     if (lint.warnings.length) say('提示：' + lint.warnings.join(' '));
-    const spec = core.buildPagePrompt({ page, panels, layout, color: /\bcolor\b/i.test(opt || '') });
+    return runSpec(core.buildPagePrompt({ page, panels, layout, color: /\bcolor\b/i.test(opt || '') }), gk, mk);
+  }
+  async function runSpec(spec, gk, mk) {
+    const P = window.MangaPagePlanCore;
     delete spec.seed; // reroll = new random seed every run
     if (anlasStop) throw new Error(anlasStop);
     const before = await window.NaiEngine.subscription(true);

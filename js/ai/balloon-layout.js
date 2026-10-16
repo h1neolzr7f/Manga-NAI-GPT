@@ -225,24 +225,41 @@
    *  the script. Returns null when the OCR service or the plan core is unavailable; never edits the page. */
   async function recheck(lines) {
     const P = root.MangaPagePlanCore, c = root.canvas; const want = expectedText(lines);
-    if (!P || !P.recheckText || !c || !want.length || typeof fetch !== 'function') return null;
-    try {
-      const image = c.toDataURL({ format: 'png', multiplier: 1 });
-      const r = await fetch('/manga-smart/ocr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image, language: 'chi_sim+jpn', refine: false }) });
-      const j = await r.json(); if (!j || !j.ok) return null;
-      const found = (j.regions || []).map(g => g.text || '');
-      if (!found.some(t => /[\u3040-\u30ff\u4e00-\u9fff]/.test(t))) return null;   // OCR could not read this page at all: no hint
-      const res = P.recheckText(want, found);
-      // Tesseract misses single lines on busy art: only hint when at least half the lines are missing (local 6-page set:
-      // false alarms 0/6, hidden line caught 4/6; mismatches are OCR noise and are not reported)
-      res.hint = res.missing.length > 0 && res.missing.length >= want.length / 2;
-      return res;
-    } catch (e) { return null; }
+    if (!c || !want.length) return null;
+    // 1) layer check (works for vertical lettering, which local Tesseract cannot read): every script line is on a
+    //    visible text layer and that layer stays inside its balloon
+    const norm = t => String(t || '').replace(/[\s\n]/g, '');
+    const objs = c.getObjects().filter(o => o.balloon && o.balloon.role === 'text');
+    const shapes = new Map(c.getObjects().filter(o => o.balloon && o.balloon.role === 'shape').map(o => [o.balloon.id, o]));
+    const missing = want.filter(w => !objs.some(o => o.visible !== false && norm(o.text) === norm(w)));
+    let overflow = 0;
+    objs.forEach(o => { const g = shapes.get(o.balloon.id); if (!g || !o.getBoundingRect) return; o.setCoords(); const a = o.getBoundingRect(true, true), q = g.getBoundingRect(true, true);
+      if (a.left < q.left - 2 || a.top < q.top - 2 || a.left + a.width > q.left + q.width + 2 || a.top + a.height > q.top + q.height + 2) overflow++; });
+    const res = { method: 'layers', missing, mismatched: [], overflow, ok: want.length - missing.length };
+    res.hint = missing.length > 0 || overflow > 0;
+    // 2) final-image OCR only for horizontal lettering (language 'auto': the earlier Chinese+Japanese code was not a language the service accepts, so it always failed)
+    if (!res.hint && P && P.recheckText && typeof fetch === 'function' && !objs.some(o => o.type === 'vertical-textbox')) {
+      try {
+        const image = c.toDataURL({ format: 'png', multiplier: 1 });
+        const r = await fetch('/manga-smart/ocr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image, language: 'auto', refine: false }) });
+        const j = await r.json();
+        const found = j && j.ok ? (j.regions || []).map(g => g.text || '') : [];
+        if (found.some(t => /[\u3040-\u30ff\u4e00-\u9fff]/.test(t))) {
+          const o = P.recheckText(want, found);
+          // Tesseract misses single lines on busy art: only hint when at least half the lines are missing
+          if (o.missing.length && o.missing.length >= want.length / 2) { res.method = 'ocr'; res.missing = o.missing; res.hint = true; }
+        }
+      } catch (e) { /* OCR unavailable: layer check stands */ }
+    }
+    return res;
   }
   function recheckMessage(res) {
     if (!res || !res.hint) return '';
-    const miss = res.missing.slice(0, 3).map(t => '「' + t + '」').join('、');
-    return '终图复核（仅提示，OCR 可能看错）：' + res.missing.length + ' 句台词在成图里没读到：' + miss + '，请检查是否被遮挡或溢出。';
+    const miss = (res.missing || []).slice(0, 3).map(t => '「' + t + '」').join('、');
+    const parts = [];
+    if (res.missing && res.missing.length) parts.push(res.missing.length + ' 句台词' + (res.method === 'ocr' ? '在成图里没读到（OCR 可能看错）' : '没有出现在气泡里') + '：' + miss);
+    if (res.overflow) parts.push(res.overflow + ' 个气泡的文字超出了气泡');
+    return '终图复核（仅提示）：' + parts.join('；') + '。';
   }
   root.BalloonLayout = { analyze, layoutPage, arrange, showOrder, hideOrder, splitLines, dir, setDir, recheck, recheckMessage, expectedText };
 })(typeof window !== 'undefined' ? window : globalThis);

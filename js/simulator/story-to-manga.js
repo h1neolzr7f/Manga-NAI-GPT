@@ -9,6 +9,8 @@ var value=api?api.normalize(story):story;
 var beats=[];
 (value.nodes||[]).forEach(function(node){
 if(['speech','aside','narrator','title','hint'].indexOf(node.type)<0)return;
+// the script's own 标题 line names the story; it is not a panel
+if(node.type==='title'&&(!value.title||String(node.content||'').trim()===String(value.title).trim()))return;
 var character=node.speaker&&api?api.getCharacter(value,node.speaker):null;
 var content=node.content||((node.choices||[]).map(function(choice){return choice.label;}).join(' / '));
 beats.push({
@@ -189,6 +191,7 @@ if(useBatch&&director&&typeof director.callBatchStoryboardApi==='function'){
 return director.callBatchStoryboardApi(batchContextFromPlan(plan)).then(function(sb){
 if(!sb)return enrichPlanWithDirector(plan,{batch:false});
 mergeBatch(plan,sb);
+root.__mangaStoryPlan=plan;   // offered by 生成整页 so the full-page route needs no retyping
 return {plan:plan,source:'api-batch',lint:lintPages(plan)};
 },function(){return enrichPlanWithDirector(plan,{batch:false});});
 }

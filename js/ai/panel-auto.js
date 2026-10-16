@@ -92,6 +92,16 @@
     const sx = W / j.width, sy = H / j.height;
     return j.panels.map((p, i) => ({ x: Math.round(p.bbox[0] * sx), y: Math.round(p.bbox[1] * sy), w: Math.round(p.bbox[2] * sx), h: Math.round(p.bbox[3] * sy), n: i + 1 }));
   }
+  /** P2: planned/actual panel log (same format as the full-page route). Planned = the panel count the story plan
+   *  gave this page when known (window.__mangaPlannedPanels[pageKey] or the last full-page record), else 0. */
+  function logRecord(r) {
+    const P = root.MangaPagePlanCore; if (!P || !P.panelRecord) return null;
+    const recs = root.__mangaPageRecords = root.__mangaPageRecords || [];
+    const known = root.__mangaPlannedPanels && root.__mangaPlannedPanels[r.key];
+    const rec = P.panelRecord(known || 0, r.panels.length, { source: r.source || 'xycut', key: r.key, route: 'split', plannedKnown: !!known });
+    recs.push(rec); while (recs.length > 200) recs.shift();
+    return rec;
+  }
   /** Panels of the current page (cached per page). */
   async function get() {
     const key = pageKey();
@@ -109,6 +119,7 @@
     const svc = await servicePanels(pg);
     const r = { key, W: pg.width, H: pg.height, image: pg.image, source: svc ? 'service' : 'xycut', panels: svc || detectFrom(g.getImageData(0, 0, c.width, c.height), pg.width, pg.height) };
     cache.set(key, r);
+    logRecord(r);
     while (cache.size > 12) cache.delete(cache.keys().next().value);
     return r;
   }
@@ -172,5 +183,5 @@
     return n;
   }
 
-  root.PanelAuto = { tighten, xyCut, detectFrom, fromService, get, splitToLayers, close, _cache: cache };
+  root.PanelAuto = { tighten, xyCut, detectFrom, fromService, logRecord, get, splitToLayers, close, _cache: cache };
 })(typeof window !== 'undefined' ? window : globalThis);
