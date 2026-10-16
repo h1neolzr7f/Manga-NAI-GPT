@@ -29,6 +29,7 @@ const TASKS = ['swap', 'caption', 'fix', 'layer', 'custom', 'page', 'nai'];
     await p.waitForFunction(() => typeof canvas !== 'undefined' && canvas.getWidth() > 0 && !!document.getElementById('taskBar'), null, { timeout: 60000 });
     v.timings.readyMs = Date.now() - t0;
     await p.waitForTimeout(800); await shot('01-first-open');
+    await p.locator('#taskWhatsNewGo').click({ timeout: 1500 }).catch(() => {});
     await p.locator('#tutorialSkipBtn').click({ timeout: 4000 }).catch(() => {}); await p.keyboard.press('Escape'); await p.waitForTimeout(300);
     await shot('02-home');
     const t1 = Date.now();

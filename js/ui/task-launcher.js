@@ -839,6 +839,10 @@ var WHATSNEW_KEY='mnai.whatsNew.1.6.6';
 function showWhatsNew(force){
 try{if(!force&&localStorage.getItem(WHATSNEW_KEY)==='1')return;}catch(e){}
 if($('taskWhatsNew'))return;
+// wait for the tutorial overlay to go away so acceptance tests (and real first-run) are not blocked
+if(!force&&document.querySelector('.tutorial-overlay')){
+setTimeout(function(){showWhatsNew(false);},800);return;
+}
 var ov=el('div',{id:'taskWhatsNew',class:'task-whatsnew',role:'dialog','aria-labelledby':'taskWhatsNewTitle'});
 ov.innerHTML='<div class="task-whatsnew-card">'+
 '<h2 id="taskWhatsNewTitle">1.6.6 新功能导览</h2>'+
