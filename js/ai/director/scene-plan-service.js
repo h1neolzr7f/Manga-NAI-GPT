@@ -50,11 +50,13 @@ var scene=story&&root.NaiComicStoryAdapters?root.NaiComicStoryAdapters.toChat(st
 if(root.NaiComicChatRenderer&&root.NaiComicTemplateRegistry)return root.NaiComicChatRenderer.renderScene(scene,root.NaiComicTemplateRegistry.get(scene.templateId));
 return Promise.reject(new Error('聊天模板渲染器未加载。'));
 }
-function apply(value){
+function apply(value,options){
 var current=currentCanvas(),result=preview(value);if(!result.ok)return Promise.reject(new Error(result.errors.join('; ')));if(!current||!root.fabric)return Promise.reject(new Error('Canvas 或 Fabric 尚未初始化。'));
 var applyId='plan_apply_'+Date.now().toString(36),created=[];var tasks=[];
-var flat=[];
-result.plan.pages.forEach(function(page){page.panels.forEach(function(panel){flat.push(panel);});});
+// D3: one canvas = one page. Apply only the chosen page (default first); the rest are reported, not flattened in.
+var pageIndex=Math.max(0,Math.min(result.plan.pages.length-1,Number(options&&options.page)||0));
+var flat=result.plan.pages[pageIndex]?result.plan.pages[pageIndex].panels.slice():[];
+var remainingPages=result.plan.pages.length-1;   // pages after page 0; caller compares with the applied index
 var layout=layoutFor(current,Math.max(1,flat.length));
 flat.forEach(function(panel,panelIndex){
 var cell=layout.cells[panelIndex]||layout.cells[0];
@@ -62,7 +64,7 @@ var x=cell.x,y=cell.y,width=cell.width,height=cell.height;
 if(panel.mode==='simulator'){tasks.push(renderSimulatorPanel(panel).then(function(object){object.set({left:x,top:y,scaleX:Math.min(1,width/(object.width||1)),scaleY:Math.min(1,height/(object.height||1)),scenePlanId:applyId,scenePlanPanelIndex:panelIndex});return object;}));}
 else{tasks.push(Promise.resolve(makeNormalPanel(panel,x,y,width,height)));}
 });
-return Promise.all(tasks).then(function(objects){if(typeof changeDoNotSaveHistory==='function')changeDoNotSaveHistory();objects.forEach(function(object){guid(object);object.scenePlanId=applyId;current.add(object);created.push(object);});if(typeof changeDoSaveHistory==='function')changeDoSaveHistory();current.renderAll();if(typeof updateLayerPanel==='function')updateLayerPanel();if(typeof saveStateByManual==='function')saveStateByManual();lastApply={id:applyId,objects:created};return {applyId:applyId,objects:objects,plan:result.plan};});
+return Promise.all(tasks).then(function(objects){if(typeof changeDoNotSaveHistory==='function')changeDoNotSaveHistory();objects.forEach(function(object){guid(object);object.scenePlanId=applyId;current.add(object);created.push(object);});if(typeof changeDoSaveHistory==='function')changeDoSaveHistory();current.renderAll();if(typeof updateLayerPanel==='function')updateLayerPanel();if(typeof saveStateByManual==='function')saveStateByManual();lastApply={id:applyId,objects:created};return {applyId:applyId,objects:objects,plan:result.plan,page:pageIndex,remainingPages:remainingPages};});
 }
 function rollback(){var current=currentCanvas();if(!lastApply||!current)return false;if(typeof changeDoNotSaveHistory==='function')changeDoNotSaveHistory();lastApply.objects.forEach(function(object){if(object.canvas===current)current.remove(object);});if(typeof changeDoSaveHistory==='function')changeDoSaveHistory();current.renderAll();if(typeof updateLayerPanel==='function')updateLayerPanel();if(typeof saveStateByManual==='function')saveStateByManual();var result=lastApply;lastApply=null;return {rolledBack:true,applyId:result.id};}
 function retryStep(value,pageIndex,panelIndex){var plan=root.NaiScenePlanSchema.parse(value),page=plan.pages[Number(pageIndex)||0],panel=page&&page.panels[Number(panelIndex)||0];if(!panel) return Promise.reject(new Error('ScenePlan 步骤不存在。'));return apply({schemaVersion:1,title:plan.title,pages:[{page:page.page,panels:[panel]}]});}

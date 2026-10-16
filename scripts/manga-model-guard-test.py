@@ -148,7 +148,7 @@ class HttpTest(unittest.TestCase):
         lama._reset_for_tests()
         with mock.patch.dict(os.environ, {"TORCH_HOME": tmp.name, "LAMA_MODEL": ""}), \
                 mock.patch.object(lama, "_import_upstream", return_value=SimpleNamespace(SimpleLama=Constructed)):
-            status, body = self.post("/manga-smart/lama-inpaint", {"image": png(32, 32), "mask": mask_img})
+            status, body = self.post("/manga-smart/lama-inpaint", {"image": png(32, 32), "mask": mask_img, "engine": "lama"})  # auto would take the bubble-fill path
         tmp.cleanup()
         lama._reset_for_tests()
         self.assertEqual(status, 428, body)

@@ -101,3 +101,21 @@ console.log('PASS smart text geometry, OCR drafts and safe erase color guards');
   assert.ok(!easy.overflow, 'normal caption not flagged');
   console.log('PASS fitText long paragraph fits both ways or flags overflow');
 }
+
+// Wrapped replacement text uses the shared kinsoku breaker when it is loaded (r7):
+// closing punctuation never starts a line and the last line is never a lone glyph.
+{
+  const ctx = { console }; ctx.window = ctx;
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../js/ui/util/cjk-break.js'), 'utf8'), ctx);
+  vm.runInNewContext(source, ctx);
+  const k = ctx.MangaSmartTextCore, CJ = ctx.CjkBreak;
+  const measure = (t, s) => Array.from(t).length * s;
+  for (const t of ['你怎么现在才来！我等了你好久了。', '这……这是给我的吗？', '我早就知道会这样，所以才没有告诉你。']) {
+    const r = k.fitText(t, { x: 0, y: 0, width: 70, height: 180 }, true, measure, 40);
+    const L = r.text.split('\n');
+    L.forEach((l, i) => { if (i > 0) assert.ok(CJ.NO_START.indexOf(Array.from(l)[0]) < 0, 'kinsoku: ' + r.text); });
+    if (L.length > 1) assert.ok(Array.from(L[L.length - 1]).length > 1, 'no lone last glyph: ' + r.text);
+    assert.equal(L.join(''), t.replace(/\n/g, ''), 'text unchanged');
+  }
+  console.log('PASS fitText kinsoku + balanced lines via CjkBreak');
+}

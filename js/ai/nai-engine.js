@@ -78,10 +78,16 @@
       await new Promise(res => setTimeout(res, Math.min(30000, e.wait * attempt)));
     }
   }
+  /** Opt-in extras from 服务设置 (all OFF by default; earlier A/B did not show a gain): sampling profile P and
+   *  per-character automatic negatives. */
+  function optIns() {
+    const on = k => { try { return root.localStorage && root.localStorage.getItem(k) === '1'; } catch { return false; } };
+    const o = {}; if (on('mnai.naiProfileP')) o.profile = 'P'; if (on('mnai.charAutoNeg')) o.charAutoNegative = true; return o;
+  }
   /** Queue one generation. opts -> NaiEngineCore.payload options (model/uc/quality/safe mode filled from settings). */
   function run(opts, signal, onStatus) {
     if (!configured()) return Promise.reject(Object.assign(new Error('还没填 NovelAI Token：请在「服务设置」里填写。'), { needsConfig: true }));
-    const body = C.payload(Object.assign({ model: modelId(), ucPreset: ucPreset(), quality: quality(), safeMode: safeMode() }, opts));
+    const body = C.payload(Object.assign({ model: modelId(), ucPreset: ucPreset(), quality: quality(), safeMode: safeMode() }, optIns(), opts));
     queued++; if (queued > 1 && onStatus) onStatus('排队中（NovelAI 一次只生成一张，前面还有 ' + (queued - 1) + ' 张）…');
     const job = () => Promise.resolve(lastEnd && Date.now() - lastEnd < C.SPACING_MS ? new Promise(r => setTimeout(r, C.SPACING_MS - (Date.now() - lastEnd))) : null).then(() => once(body, signal, onStatus));
     // Audit 60: share the editor's NovelAI queue so legacy layer generation and AI Fill never run at once

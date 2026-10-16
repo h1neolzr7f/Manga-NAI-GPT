@@ -468,6 +468,8 @@ requirements:[
 'Never remove, sanitize, or replace explicit/adult tags already present in character_cards or mandatory_positive_tags.',
 'Use material library anchors as valid NovelAI/Danbooru tags. Do not invent alternate tags when an anchor already exists.',
 'Panel prompts should differ by camera, action, composition, lighting, atmosphere, border, and story beat only.',
+'Only characters actually visible in a panel go into that panel prompt; do not paste every character card into every panel.',
+'One moment per panel; vary shot size within a page; end a sequence on a result or reaction shot.',
 'Do not repeat synonyms. Do not output Chinese inside prompt or negative_prompt.',
 'Do not refuse or apologize; only return JSON.'
 ],

@@ -123,5 +123,33 @@
     });
     return { balloons: placed.length, facesCovered: faceHit, faceAreaCovered: Math.round(faceArea), balloonOverlap: Math.round(overlap), orderViolations: viol, meanDetail: placed.length ? +(en / placed.length).toFixed(3) : 0 };
   }
-  root.BalloonLayoutCore = Object.freeze({ readingOrder, energyMap, place, tail, metrics, progress });
+  /** Balloon kind from the line's own markup (never printed): 「…」speech, *…* thought, 【…】sound effect, {…} narration;
+   * a leading （电话）/（画外）/（远处）/（众人） note picks a phone / off-screen / distant / crowd balloon. */
+  function kindOf(raw) {
+    let t = String(raw || '').trim(), kind = 'speech';
+    const note = /^[（(](电话|手机|广播|画外|门外|远处|远方|众人|大家)[）)]\s*/.exec(t);
+    if (note) { t = t.slice(note[0].length); kind = /电话|手机|广播/.test(note[1]) ? 'phone' : /画外|门外/.test(note[1]) ? 'offscreen' : /远/.test(note[1]) ? 'distant' : 'crowd'; }
+    if (/^\*[^*]+\*$/.test(t)) { kind = 'thought'; t = t.slice(1, -1); }
+    else if (/^【[^】]+】$/.test(t)) { kind = 'sfx'; t = t.slice(1, -1); }
+    else if (/^\{[^}]+\}$/.test(t)) { kind = 'narration'; t = t.slice(1, -1); }
+    else if (/^[「『][^」』]+[」』]$/.test(t)) t = t.slice(1, -1);
+    return { kind, text: t.trim(), tail: !/^(thought|sfx|narration|crowd)$/.test(kind), shape: kind === 'narration' || kind === 'phone' ? 'rect' : kind === 'sfx' ? 'none' : 'ellipse', dashed: kind === 'distant' };
+  }
+  /** Doc lettering rule: same kind of text on one page shares one size (median), SFX is bigger, narration a bit smaller. */
+  function pageFontSizes(sizes, kinds) {
+    const by = {}; sizes.forEach((s, i) => { const k = kinds[i] || 'speech'; (by[k] = by[k] || []).push(s); });
+    const med = a => { const b = a.slice().sort((x, y) => x - y); return b[Math.floor((b.length - 1) / 2)]; };
+    const scale = { sfx: 1.4, narration: 0.85 };
+    return sizes.map((s, i) => { const k = kinds[i] || 'speech'; return Math.round(med(by[k]) * (scale[k] || 1)); });
+  }
+  /** Doc SFX/narration styling: SFX heavy, outlined and tilted, no balloon; narration left-aligned in a box. */
+  function textStyle(kind) {
+    if (kind === 'sfx') return { fontWeight: 900, stroke: '#fff', strokeWidth: 5, paintFirst: 'stroke', angle: -8, textAlign: 'center' };
+    if (kind === 'narration') return { textAlign: 'left' };
+    if (kind === 'thought') return { fontStyle: 'normal', textAlign: 'center' };
+    return { textAlign: 'center' };
+  }
+  /** Doc direction rule: which kinds are lettered vertically. */
+  function verticalKind(kind) { return /^(speech|thought|phone|distant|offscreen|crowd)$/.test(kind || 'speech'); }
+  root.BalloonLayoutCore = Object.freeze({ readingOrder, energyMap, place, tail, metrics, progress, kindOf, pageFontSizes, textStyle, verticalKind });
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -9,6 +9,8 @@ var value=api?api.normalize(story):story;
 var beats=[];
 (value.nodes||[]).forEach(function(node){
 if(['speech','aside','narrator','title','hint'].indexOf(node.type)<0)return;
+// the script's own 标题 line names the story; it is not a panel
+if(node.type==='title'&&(!value.title||String(node.content||'').trim()===String(value.title).trim()))return;
 var character=node.speaker&&api?api.getCharacter(value,node.speaker):null;
 var content=node.content||((node.choices||[]).map(function(choice){return choice.label;}).join(' / '));
 beats.push({
@@ -24,6 +26,11 @@ return beats;
 
 var MAX_PANELS_PER_PAGE=6;
 function layoutCells(width,height,count){
+var PL=root.PageLayoutCore;
+if(PL){
+if(PL.v2Enabled()&&Number(count)>=1&&Number(count)<=6){var v=PL.cells(count,{width:width,height:height,dir:'rtl'});return {cols:0,rows:0,code:v.code,cells:v.cells};}
+return PL.grid(count,width,height);
+}
 count=Math.max(1,Number(count)||1);
 width=Number(width)||1000;
 height=Number(height)||1400;
@@ -47,9 +54,39 @@ height:cellH
 return {cols:cols,rows:rows,cells:cells};
 }
 
-function storyToPlan(story){
+/* v2 pacing (ON by default after the user's pick; opt out with localStorage mnai.storyV2='0'): one moment per panel —
+ * consecutive lines of the same speaker share a panel (at most 2 bubbles), narration/titles get their own,
+ * and pages hold 2–4 panels instead of every line on page 1. */
+var MAX_LINES_V2=2,PAGE_PANELS_V2=4;
+function storyV2Enabled(){try{return!(root.localStorage&&root.localStorage.getItem('mnai.storyV2')==='0');}catch(e){return true;}}
+function groupBeats(beats){
+var groups=[];
+beats.forEach(function(beat){
+var last=groups[groups.length-1];
+var talk=beat.type==='speech';
+if(last&&talk&&last.talk&&last.speaker===beat.speaker&&last.beats.length<MAX_LINES_V2){last.beats.push(beat);return;}
+groups.push({talk:talk,speaker:beat.speaker,beats:[beat]});
+});
+return groups;
+}
+function storyToPlanV2(value,beats){
+var groups=groupBeats(beats),pages=[];
+var per=groups.length<=PAGE_PANELS_V2?groups.length:(groups.length%PAGE_PANELS_V2===1?PAGE_PANELS_V2-1:PAGE_PANELS_V2);
+for(var i=0;i<groups.length;i+=per){
+pages.push({page:pages.length+1,panels:groups.slice(i,i+per).map(function(g,k){
+return {panel:k+1,mode:'normal',
+description:g.beats.map(function(b){return b.description;}).join(' / '),
+characters:g.speaker?[g.speaker]:[],
+dialogue:g.beats.filter(function(b){return b.content;}).map(function(b){return {speaker:b.speaker||'旁白',content:b.content};}),
+template:'',story:undefined};
+})});
+}
+return {schemaVersion:1,title:value.title||'剧情分镜',pages:pages};
+}
+function storyToPlan(story,opts){
 var value=engine()?engine().normalize(story):story;
 var beats=beatsFromStory(value);
+if((opts&&opts.v2)||(!(opts&&opts.v2===false)&&storyV2Enabled()))return storyToPlanV2(value,beats);
 return {
 schemaVersion:1,
 title:value.title||'剧情分镜',
@@ -113,8 +150,51 @@ rect.scenePlanPanelIndex=panel.panel;
 return rect;
 }
 
-function enrichPlanWithDirector(plan){
+/* Batch director (ON by default: r8 A/B lint errors 10→0, must_show 0/38→38/38; opt out with localStorage mnai.batchDirector='0'): one call plans the whole
+ * story with a shared bible plus page purpose / continuity and per-panel shot, cast, must_show, must_not_show;
+ * the merged plan is rechecked with MangaPagePlanCore.lintPlan. Falls back to the per-panel director. */
+function batchDirectorEnabled(){try{return !(root.localStorage&&root.localStorage.getItem('mnai.batchDirector')==='0');}catch(e){return true;}}
+function batchContextFromPlan(plan){
+var names=[],panels=[];
+plan.pages.forEach(function(page){page.panels.forEach(function(panel){
+(panel.characters||[]).forEach(function(n){if(n&&names.indexOf(n)<0)names.push(n);});
+if(panel.mode==='simulator')return;
+panels.push({page:page.page,panel:panel.panel,description:panel.description||'',characters:panel.characters||[],dialogue:(panel.dialogue||[]).map(function(d){return (d.speaker||'')+'：'+(d.content||'');})});
+});});
+return {user_story:plan.title||'',page_count:plan.pages.length,panel_count:panels.length,characters:names,panels:panels,page_fields:true,
+requirements:['Keep each page 2-4 panels as given; do not add or remove panels.','Only characters listed in a panel may appear in that panel prompt.']};
+}
+function lintPages(plan){
+var P=root.MangaPagePlanCore;if(!P||!P.lintPlan)return null;
+return P.lintPlan(plan.pages.map(function(p){var cast=[];p.panels.forEach(function(q){(q.characters||[]).forEach(function(c){if(cast.indexOf(c)<0)cast.push(c);});});
+return {purpose:p.purpose||'',continuityIn:p.continuityIn||'',continuityOut:p.continuityOut||'',cast:cast,panels:p.panels.map(function(q){return {description:q.description,shot:q.shot,cast:q.characters,mustShow:q.mustShow,mustNotShow:q.mustNotShow,lines:(q.dialogue||[]).map(function(d){return d.content||'';})};})};}));
+}
+function mergeBatch(plan,sb){
+var byKey={};sb.panels.forEach(function(it){byKey[it.page+'-'+it.panel]=it;});
+var pages={};(sb.pages||[]).forEach(function(p){pages[p.page]=p;});
+var shared=(sb.series_positive_tags||[]).join(', '),sharedNeg=(sb.series_negative_tags||[]).join(', ');
+plan.pages.forEach(function(page){
+var pg=pages[page.page];if(pg){page.purpose=pg.purpose;page.continuityIn=pg.continuity_in;page.continuityOut=pg.continuity_out;}
+page.panels.forEach(function(panel){var it=byKey[page.page+'-'+panel.panel];if(!it)return;
+var D=root.NovelAICompositionDirector,tags=[shared,it.prompt].filter(Boolean).join(', ').split(/\s*,\s*/).filter(Boolean);panel.prompt=(D&&D.docOrderParts?D.docOrderParts(tags):tags).join(', ');panel.negative_prompt=[sharedNeg,it.negative_prompt].filter(Boolean).join(', ');
+panel.shot=it.shot;panel.mustShow=it.must_show;panel.mustNotShow=it.must_not_show;
+var known=panel.characters||[];if(it.cast&&it.cast.length)panel.cast=it.cast.filter(function(c){return known.indexOf(c)>=0;});
+panel.directorSource='api-batch';});
+});
+plan.continuityNotes=sb.continuity_notes||'';
+return plan;
+}
+function enrichPlanWithDirector(plan,opts){
 var director=root.NovelAICompositionDirector;
+var useBatch=(opts&&opts.batch)||(!(opts&&opts.batch===false)&&batchDirectorEnabled());
+if(useBatch&&director&&typeof director.callBatchStoryboardApi==='function'){
+return director.callBatchStoryboardApi(batchContextFromPlan(plan)).then(function(sb){
+if(!sb)return enrichPlanWithDirector(plan,{batch:false});
+mergeBatch(plan,sb);
+root.__mangaStoryPlan=plan;   // offered by 生成整页 so the full-page route needs no retyping
+return {plan:plan,source:'api-batch',lint:lintPages(plan)};
+},function(){return enrichPlanWithDirector(plan,{batch:false});});
+}
 if(!director||typeof director.draftLayerPromptAsync!=='function'){
 return Promise.resolve({plan:plan,source:'heuristic'});
 }
@@ -179,9 +259,13 @@ root.NaiComicStoryToManga={
 beatsFromStory:beatsFromStory,
 layoutCells:layoutCells,
 storyToPlan:storyToPlan,
+groupBeats:groupBeats,
 fillDirectorPrompt:fillDirectorPrompt,
 makeMangaPanel:makeMangaPanel,
 enrichPlanWithDirector:enrichPlanWithDirector,
+batchContextFromPlan:batchContextFromPlan,
+lintPages:lintPages,
+mergeBatch:mergeBatch,
 createPanelsFromPlan:createPanelsFromPlan
 };
 })(typeof window!=='undefined'?window:globalThis);

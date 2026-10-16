@@ -78,6 +78,30 @@
   }
   function loadImg(src) { return new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src; }); }
 
+  /** Service panels in page px (reading order RTL), or null when the local service is unavailable. */
+  async function servicePanels(pg) {
+    if (typeof fetch !== 'function') return null;
+    try {
+      const res = await fetch('/manga-smart/panels', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: pg.image, rtl: true }) });
+      const j = await res.json();
+      return fromService(j, pg.width, pg.height);
+    } catch (e) { return null; }
+  }
+  function fromService(j, W, H) {
+    if (!j || !j.ok || !Array.isArray(j.panels) || !j.panels.length || !j.width) return null;
+    const sx = W / j.width, sy = H / j.height;
+    return j.panels.map((p, i) => ({ x: Math.round(p.bbox[0] * sx), y: Math.round(p.bbox[1] * sy), w: Math.round(p.bbox[2] * sx), h: Math.round(p.bbox[3] * sy), n: i + 1 }));
+  }
+  /** P2: planned/actual panel log (same format as the full-page route). Planned = the panel count the story plan
+   *  gave this page when known (window.__mangaPlannedPanels[pageKey] or the last full-page record), else 0. */
+  function logRecord(r) {
+    const P = root.MangaPagePlanCore; if (!P || !P.panelRecord) return null;
+    const recs = root.__mangaPageRecords = root.__mangaPageRecords || [];
+    const known = root.__mangaPlannedPanels && root.__mangaPlannedPanels[r.key];
+    const rec = P.panelRecord(known || 0, r.panels.length, { source: r.source || 'xycut', key: r.key, route: 'split', plannedKnown: !!known });
+    recs.push(rec); while (recs.length > 200) recs.shift();
+    return rec;
+  }
   /** Panels of the current page (cached per page). */
   async function get() {
     const key = pageKey();
@@ -90,8 +114,12 @@
     const k = Math.min(1, MAX / Math.max(pg.width, pg.height));
     const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(pg.width * k)); c.height = Math.max(1, Math.round(pg.height * k));
     const g = c.getContext('2d'); g.drawImage(im, 0, 0, c.width, c.height);
-    const r = { key, W: pg.width, H: pg.height, image: pg.image, panels: detectFrom(g.getImageData(0, 0, c.width, c.height), pg.width, pg.height) };
+    // Prefer the local service splitter (black lines without gutters, flashback black gutters, insets: 22/27 vs 17/27
+    // on the local hard-page set); the white-gutter XY-cut stays the offline fallback.
+    const svc = await servicePanels(pg);
+    const r = { key, W: pg.width, H: pg.height, image: pg.image, source: svc ? 'service' : 'xycut', panels: svc || detectFrom(g.getImageData(0, 0, c.width, c.height), pg.width, pg.height) };
     cache.set(key, r);
+    logRecord(r);
     while (cache.size > 12) cache.delete(cache.keys().next().value);
     return r;
   }
@@ -155,5 +183,5 @@
     return n;
   }
 
-  root.PanelAuto = { tighten, xyCut, detectFrom, get, splitToLayers, close, _cache: cache };
+  root.PanelAuto = { tighten, xyCut, detectFrom, fromService, logRecord, get, splitToLayers, close, _cache: cache };
 })(typeof window !== 'undefined' ? window : globalThis);

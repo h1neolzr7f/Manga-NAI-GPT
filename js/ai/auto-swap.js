@@ -214,6 +214,7 @@
     const timeoutError = () => { const e = new Error('图像服务 ' + Math.round(limit / 1000) + ' 秒没有完整响应，结果未知。画布没有改动，请先检查服务端记录，再决定是否重试。'); e.name = 'TimeoutError'; return e; };
     try {
     try {
+      if(window.ProviderRoute)window.ProviderRoute.notice('gpt');
       r = await fetch(base + '/gpt-image-proxy', { method: 'POST', signal: ctl.signal,
         headers: Object.assign({ 'Content-Type': 'application/json' }, key ? { Authorization: 'Bearer ' + key } : {}), body: JSON.stringify(payload) });
     } catch (e) {

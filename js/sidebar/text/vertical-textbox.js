@@ -1,6 +1,6 @@
 const ROTATED_BRACKETS_REGX=/[\(\)\]\[\{\}\]]/;
 const SOURCE_BRACKETS_REGEX=/[\\/]/;
-const JP_BRACKETS=/[ー「」『』（）〔〕［］｛｝｟｠〈〉《》【】〖〗〘〙〚〛゛゜。、・゠＝…•‥◦﹅﹆]/;
+const JP_BRACKETS=/[ー「」『』（）〔〕［］｛｝｟｠〈〉《》【】〖〗〘〙〚〛゛゜。、・゠＝…•‥◦﹅﹆—―～〜：；－]/;
 const JP_SPECIAL_BRACKETS=/[。、]/;
 const objectControls=fabric.Object.prototype.controls,controlsUtils=fabric.controlsUtils,scaleSkewStyleHandler=controlsUtils.scaleSkewCursorStyleHandler,{wrapWithFireEvent,wrapWithFixedAnchor,getLocalPoint}=controlsUtils;
 class VerticalTextbox extends fabric.IText{constructor(text,options){super(text,options);

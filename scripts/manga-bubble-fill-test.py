@@ -4,7 +4,11 @@ import io
 import pathlib
 import sys
 import unittest
-from PIL import Image, ImageDraw
+try:
+    from PIL import Image, ImageDraw
+except ImportError:  # CI legs without Pillow (offline-contract / legacy) skip like the other image tests
+    print('SKIP manga-bubble-fill (no Pillow)')
+    sys.exit(0)
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import manga_bubble_fill as bf

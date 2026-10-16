@@ -35,26 +35,44 @@
   }
 
   /** Measure one balloon: kinsoku lines, font size from the panel; returns size + a builder. */
-  function measure(text, rect) {
-    const fontSize = Math.min(44, Math.max(20, Math.round(Math.min(rect.width || rect.w, rect.height || rect.h) * 0.06)));
+  function baseSize(rect) { return Math.min(44, Math.max(20, Math.round(Math.min(rect.width || rect.w, rect.height || rect.h) * 0.06))); }
+  function measure(text, rect, size, kind) {
+    const fontSize = size || baseSize(rect);
     const n = Array.from(text).length, perLine = n <= 9 ? n : Math.ceil(Math.sqrt(n * 1.6));
     const lines = root.CjkBreak ? root.CjkBreak.breakLines(text, perLine) : [text];
     const longest = Math.max.apply(null, lines.map(l => Array.from(l).length));
+    // doc direction rule: dialogue / thought read vertically (縦書き), narration / SFX stay horizontal
+    if (verticalOn() && C.verticalKind && C.verticalKind(kind || 'speech') && typeof root.fabric.VerticalTextbox === 'function') {
+      const vt = new root.fabric.VerticalTextbox(lines.join('\n'), { left: 0, top: 0, fontSize, fill: '#111', width: lines.length * fontSize * 1.2, height: longest * fontSize * 1.08,
+        fontFamily: '"Noto Sans SC","Microsoft YaHei",sans-serif', lineHeight: 1.15, textAlign: 'right' });
+      vt.setCoords(); const b = vt.getBoundingRect(true, true);
+      const vw = Math.max(b.width, lines.length * fontSize * 1.15), vh = Math.max(b.height, longest * fontSize);
+      return { w: Math.max(vw / 0.62, fontSize * 2.8), h: Math.max(vh / 0.66, fontSize * 4), tb: vt, vertical: true };
+    }
     const tb = new root.fabric.Textbox(lines.join('\n'), { width: longest * fontSize * 1.06, fontSize, textAlign: 'center', fill: '#111', splitByGrapheme: true,
       fontFamily: '"Noto Sans SC","Microsoft YaHei",sans-serif' });
+    if (kind && C.textStyle) tb.set(Object.assign(C.textStyle(kind), { fontSize }));
     const w = Math.max(longest * fontSize * 1.08 / 0.66, fontSize * 4), h = Math.max(tb.height * 1.75, fontSize * 2.6);
     return { w, h, tb };
   }
+  function verticalOn() { try { return !(root.localStorage && root.localStorage.getItem('mnai.verticalBalloons') === '0'); } catch { return true; } }
+  function kindsOn() { try { return !(root.localStorage && root.localStorage.getItem('mnai.bubbleKinds') === '0'); } catch { return true; } }
   function build(m, spot, meta) {
     const c = root.canvas, id = 'bl-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const parts = [];
-    if (spot.tail) parts.push(new root.fabric.Polygon(tailPoints(spot), { fill: '#fff', stroke: '#111', strokeWidth: 3, strokeLineJoin: 'round' }));
-    parts.push(new root.fabric.Ellipse({ left: spot.x, top: spot.y, rx: spot.w / 2, ry: spot.h / 2, fill: '#fff', stroke: '#111', strokeWidth: 3 }));
+    // balloon kind (v2 shapes ON by default after the user's pick; opt out with localStorage mnai.bubbleKinds='0')
+    const k = kindsOn() && meta.kind ? meta.kind : { tail: true, shape: 'ellipse', dashed: false };
+    const line = { fill: '#fff', stroke: '#111', strokeWidth: 3 }; if (k.dashed) line.strokeDashArray = [10, 7];
+    if (spot.tail && k.tail) parts.push(new root.fabric.Polygon(tailPoints(spot), Object.assign({ strokeLineJoin: 'round' }, line)));
+    if (k.shape === 'rect') parts.push(new root.fabric.Rect(Object.assign({ left: spot.x + spot.w * .08, top: spot.y + spot.h * .1, width: spot.w * .84, height: spot.h * .8 }, line)));
+    else if (k.shape === 'none') parts.push(new root.fabric.Rect({ left: spot.x, top: spot.y, width: spot.w, height: spot.h, fill: 'rgba(0,0,0,0)', strokeWidth: 0 }));
+    else parts.push(new root.fabric.Ellipse(Object.assign({ left: spot.x, top: spot.y, rx: spot.w / 2, ry: spot.h / 2 }, line)));
     const g = new root.fabric.Group(parts, { name: '对白气泡 ' + meta.order });
     g.balloon = Object.assign({ id, role: 'shape' }, meta, { w: spot.w, h: spot.h, rect: [spot.x, spot.y, spot.w, spot.h], tip: spot.tail ? [spot.tail.x, spot.tail.y] : null });
     c.add(g);
     if (m.tb) {
       m.tb.set({ left: spot.x + (spot.w - m.tb.width) / 2, top: spot.y + (spot.h - m.tb.height) / 2, name: '对白 ' + meta.order });
+      if (m.vertical) { m.tb.setCoords(); const b = m.tb.getBoundingRect(true, true); m.tb.set({ left: m.tb.left + spot.x + spot.w / 2 - (b.left + b.width / 2), top: m.tb.top + spot.y + spot.h / 2 - (b.top + b.height / 2) }); }
       m.tb.balloon = Object.assign({ id, role: 'text' }, meta);
       if (!c.getObjects().includes(m.tb)) c.add(m.tb); else c.bringToFront(m.tb);
       m.tb.setCoords();
@@ -101,14 +119,21 @@
   function layoutNow(rects, lines, info) {
     const panels = rects.map(rectOf), order = C.readingOrder(panels, dir());
     const occupied = textObstacles(), placed = [];
+    // one size per text kind across the page (doc lettering rule); opt out together with mnai.bubbleKinds='0'
+    const all = [], sizes = {};
+    for (const pi of order) splitLines(lines[pi]).forEach(t => all.push({ pi, kind: C.kindOf ? C.kindOf(t).kind : 'speech', s: baseSize(panels[pi]) }));
+    const uni = kindsOn() && C.pageFontSizes ? C.pageFontSizes(all.map(a => a.s), all.map(a => a.kind)) : all.map(a => a.s);
+    all.forEach((a, i) => { (sizes[a.pi] = sizes[a.pi] || []).push(uni[i]); });
     let n = 0;
     for (const pi of order) {
       const texts = splitLines(lines[pi]); if (!texts.length) continue;
-      const ms = texts.map(t => measure(t, panels[pi]));
+      // markup such as 「」 *…* 【】 {} or a （电话） note picks the balloon kind and is never printed
+      const kinds = texts.map(t => C.kindOf ? C.kindOf(t) : { kind: 'speech', text: t, tail: true, shape: 'ellipse' });
+      const ms = kinds.map((k, j) => measure(k.text, panels[pi], sizes[pi] && sizes[pi][j], kindsOn() ? k.kind : null));
       const sp = speakers(panels[pi], info.faces, texts.length);
       const spots = C.place(panels[pi], ms.map((m, k) => ({ w: m.w, h: m.h, speaker: sp[k] == null ? null : sp[k] })), { faces: info.faces, energy: info.energy, occupied, dir: dir() });
       // place() wants speaker indexes into its own faces list: pass the full list and map back
-      spots.forEach((s, k) => { n++; build(ms[k], s, { order: n, panel: pi, panelRect: panels[pi], speaker: sp[k] }); occupied.push(s); placed.push(Object.assign({ panel: pi, panelRect: panels[pi] }, s)); });
+      spots.forEach((s, k) => { n++; build(ms[k], s, { order: n, panel: pi, panelRect: panels[pi], speaker: sp[k], kind: kinds[k] }); occupied.push(s); placed.push(Object.assign({ panel: pi, panelRect: panels[pi] }, s)); });
     }
     root.canvas.requestRenderAll();
     return { placed, metrics: C.metrics(placed, info.faces, info.energy, dir()), facesAvailable: info.facesAvailable, faces: info.faces.length };
@@ -192,5 +217,49 @@
     return true;
   }
   if (typeof document !== 'undefined') { let n = 0; const t = setInterval(() => { if (register() || ++n > 40) clearInterval(t); }, 250); }
-  root.BalloonLayout = { analyze, layoutPage, arrange, showOrder, hideOrder, splitLines, dir, setDir };
+  /** Expected lettering of a page: the printed text of every balloon (markup stripped). */
+  function expectedText(lines) {
+    const out = []; (lines || []).forEach(l => splitLines(l).forEach(t => { const x = C.kindOf ? C.kindOf(t).text : t; if (x) out.push(x); })); return out;
+  }
+  /** Final-image OCR recheck (AUDIT-v2 #12, hint only): re-read the finished page with the local OCR and compare with
+   *  the script. Returns null when the OCR service or the plan core is unavailable; never edits the page. */
+  async function recheck(lines) {
+    const P = root.MangaPagePlanCore, c = root.canvas; const want = expectedText(lines);
+    if (!c || !want.length) return null;
+    // 1) layer check (works for vertical lettering, which local Tesseract cannot read): every script line is on a
+    //    visible text layer and that layer stays inside its balloon
+    const norm = t => String(t || '').replace(/[\s\n]/g, '');
+    const objs = c.getObjects().filter(o => o.balloon && o.balloon.role === 'text');
+    const shapes = new Map(c.getObjects().filter(o => o.balloon && o.balloon.role === 'shape').map(o => [o.balloon.id, o]));
+    const missing = want.filter(w => !objs.some(o => o.visible !== false && norm(o.text) === norm(w)));
+    let overflow = 0;
+    objs.forEach(o => { const g = shapes.get(o.balloon.id); if (!g || !o.getBoundingRect) return; o.setCoords(); const a = o.getBoundingRect(true, true), q = g.getBoundingRect(true, true);
+      if (a.left < q.left - 2 || a.top < q.top - 2 || a.left + a.width > q.left + q.width + 2 || a.top + a.height > q.top + q.height + 2) overflow++; });
+    const res = { method: 'layers', missing, mismatched: [], overflow, ok: want.length - missing.length };
+    res.hint = missing.length > 0 || overflow > 0;
+    // 2) final-image OCR only for horizontal lettering (language 'auto': the earlier Chinese+Japanese code was not a language the service accepts, so it always failed)
+    if (!res.hint && P && P.recheckText && typeof fetch === 'function' && !objs.some(o => o.type === 'vertical-textbox')) {
+      try {
+        const image = c.toDataURL({ format: 'png', multiplier: 1 });
+        const r = await fetch('/manga-smart/ocr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image, language: 'auto', refine: false }) });
+        const j = await r.json();
+        const found = j && j.ok ? (j.regions || []).map(g => g.text || '') : [];
+        if (found.some(t => /[\u3040-\u30ff\u4e00-\u9fff]/.test(t))) {
+          const o = P.recheckText(want, found);
+          // Tesseract misses single lines on busy art: only hint when at least half the lines are missing
+          if (o.missing.length && o.missing.length >= want.length / 2) { res.method = 'ocr'; res.missing = o.missing; res.hint = true; }
+        }
+      } catch (e) { /* OCR unavailable: layer check stands */ }
+    }
+    return res;
+  }
+  function recheckMessage(res) {
+    if (!res || !res.hint) return '';
+    const miss = (res.missing || []).slice(0, 3).map(t => '「' + t + '」').join('、');
+    const parts = [];
+    if (res.missing && res.missing.length) parts.push(res.missing.length + ' 句台词' + (res.method === 'ocr' ? '在成图里没读到（OCR 可能看错）' : '没有出现在气泡里') + '：' + miss);
+    if (res.overflow) parts.push(res.overflow + ' 个气泡的文字超出了气泡');
+    return '终图复核（仅提示）：' + parts.join('；') + '。';
+  }
+  root.BalloonLayout = { analyze, layoutPage, arrange, showOrder, hideOrder, splitLines, dir, setDir, recheck, recheckMessage, expectedText };
 })(typeof window !== 'undefined' ? window : globalThis);

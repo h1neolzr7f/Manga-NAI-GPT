@@ -477,7 +477,12 @@ var label='普通分镜边框';
 if(wantsFullBleed){
 tags.push('full-bleed illustration');
 label='满版/出血画面';
-}else if(wantsBorder||layerBounds.type==='panel'||layerBounds.strokeWidth>0){
+}else if(!wantsBorder&&(layerBounds.type==='panel'||layerBounds.strokeWidth>0)){
+// One picture per editor frame: the frame is drawn by the editor. Panel/border tags here made the model
+// draw a whole multi-panel page inside one frame, so the picture just fills the frame cleanly.
+tags.push('clean crop');
+label='分镜格内单张画面';
+}else if(wantsBorder){
 tags.push('manga panel','clean panel border');
 label='漫画分镜边框';
 if(hasAny(prompt,['黑边','粗边框']))tags.push('thick border','black border');
@@ -650,7 +655,23 @@ var context=buildDirectorContext(layer,requestData,type,planSeed);
 return buildDirectorApiMessages('请把下面中文/自然语言需求改写成 NovelAI 可用提示词。只返回 JSON，不要 Markdown。\n'+JSON.stringify(context,null,2));
 }
 
+// Page-level storyboard fields (story → manga batch route; on by default, opt-out mnai.batchDirector='0').
+var BATCH_PAGE_FIELDS_RULE=[
+'额外要求（page_fields）：每页先写一句 purpose（中文：这页必须让读者看懂什么），并写 continuity_in / continuity_out（中文短句，上一页结尾＝本页开头）。',
+'panels 的每一项还要包含："shot"（只能是 extreme close-up / close-up / medium shot / cowboy shot / full body / wide shot 之一，同一页至少两种），"cast"（本格画面里真正出现的角色名，必须来自输入的 characters，没出场的人不要写），"must_show"（1–3 个英文短语：这一格必须画出的关键动作或道具），"must_not_show"（0–2 个英文短语：这一格不能出现的东西，例如不在场的人）。',
+'prompt 只写本格看得见的东西（3–5 个要素），不要把不在本格的角色写进去。',
+'节奏：一格只画一个瞬间，格与格之间是因果；整段按 起→承→转→结 推进，最后一格给“结果/反应”镜头；每格最多 2 个对白泡；同一页景别要有远近变化，不要连续三格同一景别；黑白漫画不要写颜色词。',
+'顶层再加 "pages":[{"page":1,"purpose":"","continuity_in":"","continuity_out":""}]。'
+].join('\n');
 function buildBatchStoryboardMessages(batchContext){
+if(batchContext&&batchContext.page_fields){
+var msgs=buildBatchStoryboardMessagesBase(batchContext);
+msgs[msgs.length-1].content+='\n'+BATCH_PAGE_FIELDS_RULE;
+return msgs;
+}
+return buildBatchStoryboardMessagesBase(batchContext);
+}
+function buildBatchStoryboardMessagesBase(batchContext){
 return buildDirectorApiMessages([
 '你现在不是逐格写 prompt，而是为整套漫画先做统一 tag/story bible，然后把差异分配到每个分镜。',
 '目标：保证角色、服装、发色、画风、世界观、总体氛围、边框规则和反向词全局一致，同时让每格镜头、动作、构图、光影推进不重复。',
@@ -705,6 +726,8 @@ return null;
 
 function getChatContent(json){
 if(!json)return '';
+// some OpenAI-compatible gateways (e.g. Cline) wrap the completion as {data:{choices:[...]}}
+if(!json.choices&&json.data&&typeof json.data==='object'&&json.data.choices)json=json.data;
 if(json.prompt||json.negative_prompt)return JSON.stringify(json);
 var choice=json.choices&&json.choices[0];
 if(choice&&choice.message&&choice.message.content)return choice.message.content;
@@ -839,7 +862,11 @@ composition:textOf(item.composition||''),
 lighting:textOf(item.lighting||''),
 atmosphere:textOf(item.atmosphere||''),
 border:textOf(item.border||''),
-story_beat:textOf(item.story_beat||'')
+story_beat:textOf(item.story_beat||''),
+shot:textOf(item.shot||''),
+cast:Array.isArray(item.cast)?item.cast.map(textOf).filter(Boolean):[],
+must_show:Array.isArray(item.must_show)?item.must_show.map(textOf).filter(Boolean).slice(0,3):[],
+must_not_show:Array.isArray(item.must_not_show)?item.must_not_show.map(textOf).filter(Boolean).slice(0,3):[]
 };
 }
 
@@ -863,6 +890,7 @@ style_bible:normalizePromptText(parsed.style_bible||'',{allowCjk:false}),
 character_bible:normalizePromptText(parsed.character_bible||'',{allowCjk:false}),
 world_bible:normalizePromptText(parsed.world_bible||'',{allowCjk:false}),
 continuity_notes:textOf(parsed.continuity_notes||''),
+pages:Array.isArray(parsed.pages)?parsed.pages.map(function(p){return {page:parseInt(p&&p.page,10)||0,purpose:textOf(p&&p.purpose||''),continuity_in:textOf(p&&p.continuity_in||''),continuity_out:textOf(p&&p.continuity_out||'')};}).filter(function(p){return p.page>0;}):[],
 panels:panels
 };
 }
@@ -924,8 +952,21 @@ negative_prompt:finalizePromptParts(negative).join(', ')
 };
 }
 
+// Doc rules (AUDIT-v2 B4/B5): people-count tags go first; in black-and-white prompts hue words become grey.
+var COUNT_TAG=/^(?:\d+\+?(?:girl|boy|other)s?|solo|multiple (?:girls|boys)|no humans)$/i;
+var MONO_TAG=/\b(?:monochrome|greyscale|grayscale|black and white)\b/i;
+var HUE_WORD=/\b(red|blue|green|yellow|orange|purple|pink|brown|blonde|blond|golden|silver|aqua|cyan|teal|violet|crimson|scarlet|navy|beige)\b/gi;
+var LIGHT_HUE=/^(blonde|blond|golden|silver|yellow|pink|aqua|cyan|beige)$/i;
+function docOrderParts(parts){
+var first=parts.filter(function(p){return COUNT_TAG.test(String(p).trim());});
+parts=first.concat(parts.filter(function(p){return first.indexOf(p)<0;}));
+if(parts.some(function(p){return MONO_TAG.test(p);})){
+parts=parts.map(function(p){return MONO_TAG.test(p)?p:String(p).replace(HUE_WORD,function(w){return LIGHT_HUE.test(w)?'light grey':'dark grey';});});
+}
+return parts;
+}
 function finalizePromptParts(parts){
-parts=sanitizePromptParts(parts,{allowCjk:false});
+parts=docOrderParts(sanitizePromptParts(parts,{allowCjk:false}));
 var hasFullBleed=parts.some(function(part){return part.toLowerCase().indexOf('full-bleed')!==-1||part.toLowerCase().indexOf('full bleed')!==-1;});
 if(hasFullBleed){
 parts=parts.filter(function(part){
@@ -1194,6 +1235,7 @@ callBatchStoryboardApi:callBatchStoryboardApi,
 resolveDanbooruAnchors:resolveDanbooruAnchors,
 normalizePromptText:normalizePromptText,
 assemblePrompt:assemblePrompt,
+docOrderParts:docOrderParts,
 assembleNegative:assembleNegative,
 draftLayerPrompt:draftLayerPrompt,
 draftLayerPromptAsync:draftLayerPromptAsync,

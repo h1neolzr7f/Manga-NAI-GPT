@@ -22,6 +22,7 @@ var dialogue=story?story.nodes.filter(function(node){return node.type==='speech'
 var character=story.characters.find(function(item){return item.id===node.speaker;});
 return {speaker:character?character.id:'director_a',content:node.content||node.choices&&node.choices.map(function(choice){return choice.label;}).join('/')||''};
 }):[{speaker:'director_a',content:value||'请继续'}];
+// doc rule (one moment per panel): normal pages spread the lines over the panels in order instead of piling them on the last one
 var panels=[];
 for(var index=1;index<=count;index++){
 var last=index===count;
@@ -31,12 +32,13 @@ mode:last?mode:'normal',
 description:last&&mode==='simulator'?value:'分镜 '+index,
 template:last?template:'',
 characters:story?story.characters.map(function(character){return character.name;}):[],
-dialogue:last?dialogue:[],
+dialogue:mode==='normal'&&story?dialogue.slice(Math.floor((index-1)*dialogue.length/count),Math.floor(index*dialogue.length/count)):(last?dialogue:[]),
 story:last&&story?story:undefined
 });
 }
 return {schemaVersion:1,title:value.slice(0,32)||'自然语言场景',pages:[{page:1,panels:panels}]};
 }
+var nextPage=null;
 function bind(){
 if(initialized)return;
 initialized=true;
@@ -57,7 +59,7 @@ status('导演失败，已回退规则拆分：'+error.message,true);
 });
 });
 if(preview)preview.addEventListener('click',function(){var value=parseJson();if(!value)return;var result=root.NaiScenePlanService.preview(value);status('预览：'+result.summary.pages+' 页、'+result.summary.panels+' 个分镜。'+(result.warnings.length?' '+result.warnings.join('；'):''),!result.ok);});
-if(apply)apply.addEventListener('click',function(){var value=parseJson();if(!value)return;root.NaiScenePlanService.apply(value).then(function(result){status('计划已应用：'+result.applyId+'。可回滚。',false);}).catch(function(error){status(error.message,true);});});
+if(apply)apply.addEventListener('click',function(){var value=parseJson();if(!value)return;var key=JSON.stringify(value),pg=nextPage&&nextPage.key===key?nextPage.page:0;root.NaiScenePlanService.apply(value,{page:pg}).then(function(result){nextPage=result.remainingPages>result.page?{key:key,page:result.page+1}:null;status('计划已应用：'+result.applyId+'（第 '+((result.page||0)+1)+' 页）。可回滚。'+(result.remainingPages>0?'还有 '+(result.remainingPages-result.page)+' 页：新建页面后再点「应用」会接着放下一页。':''),false);}).catch(function(error){status(error.message,true);});});
 if(rollback)rollback.addEventListener('click',function(){var result=root.NaiScenePlanService.rollback();status(result?'已回滚本次计划。':'没有可回滚的计划。',!result);});
 if(retry)retry.addEventListener('click',function(){var value=parseJson();if(!value)return;root.NaiScenePlanService.retryStep(value,0,0).then(function(){status('第 1 页第 1 个分镜已重试。',false);}).catch(function(error){status(error.message,true);});});
 }
