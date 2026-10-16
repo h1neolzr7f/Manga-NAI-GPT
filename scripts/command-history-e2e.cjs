@@ -23,7 +23,7 @@ async function startServer() {
   const browser = await chromium.launch({ headless: true });
   const errors = []; const report = {};
   try {
-    const p = await (const __ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'zh-CN' })).newPage();
+    const p = await (await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'zh-CN' })).newPage();
     p.on('pageerror', e => errors.push(e.message)); p.on('dialog', d => d.accept());
     await p.route(/https?:\/\/(?!127\.0\.0\.1:8000)/, r => r.abort());
     await p.addInitScript(() => { try { localStorage.setItem('mnai.whatsNew.1.6.6', '1'); } catch (e) {} });

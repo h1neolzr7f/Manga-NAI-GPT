@@ -27,7 +27,7 @@ async function startServer() {
   const errors = [], gpt = [], lama = [];
   const report = { clicks: {} };
   try {
-    const context = const __ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'zh-CN', acceptDownloads: true });
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'zh-CN', acceptDownloads: true });
     const p = await context.newPage();
     p.on('pageerror', e => errors.push(e.message));
     p.on('dialog', d => d.accept());

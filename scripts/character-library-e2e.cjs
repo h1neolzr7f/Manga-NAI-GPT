@@ -51,7 +51,7 @@ function mockIdentify(body) {
   const errors = []; const gptCalls = []; const names = ['小美', '阿明'];
   const report = { mode: REAL ? 'real' : 'mock', steps: [] };
   try {
-    const context = const __ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'zh-CN' });
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'zh-CN' });
     const page = await context.newPage();
     page.on('pageerror', e => errors.push(e.message));
     page.on('console', m => { if (process.env.CHARLIB_DEBUG) console.log('PAGE', m.type(), m.text().slice(0, 160)); });
