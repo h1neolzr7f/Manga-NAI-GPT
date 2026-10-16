@@ -26,7 +26,7 @@ function proMode(browser) {
   browser.newContext = async (opts = {}) => {
     const { beginner, ...rest } = opts;
     const c = await make(rest);
-    await c.addInitScript(() => { try { localStorage.setItem('mnai.whatsNew.1.6.6', '1'); localStorage.setItem('mnai.whatsNew.1.6.7', '1'); localStorage.setItem('mnai.whatsNew.1.6.8', '1'); localStorage.setItem('mnai.whatsNew.1.6.9', '1'); localStorage.setItem('mnai.whatsNew.1.6.10', '1'); } catch (e) { /* storage blocked */ } });
+    await c.addInitScript(() => { try { localStorage.setItem('mnai.whatsNew.1.6.6', '1'); localStorage.setItem('mnai.whatsNew.1.6.7', '1'); localStorage.setItem('mnai.whatsNew.1.6.8', '1'); localStorage.setItem('mnai.whatsNew.1.6.9', '1'); localStorage.setItem('mnai.whatsNew.1.6.10', '1'); localStorage.setItem('mnai.whatsNew.1.6.11', '1'); } catch (e) { /* storage blocked */ } });
     if (!beginner) await c.addInitScript(() => { try { if (!localStorage.getItem('mnai.uiMode')) localStorage.setItem('mnai.uiMode', 'pro'); } catch (e) { /* storage blocked */ } });
     return c;
   };

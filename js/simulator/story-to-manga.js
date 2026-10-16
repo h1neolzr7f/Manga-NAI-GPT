@@ -166,8 +166,8 @@ requirements:['Keep each page 2-4 panels as given; do not add or remove panels.'
 }
 function lintPages(plan){
 var P=root.MangaPagePlanCore;if(!P||!P.lintPlan)return null;
-return P.lintPlan(plan.pages.map(function(p){var cast=[];p.panels.forEach(function(q){(q.characters||[]).forEach(function(c){if(cast.indexOf(c)<0)cast.push(c);});});
-return {purpose:p.purpose||'',continuityIn:p.continuityIn||'',continuityOut:p.continuityOut||'',cast:cast,panels:p.panels.map(function(q){return {description:q.description,shot:q.shot,cast:q.characters,mustShow:q.mustShow,mustNotShow:q.mustNotShow,lines:(q.dialogue||[]).map(function(d){return d.content||'';})};})};}));
+return P.lintPlan(plan.pages.map(function(p){var vis=function(q){return q.cast&&q.cast.length?q.cast:(q.characters||[]);};var cast=[];p.panels.forEach(function(q){vis(q).forEach(function(c){if(cast.indexOf(c)<0)cast.push(c);});});
+return {purpose:p.purpose||'',continuityIn:p.continuityIn||'',continuityOut:p.continuityOut||'',cast:cast,panels:p.panels.map(function(q){return {description:q.description,shot:q.shot,cast:vis(q),mustShow:q.mustShow,mustNotShow:q.mustNotShow,lines:(q.dialogue||[]).map(function(d){return d.content||'';})};})};}));
 }
 function mergeBatch(plan,sb){
 var byKey={};sb.panels.forEach(function(it){byKey[it.page+'-'+it.panel]=it;});
@@ -196,6 +196,11 @@ var backup=JSON.stringify(plan);
 return director.callBatchStoryboardApi(ctx).then(function(sb2){
 if(!sb2)return {plan:plan,lint:lint,repaired:false};
 var p2=mergeBatch(JSON.parse(backup),sb2),l2=lintPages(p2);
+// 1.6.11: a repair reply sometimes drops must_show/shot — keep the first draft's value for those panels
+p2.pages.forEach(function(pg,i){pg.panels.forEach(function(q,k){var o=plan.pages[i]&&plan.pages[i].panels[k];if(!o)return;
+if(!(q.mustShow&&q.mustShow.length))q.mustShow=o.mustShow;if(!(q.mustNotShow&&q.mustNotShow.length))q.mustNotShow=o.mustNotShow;if(!q.shot)q.shot=o.shot;if(!q.prompt)q.prompt=o.prompt;});
+if(!pg.beats&&plan.pages[i])pg.beats=plan.pages[i].beats;if(!pg.purpose&&plan.pages[i])pg.purpose=plan.pages[i].purpose;});
+l2=lintPages(p2);
 if(count(l2)>=count(lint))return {plan:plan,lint:lint,repaired:false};
 Object.keys(p2).forEach(function(k){plan[k]=p2[k];});   // in place: callers (story mode) keep their reference
 return {plan:plan,lint:l2,repaired:true};

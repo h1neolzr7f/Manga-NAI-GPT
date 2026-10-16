@@ -6,19 +6,30 @@
   const clean = s => String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
 
   /** Split pasted text into beats: `名字：台词` = speech, 「…」/“…” alone = speech of last speaker, rest = narration (sentence chunks). */
+  const NARR = /^(旁白|叙述|独白|画外音|字幕|narration|narrator)$/i, MULTI = /然后|接着|随后/;
+  /** 1.6.11: a spoken line over 30 chars does not fit a balloon — split at 。！？ then ，、 into ≤30-char pieces (max 2 per line). */
+  function splitLine(t) {
+    const chars = Array.from(t); if (chars.length <= 30) return [t];
+    const mid = chars.length / 2; let best = -1;
+    chars.forEach((ch, i) => { if (/[。！？!?…，,、；;]/.test(ch) && i < chars.length - 1 && (best < 0 || Math.abs(i - mid) < Math.abs(best - mid) || (/[。！？]/.test(ch) && !/[。！？]/.test(chars[best]) && Math.abs(i - mid) < chars.length / 4))) best = i; });
+    if (best < 0) return [t];
+    return [chars.slice(0, best + 1).join(''), chars.slice(best + 1).join('')].map(clean).filter(Boolean);
+  }
   function parseStory(text) {
     const beats = []; let title = '', last = '';
     String(text || '').replace(/\r/g, '').split(/\n+/).map(l => l.trim()).filter(Boolean).forEach((line, i) => {
       const t = line.match(/^(?:#+\s*|标题[：:]\s*)(.+)$/);
       if (t && i === 0) { title = clean(t[1]); return; }
       const m = line.match(SPEECH);
-      if (m && !/^(旁白|叙述|narration)$/i.test(m[1])) { last = clean(m[1]); beats.push({ type: 'speech', speaker: last, content: clean(m[2]) }); return; }
+      if (m && !NARR.test(m[1])) { last = clean(m[1]); splitLine(clean(m[2])).forEach(t => beats.push({ type: 'speech', speaker: last, content: t })); return; }
       if (m) { beats.push({ type: 'narrator', speaker: '', content: clean(m[2]) }); return; }
       const q = line.match(/^[「“"](.+)[」”"]$/);
       if (q) { beats.push({ type: 'speech', speaker: last || '角色', content: clean(q[1]) }); return; }
       // prose paragraph: one panel per ~2 sentences so a long paragraph is not one giant panel
-      const sents = line.split(/(?<=[。！？!?…])/).map(clean).filter(Boolean);
-      for (let k = 0; k < sents.length; k += 2) beats.push({ type: 'narrator', speaker: '', content: sents.slice(k, k + 2).join('') });
+      const raw = line.split(/(?<=[。！？!?…])|(?<=[，,])(?=然后|接着|随后)/).map(clean).filter(Boolean);
+      // 1.6.11: a 然后/接着 sentence is two moments — split there and never pair those pieces with a neighbour
+      const solo = raw.map(x => MULTI.test(x)), sents = raw.map(x => x.replace(/^(然后|接着|随后)/, ''));
+      for (let k = 0; k < sents.length;) { const two = k + 1 < sents.length && !solo[k] && !solo[k + 1]; beats.push({ type: 'narrator', speaker: '', content: sents.slice(k, k + (two ? 2 : 1)).join('') }); k += two ? 2 : 1; }
     });
     return { title: title || '故事', beats };
   }
@@ -51,7 +62,7 @@
     const recent = [];
     (plan.pages || []).forEach(p => {
       const panels = p.panels || [];
-      p.cast = Array.from(new Set([].concat.apply([], panels.map(q => q.characters || [])))).filter(c => c && c !== '旁白');
+      p.cast = Array.from(new Set([].concat.apply([], panels.map(q => (q.cast && q.cast.length ? q.cast : q.characters) || [])))).filter(c => c && c !== '旁白');
       p.pageType = p.cast.length <= 1 ? 'SOLO' : 'BOTH';
       if (!clean(p.purpose)) p.purpose = summarizePurpose(panels);
       const b = pageBeats(panels);
@@ -82,12 +93,39 @@
       cur = { description: b.type === 'speech' ? b.speaker + '：' + b.content : b.content, characters: b.speaker ? [b.speaker] : [], dialogue: b.type === 'speech' ? [{ speaker: b.speaker, content: b.content }] : [], narr: b.type !== 'speech' };
       panels.push(cur);
     });
-    const pages = [];
-    let per = panels.length <= perPage ? panels.length : (panels.length % perPage === 1 ? perPage - 1 : perPage);
-    for (let i = 0; i < panels.length && pages.length < maxPages; i += per) {
-      pages.push({ page: pages.length + 1, panels: panels.slice(i, i + per).map((q, k) => ({ panel: k + 1, mode: 'normal', description: q.description, characters: q.characters, dialogue: q.dialogue, template: '' })) });
+    // 1.6.11: names that speak anywhere also count as present when a narration panel mentions them
+    const names = Array.from(new Set(parsed.beats.filter(b => b.type === 'speech').map(b => b.speaker))).filter(n => n && n !== '角色' && n !== '我');
+    panels.forEach(q => { if (q.narr || !q.dialogue.length) names.forEach(n => { if (q.description.indexOf(n) >= 0 && q.characters.indexOf(n) < 0) q.characters.push(n); }); });
+    const groups = opts.castAware === false ? fixedGroups(panels, perPage) : castGroups(panels, perPage);
+    const pages = groups.slice(0, maxPages).map((g, pi) => ({ page: pi + 1, panels: g.map((q, k) => ({ panel: k + 1, mode: 'normal', description: q.description, characters: q.characters, dialogue: q.dialogue, template: '' })) }));
+    return enrichPages({ schemaVersion: 1, title: parsed.title, pages, truncated: Math.max(0, groups.length - pages.length) });
+  }
+
+  function fixedGroups(panels, perPage) {
+    const per = panels.length <= perPage ? panels.length : (panels.length % perPage === 1 ? perPage - 1 : perPage), out = [];
+    for (let i = 0; i < panels.length; i += per) out.push(panels.slice(i, i + per));
+    return out;
+  }
+  /** 1.6.11 cast-aware paging: start a new page when the next panel would bring a 3rd main character onto a page
+   * that already has 2+ panels (doc rule: ≤2 main characters a page); then fold 1-panel leftovers into a neighbour. */
+  function castGroups(panels, perPage) {
+    const out = []; let cur = [], cast = [];
+    const castOf = g => Array.from(new Set([].concat.apply([], g.map(q => q.characters || []))));
+    panels.forEach(q => {
+      const next = Array.from(new Set(cast.concat(q.characters || [])));
+      if (cur.length && (cur.length >= perPage || (next.length > 2 && cur.length >= 2))) { out.push(cur); cur = []; cast = []; }
+      cur.push(q); cast = castOf(cur);
+    });
+    if (cur.length) out.push(cur);
+    for (let i = 0; i < out.length; i++) {
+      if (out.length < 2 || out[i].length !== 1) continue;
+      const prev = out[i - 1], nxt = out[i + 1];
+      const fits = g => g && g.length < perPage && castOf(g.concat(out[i])).length <= Math.max(2, castOf(g).length);
+      if (fits(prev)) { prev.push(out[i][0]); out.splice(i--, 1); }
+      else if (fits(nxt)) { nxt.unshift(out[i][0]); out.splice(i--, 1); }
+      // otherwise keep it as a single-panel (S) page instead of crowding a 3rd character in
     }
-    return enrichPages({ schemaVersion: 1, title: parsed.title, pages, truncated: Math.max(0, Math.ceil(panels.length / (per || 1)) - pages.length) });
+    return out;
   }
 
   /** Map story plan pages into MangaPagePlanCore.lintPlan shape. */
@@ -103,7 +141,7 @@
         lines: (q.dialogue || []).map(d => ({ speaker: d.speaker, render_text: d.content, text: d.content })),
         mustShow: q.mustShow,
         mustNotShow: q.mustNotShow,
-        cast: q.characters,
+        cast: q.cast && q.cast.length ? q.cast : q.characters, // director cast = who is visible (off-panel voices allowed)
         fullBody: q.fullBody
       })),
       continuityIn: p.continuityIn,

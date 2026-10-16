@@ -16,6 +16,7 @@
     '景别节奏：远景交代空间，中景推动作，特写给情绪；高点前后景别要跳变，同页至少两种，不要连续三格同景别。',
     '对白：每格 0–2 泡，每句尽量 ≤20 字；先说话的人放在阅读顺序前面（右上→左下）。',
     '连续性：上一页 continuity_out 原样作为下一页 continuity_in；服装、道具、伤痕、天气跨格保持。',
+    '人物：每页主要人物 ≤2；cast 只写本格画面里看得见的人，画外音/背影的说话者可以不写进 cast（台词照留）。',
     'must_show 写本格读者必须看到的动作/道具（具体可画）；must_not_show 写不在场的人或会泄露后文的东西。'
   ].join('\n');
 
@@ -32,7 +33,7 @@
     { re: /景别相同/, fix: '把高点格改为 close-up，定场格改为 wide shot。' },
     { re: /continuity_out/, fix: '把下一页 continuity_in 改成与上一页 continuity_out 完全相同的句子。' },
     { re: /全身镜头/, fix: '把非定场的 full body 改为 cowboy shot 或 medium shot。' },
-    { re: /主要人物/, fix: '让第三人只出现在背景或下一页，本页聚焦 2 人。' }
+    { re: /主要人物/, fix: '把第 3 个人改成画外音：从他说话那格的 cast 删掉（台词保留），prompt 里不画他的脸，必要时写 offscreen voice。' }
   ];
   // Image-side failures (guide/handbook): used as reference text for the repair step.
   var IMAGE_FIXES = [
