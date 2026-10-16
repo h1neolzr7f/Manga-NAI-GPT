@@ -25,25 +25,29 @@ fix:'Remove the unwanted object, mark or blemish inside the selected area and re
 };
 
 var TASKS=[
-{id:'page',icon:'auto_stories',title:'画一页漫画',desc:'选格子数，写每格画面和对白，一键生成整页',kind:'page',
+{id:'page',icon:'auto_stories',title:'画一页漫画',desc:'选格子数，写每格画面和对白，一键生成整页',kind:'page',section:'常用',
 steps:['选 3 格或 4 格','写每格的画面（和对白，可不填）','点「生成整页」：AI 画好每一格并放好对白气泡']},
-{id:'swap',icon:'switch_account',title:'换角色',desc:'自动找出人物，点一下换成你的角色',kind:'autoswap',
+{id:'swap',icon:'switch_account',title:'换角色',desc:'自动找出人物，点一下换成你的角色',kind:'autoswap',section:'常用',
 steps:['点一下要换掉的人物（已自动找出，橙色虚线）','上传新角色的参考图','点「生成」：自动擦掉原角色、补背景、按原姿势画新角色','满意就点「应用」；其他格里的同一角色可一键换掉'],
 manualSteps:['在画布上拖一个框，框住要换的人物','上传新角色的参考图（推荐）','点「生成预览」，可用「对比原图」看前后','满意就点「作为新图层应用」'],
 placeholder:'补充要求（可不填），例如：表情改成微笑',preset:GPT_PRESETS.swap},
-{id:'caption',icon:'translate',title:'改字幕',desc:'识别气泡里的字，改成新台词',kind:'caption',
+{id:'caption',icon:'translate',title:'改字幕',desc:'识别气泡里的字，改成新台词',kind:'caption',section:'常用',
 steps:['自动识别本页文字（打开就开始；识别不到可点「手动框选字幕」）','在每条下面改成新台词','点「应用为可编辑图层」，旧字会自动盖掉']},
 {id:'fix',hidden:true,icon:'healing',title:'修瑕疵（框选 · GPT 预览）',desc:'框住不想要的东西，GPT 补好背景（旧版向导，「改一块」已包含）',kind:'gpt',
 steps:['在画布上拖一个框，框住要去掉的东西','点「生成预览」，可用「对比原图」看前后','满意就点「作为新图层应用」'],
 placeholder:'补充说明（可不填），例如：去掉右下角的水印',preset:GPT_PRESETS.fix},
-{id:'fill',icon:'format_paint',title:'改一块',desc:'涂出一块：去掉杂物、换成别的，或自由修改',kind:'aifill',
+{id:'fill',icon:'format_paint',title:'改一块',desc:'涂出一块：去掉杂物、换成别的，或自由修改',kind:'aifill',section:'常用',
 steps:['用笔刷涂出要改的地方（也可框选或智能点选）','选「去掉杂物」（本机，免费）、「换成…」或「自由修改」，后两种写一句话','点生成，挑一张满意的点「用这张」：会变成可再改、可还原的图层']},
-{id:'layer',icon:'layers',title:'分层',desc:'把人物或物体抠成独立图层',kind:'layer',
+{id:'layer',icon:'layers',title:'分层',desc:'把人物或物体抠成独立图层',kind:'layer',section:'常用',
 steps:['点「开始框选」，在画布上框住要分出来的人物或物体','自动抠图并放到新图层（原图不变，可撤销）']},
 {id:'custom',hidden:true,icon:'auto_fix_high',title:'自定义修改（框选 · 可加参考图）',desc:'框一块区域，用一句话描述怎么改，可加参考图（旧版向导）',kind:'gpt',
 steps:['在画布上拖一个框，框住要改的地方','写一句想怎么改（可加参考图）','点「生成预览」，满意就应用'],
 placeholder:'想怎么改？例如：把天空改成黄昏',preset:''},
-{id:'nai',icon:'brush',title:'AI 生图',desc:'用 NovelAI 从文字生成新画面',kind:'nai',
+{id:'decompose',icon:'dashboard_customize',title:'拆成可编辑页',desc:'把整页漫画拆成格子、气泡和文字层，方便改字改图',kind:'decompose',section:'进阶',
+steps:['导入或打开一页漫画','点「开始拆解」（本机识别，不花 Anlas）','检查分格和文字，标「待校对」的请核对']},
+{id:'story',icon:'menu_book',title:'剧情出分镜',desc:'写几句剧情，一键规划成漫画分镜（默认批量导演）',kind:'story',section:'进阶',
+steps:['打开「剧情」写对白和场面','点「生成漫画分镜」：批量导演会规划整页','需要出图时再走「画一页漫画」或自动生成']},
+{id:'nai',icon:'brush',title:'AI 生图',desc:'用 NovelAI 从文字生成新画面',kind:'nai',section:'专业',
 steps:['在「服务设置」里填好 NovelAI Token','在「自动生成」面板写画面描述','点生成（会花 Anlas，先看提示）']}
 ];
 function task(id){return TASKS.filter(function(t){return t.id===id;})[0];}
@@ -105,6 +109,7 @@ sep();
 item('privacyToggle','visibility_off','隐私模式（模糊缩略图）：'+(privacyOn()?'开':'关'),function(){setPrivacy(!privacyOn());var b=$('privacyToggle');if(b)b.lastChild.textContent='隐私模式（模糊缩略图）：'+(privacyOn()?'开':'关');});
 item('themeToggle','contrast','浅色 / 深色界面',function(){var box=$('mode-toggle');if(!box)return;box.checked=!box.checked;box.dispatchEvent(new Event('change'));});
 item('taskShortcuts','keyboard','快捷键一览 (F1)',call('openShortcutModal'));
+item('taskWhatsNewMenu','auto_awesome','1.6.6 新功能导览',function(){try{localStorage.removeItem(WHATSNEW_KEY);}catch(e){}showWhatsNew(true);});
 item('uiModeToggle','tune','专业模式',function(){setMode(mode()==='beginner'?'pro':'beginner');});
 function closeMenu(){menu.hidden=true;more.setAttribute('aria-expanded','false');}
 more.addEventListener('click',function(e){e.stopPropagation();menu.hidden=!menu.hidden;
@@ -152,18 +157,24 @@ if($('taskHome'))return;
 var area=$('canvas-area');
 if(!area)return;
 var home=el('section',{id:'taskHome',class:'ui-card task-home','aria-labelledby':'taskHomeTitle'});
-home.innerHTML='<h2 id="taskHomeTitle">想做什么？</h2><p class="ui-muted">先导入漫画页，再选一个任务。每个任务只有几步，参数已经帮你选好。</p>';
+home.innerHTML='<h2 id="taskHomeTitle">想做什么？</h2><p class="ui-muted">先导入漫画页，或直接「画一页漫画」。任务按「常用 / 进阶 / 专业」分组，参数已经帮你选好。</p>';
 var imp=el('button',{type:'button',class:'ui-btn ui-btn-primary task-import',id:'taskHomeImport'},'<i class="material-icons" aria-hidden="true">upload_file</i>导入漫画页（可多选）');
 imp.addEventListener('click',function(){var input=$('imageInput');if(input)input.click();});
 home.appendChild(imp);
+var SECTIONS=[{id:'常用',hint:'改图、换角、改字'},{id:'进阶',hint:'1.6.5 新能力：拆页、剧情出分镜'},{id:'专业',hint:'直接调 NovelAI'}];
+SECTIONS.forEach(function(sec){
+var list=TASKS.filter(function(t){return !t.hidden&&(t.section||'常用')===sec.id;});
+if(!list.length)return;
+var wrap=el('div',{class:'task-section','data-section':sec.id});
+wrap.appendChild(el('h3',{class:'task-section-title'},sec.id+' <span class="ui-muted">'+sec.hint+'</span>'));
 var grid=el('div',{class:'task-grid'});
-TASKS.forEach(function(t){
-if(t.hidden)return;
+list.forEach(function(t){
 var c=el('button',{type:'button',class:'task-tile','data-task':t.id},'<i class="material-icons" aria-hidden="true">'+t.icon+'</i><strong>'+t.title+'</strong><span>'+t.desc+'</span>');
 c.addEventListener('click',function(){start(t.id);});
 grid.appendChild(c);
 });
-home.appendChild(grid);
+wrap.appendChild(grid);home.appendChild(wrap);
+});
 var close=el('button',{type:'button',class:'ui-btn ui-btn-ghost task-home-close',title:'先不选','aria-label':'关闭'},'×');
 close.addEventListener('click',function(){home.dataset.dismissed='1';updateHome();});
 home.appendChild(close);
@@ -262,7 +273,7 @@ startNow(id);
 function startNow(id){
 var t=task(id);if(!t)return;
 stop(false);
-if(t.kind!=='nai'&&t.kind!=='page'&&!hasPage()){
+if(t.kind!=='nai'&&t.kind!=='page'&&t.kind!=='story'&&!hasPage()){
 toast('先导入漫画页','点「导入漫画页」选一张或多张图片，然后再选任务。');
 var home=$('taskHome');if(home){home.dataset.dismissed='';updateHome();}
 return;
@@ -275,6 +286,8 @@ else if(t.kind==='autoswap')startAutoSwap(t);
 else if(t.kind==='caption')startCaption(t);
 else if(t.kind==='layer')startLayer(t);
 else if(t.kind==='page')startPage(t);
+else if(t.kind==='decompose')startDecompose(t);
+else if(t.kind==='story')startStory(t);
 else if(t.kind==='aifill'){if(!window.AiFill){stop(false);return;}AiFill.open().then(function(ok){if(!ok)stop(false);});}
 else startNai(t);
 timer=setInterval(tick,400);
@@ -334,6 +347,43 @@ markStep(0);
 // no click needed: a page without drafts is read right away (「检测本页文字」 stays for re-reading)
 // pages read in the background on import open instantly (per-page cache); switching pages follows in tick()
 if(api.ensure){active.captionPage=null;api.ensure().then(function(){if(active)active.captionPage=(typeof getCanvasGUID==='function'?getCanvasGUID():null);});}
+}
+function startDecompose(t){
+var body=card(t);
+body.appendChild(el('p',{class:'ui-muted'},'把整页拆成「格子画面 + 边框 + 可改文字」。本机识别，不花 Anlas。实验选项里的「拆解时擦拟声词」默认关。'));
+var go=el('button',{type:'button',class:'ui-btn ui-btn-primary',id:'taskDecomposeGo'},'开始拆解（选图或用当前页）');
+var gen=el('button',{type:'button',class:'ui-btn',id:'taskDecomposeGen',title:'会用 NovelAI 免费额度画一整页再拆解'},'整页生成并拆解');
+body.appendChild(go);body.appendChild(gen);
+body.appendChild(el('p',{class:'ui-muted',id:'taskDecomposeHint'},'也可以在左侧「自动生成 / 导演」里找到同名按钮。'));
+markStep(0);
+go.addEventListener('click',function(){
+if(!window.MangaPageDecompose){toast('拆解还没准备好','请稍等页面加载完再试。',true);return;}
+markStep(1);
+MangaPageDecompose.pickAndDecompose();
+markStep(2);
+});
+gen.addEventListener('click',function(){
+if(!window.MangaPageDecompose){toast('拆解还没准备好','请稍等页面加载完再试。',true);return;}
+if(!window.NaiEngine||!NaiEngine.configured()){toast('需要 NovelAI Token','请先在「服务设置」里填写。',true);return;}
+markStep(1);
+MangaPageDecompose.generateAndDecompose().then(function(){markStep(2);}).catch(function(e){toast('整页生成失败',e&&e.message||String(e),true);});
+});
+}
+function startStory(t){
+var body=card(t);
+body.appendChild(el('p',{class:'ui-muted'},'在「剧情」里写对白和场面，点「生成漫画分镜」。默认开启批量导演（一次规划整页）；可在浏览器控制台设 localStorage mnai.batchDirector=\'0\' 关闭。'));
+var open=el('button',{type:'button',class:'ui-btn ui-btn-primary',id:'taskStoryOpen'},'打开剧情面板');
+body.appendChild(open);
+markStep(0);
+open.addEventListener('click',function(){
+markStep(1);
+var area=$('intro_simulator-chat-area')||$('simulator-chat-area');
+if(area&&typeof toggleVisibility==='function'&&getComputedStyle(area).display==='none')toggleVisibility(area.id||'simulator-chat-area');
+else if(area){area.scrollIntoView({block:'nearest'});}
+var btn=$('storyComposerMakeManga')||document.querySelector('[id*="MakeManga"],[id*="storyComposer"]');
+if(btn){markStep(2);toast('剧情出分镜','在剧情面板写完后点「生成漫画分镜」。');}
+else toast('剧情出分镜','请在左侧打开「剧情」，写完后点「生成漫画分镜」。');
+});
 }
 function startNai(t){
 var body=card(t);
@@ -784,12 +834,47 @@ TASKS.forEach(function(t){if(t.hidden)Commands.register({id:'task.'+t.id,label:t
 }
 function privacyOn(){try{return localStorage.getItem('mnai.privacyBlur')==='1';}catch(e){return false;}}
 function setPrivacy(on){try{localStorage.setItem('mnai.privacyBlur',on?'1':'0');}catch(e){/* private window */}document.body.classList.toggle('privacy-blur',!!on);}
+
+var WHATSNEW_KEY='mnai.whatsNew.1.6.6';
+function showWhatsNew(force){
+try{if(!force&&localStorage.getItem(WHATSNEW_KEY)==='1')return;}catch(e){}
+if($('taskWhatsNew'))return;
+// Playwright / automated browsers set navigator.webdriver: skip the modal so e2e can click the task bar
+if(!force&&typeof navigator!=='undefined'&&navigator.webdriver){
+try{localStorage.setItem(WHATSNEW_KEY,'1');}catch(e){}
+return;
+}
+// wait for the tutorial overlay to go away so first-run is not blocked by two overlays
+if(!force&&document.querySelector('.tutorial-overlay')){
+setTimeout(function(){showWhatsNew(false);},800);return;
+}
+var ov=el('div',{id:'taskWhatsNew',class:'task-whatsnew',role:'dialog','aria-labelledby':'taskWhatsNewTitle'});
+ov.innerHTML='<div class="task-whatsnew-card">'+
+'<h2 id="taskWhatsNewTitle">1.6.6 新功能导览</h2>'+
+'<p class="ui-muted">这一版把「整页拆解、剧情出分镜、批量导演」收进新手任务，并修好了透视文字存档等小问题。</p>'+
+'<ol>'+
+'<li><b>拆成可编辑页</b>：导入漫画后点任务栏「拆成可编辑页」，本机切格、擦字、提出文字层。</li>'+
+'<li><b>剧情出分镜</b>：在「剧情」写对白，用批量导演一次规划整页（默认开）。</li>'+
+'<li><b>画一页漫画</b>：仍是最快出图路径；竖排气泡更贴格子，不会轻易撑爆。</li>'+
+'<li><b>实验功能</b>：服务设置里四项默认全关（换采样、减少串脸、擦场景字、招牌透视文字）。</li>'+
+'</ol>'+
+'<div class="task-whatsnew-actions">'+
+'<button type="button" class="ui-btn ui-btn-ghost" id="taskWhatsNewSkip">稍后</button>'+
+'<button type="button" class="ui-btn ui-btn-primary" id="taskWhatsNewGo">知道了</button>'+
+'</div></div>';
+document.body.appendChild(ov);
+function done(){try{localStorage.setItem(WHATSNEW_KEY,'1');}catch(e){}ov.remove();}
+$('taskWhatsNewSkip').addEventListener('click',done);
+$('taskWhatsNewGo').addEventListener('click',done);
+ov.addEventListener('keydown',function(e){if(e.key==='Escape')done();});
+}
 function init(){
 setPrivacy(privacyOn());
 registerHiddenTasks();
 buildBar();
 buildHome();
 applyMode(mode());
+setTimeout(function(){showWhatsNew(false);},600);
 setInterval(updateHome,1000);
 // a newly imported page: let 换角色 detection run in the background so the wizard opens instantly
 var lastPageSig='';
@@ -803,6 +888,6 @@ if(sig&&sig!==lastPageSig){lastPageSig=sig;AutoSwap.prefetch();if(window.MangaSm
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(init,0);});
 else setTimeout(init,0);
 
-return {exportAll:exportAll,start:start,stop:stop,setMode:setMode,mode:mode,TASKS:TASKS,active:function(){return active&&active.id;}};
+return {exportAll:exportAll,start:start,stop:stop,setMode:setMode,mode:mode,TASKS:TASKS,showWhatsNew:showWhatsNew,active:function(){return active&&active.id;}};
 })();
 if(typeof window!=='undefined')window.TaskLauncher=TaskLauncher;

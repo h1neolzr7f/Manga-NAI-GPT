@@ -92,5 +92,16 @@ class Page4(unittest.TestCase):
         self.assertEqual(self.mask.shape, (1754, 1238)); self.assertLess(self.mask.mean(), 0.08)
 
 
+class FastInputTests(unittest.TestCase):
+    def test_input_fast_constant(self):
+        self.assertEqual(td.INPUT_FAST, 768)
+        self.assertGreater(td.INPUT, td.INPUT_FAST)
+
+    def test_text_mask_array_accepts_input_size(self):
+        import inspect
+        sig = inspect.signature(td.text_mask_array)
+        self.assertIn("input_size", sig.parameters)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

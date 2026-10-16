@@ -54,6 +54,7 @@ async function startServer() {
         g.fillStyle = 'hsl(' + (n * 47 % 360) + ',40%,85%)'; g.fillRect(0, 0, w, h); g.fillStyle = '#333'; g.font = 'bold ' + Math.round(h / 4) + 'px sans-serif'; g.textAlign = 'center'; g.fillText(String(n), w / 2, h / 2 + h / 10); return c.toDataURL('image/png'); }, { size: body.size || '1024x1024', n });
       route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, image }) });
     });
+    await p.addInitScript(() => { try { localStorage.setItem('mnai.whatsNew.1.6.6', '1'); } catch (e) {} });
     await p.goto(SERVER + '/index.html', { waitUntil: 'domcontentloaded' });
     await p.waitForFunction(() => typeof canvas !== 'undefined' && window.ScriptPageCore && document.getElementById('taskBtn-page'), null, { timeout: 60000 });
     // GPT service set once (as a user would in 服务设置)

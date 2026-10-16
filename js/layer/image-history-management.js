@@ -206,6 +206,9 @@ function hydratePageStudioAfterLoad(){
 if(window.NaiPageStudio&&typeof window.NaiPageStudio.hydrateAll==='function'){
 window.NaiPageStudio.hydrateAll();
 }
+if(window.PerspectiveText&&typeof window.PerspectiveText.hydrateAll==='function'){
+window.PerspectiveText.hydrateAll();
+}
 }
 
 function restoreHistoryState(index,guid=null,allowPageLoad=false){

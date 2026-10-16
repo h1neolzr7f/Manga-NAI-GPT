@@ -176,3 +176,19 @@ body.pa-on .pa-bar{display:flex}
 .pa-chip{padding:1px 7px;border-radius:10px;font-size:12px;border:1px solid var(--ui-border,#555)}
 .pa-chip.is-add{border-color:#3fb950;color:#3fb950}.pa-chip.is-del{border-color:#e0564b;color:#e0564b;text-decoration:line-through}
 .pa-tokens{display:block;font-size:11px;text-align:right;margin-top:-2px}.pa-tokens.is-over{color:#e0564b}
+
+.task-section { margin: var(--ui-space-3) 0 0; }
+.task-section-title { margin: 0 0 var(--ui-space-2); font-size: 13px; font-weight: 600; letter-spacing: 0.02em; }
+.task-section-title .ui-muted { font-weight: 400; margin-left: 6px; font-size: 12px; }
+.task-whatsnew {
+  position: fixed; inset: 0; z-index: 10050; background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.task-whatsnew[hidden] { display: none; }
+.task-whatsnew-card {
+  max-width: 520px; width: 100%; background: var(--ui-surface, #fff); color: var(--ui-text, #111);
+  border-radius: 12px; padding: 20px 22px; box-shadow: 0 12px 40px rgba(0,0,0,.25);
+}
+.task-whatsnew-card h2 { margin: 0 0 8px; font-size: 18px; }
+.task-whatsnew-card ol { margin: 8px 0 14px; padding-left: 1.2em; line-height: 1.55; }
+.task-whatsnew-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }

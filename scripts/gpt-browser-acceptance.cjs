@@ -23,6 +23,7 @@ function proMode(browser) {
   browser.newContext = async (opts = {}) => {
     const { beginner, ...rest } = opts;
     const c = await make(rest);
+    await c.addInitScript(() => { try { localStorage.setItem('mnai.whatsNew.1.6.6', '1'); } catch (e) { /* storage blocked */ } });
     if (!beginner) await c.addInitScript(() => { try { if (!localStorage.getItem('mnai.uiMode')) localStorage.setItem('mnai.uiMode', 'pro'); } catch (e) { /* storage blocked */ } });
     return c;
   };
@@ -85,6 +86,8 @@ async function openEditor(context) {
   await page.locator('#mangaGptOpen').waitFor({ timeout: 60000 });
   await page.waitForFunction(() => typeof canvas !== 'undefined' && canvas.getWidth() > 0 &&
     canvas.upperCanvasEl && typeof fabric !== 'undefined' && typeof saveStateByManual === 'function', { timeout: 45000 });
+  const wn = page.locator('#taskWhatsNewGo');
+  if (await wn.count() && await wn.isVisible().catch(() => false)) await wn.click().catch(() => {});
   const skip = page.locator('#tutorialSkipBtn');
   if (await skip.count() && await skip.isVisible()) await skip.click();
   await page.keyboard.press('Escape');

@@ -2411,11 +2411,12 @@ const b = `<svg viewBox="0 0 100 100" width="100%" height="100%" style="position
 <td></td>
 </tr>
 <tr>
-<td class="us-field-label">实验选项</td>
-<td><label class="nai-inline-check" title="社区预设的采样参数（scale 4.7 / k_euler / cfg rescale 0.25）。之前同 seed 对比没有更好，默认关闭。"><input type="checkbox" data-optin="mnai.naiProfileP"> 采样档 P</label>
-<label class="nai-inline-check" title="多人画面里，每个角色的负面词自动加上其他角色的特征，减少串色。之前对比没有提升，默认关闭。"><input type="checkbox" data-optin="mnai.charAutoNeg"> 角色自动互斥负面</label>
-<label class="nai-inline-check" title="整页拆解时连气泡外的拟声词/场景字一起擦掉。之前对比效果更差，默认关闭。"><input type="checkbox" data-optin="mnai.eraseSceneText"> 拆解时擦拟声词/场景字</label>
-<label class="nai-inline-check" title="在「分层」里显示「透视文字」工具：框出招牌上的字，擦掉后换成可拖四角的透视文字层。"><input type="checkbox" data-optin="mnai.perspectiveText"> 透视招牌文字工具</label></td>
+<td class="us-field-label">实验功能<br><span class="ui-muted" style="font-weight:400">默认全关</span></td>
+<td><div class="nai-optin-help ui-muted" style="margin-bottom:6px">下面四项是进阶试验，默认关闭。打开后才会改变出图或工具列表；不确定就保持关闭。</div>
+<label class="nai-inline-check" title="换一套采样参数试试（scale 4.7 / k_euler）。多数页面没有更好，默认关。"><input type="checkbox" data-optin="mnai.naiProfileP"> 换采样参数（档 P）</label>
+<label class="nai-inline-check" title="多人同框时，自动把其他角色的特征写进负面词，减少串脸。默认关。"><input type="checkbox" data-optin="mnai.charAutoNeg"> 减少角色串脸</label>
+<label class="nai-inline-check" title="拆整页时连气泡外的拟声词、场景字一起擦掉。可能伤画面，默认关。"><input type="checkbox" data-optin="mnai.eraseSceneText"> 拆页时也擦场景字</label>
+<label class="nai-inline-check" title="打开后可在命令面板用「透视文字」：框住招牌，擦字后换成可拖四角的文字层。"><input type="checkbox" data-optin="mnai.perspectiveText"> 招牌透视文字工具</label></td>
 <td></td>
 </tr>
 <tr>

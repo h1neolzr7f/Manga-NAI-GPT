@@ -68,6 +68,7 @@ function mockIdentify(body) {
       gptCalls.push({ refs: (p.references || []).length, prompt: p.prompt || '' });
       r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, image: p.image }) });
     });
+    await page.addInitScript(() => { try { localStorage.setItem('mnai.whatsNew.1.6.6', '1'); } catch (e) {} });
     await page.goto(SERVER + '/index.html', { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => typeof canvas !== 'undefined' && canvas.getWidth() > 0 && window.CharacterLibrary && window.MangaCharacterBibleUI, null, { timeout: 60000 });
     await page.locator('#imageInput').setInputFiles(PAGES);
