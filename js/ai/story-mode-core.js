@@ -87,7 +87,9 @@
     const perPage = Math.max(2, Math.min(4, opts.perPage || 4)), maxPages = Math.max(1, opts.maxPages || 12);
     const panels = []; let cur = null;
     parsed.beats.forEach(b => {
-      if (b.type === 'speech' && cur && cur.dialogue.length < 2 && (!cur.dialogue.length || cur.dialogue[cur.dialogue.length - 1].speaker === b.speaker || cur.narr)) {
+      if (b.type === 'speech' && cur && cur.dialogue.length < 2 && (!cur.dialogue.length || cur.dialogue[cur.dialogue.length - 1].speaker === b.speaker || cur.narr ||
+        // opt-in only: pairing A→B exchanges broke ensemble scenes into 1-panel pages in the 1.6.12 offline test
+        (opts.pairExchange === true && cur.dialogue.length === 1 && cur.characters.length === 1 && Array.from(cur.dialogue[0].content).length <= 14 && Array.from(b.content).length <= 14))) {
         cur.dialogue.push({ speaker: b.speaker, content: b.content }); if (cur.characters.indexOf(b.speaker) < 0) cur.characters.push(b.speaker); cur.narr = false; return;
       }
       cur = { description: b.type === 'speech' ? b.speaker + '：' + b.content : b.content, characters: b.speaker ? [b.speaker] : [], dialogue: b.type === 'speech' ? [{ speaker: b.speaker, content: b.content }] : [], narr: b.type !== 'speech' };
@@ -96,8 +98,8 @@
     // 1.6.11: names that speak anywhere also count as present when a narration panel mentions them
     const names = Array.from(new Set(parsed.beats.filter(b => b.type === 'speech').map(b => b.speaker))).filter(n => n && n !== '角色' && n !== '我');
     panels.forEach(q => { if (q.narr || !q.dialogue.length) names.forEach(n => { if (q.description.indexOf(n) >= 0 && q.characters.indexOf(n) < 0) q.characters.push(n); }); });
-    const groups = opts.castAware === false ? fixedGroups(panels, perPage) : castGroups(panels, perPage);
-    const pages = groups.slice(0, maxPages).map((g, pi) => ({ page: pi + 1, panels: g.map((q, k) => ({ panel: k + 1, mode: 'normal', description: q.description, characters: q.characters, dialogue: q.dialogue, template: '' })) }));
+    const groups = opts.castAware === false ? fixedGroups(panels, perPage) : castGroups(panels, perPage, opts.offscreenVoice);
+    const pages = groups.slice(0, maxPages).map((g, pi) => ({ page: pi + 1, panels: g.map((q, k) => Object.assign({ panel: k + 1, mode: 'normal', description: q.description, characters: q.characters, dialogue: q.dialogue, template: '' }, q.offscreen ? { cast: q.cast, offscreen: true } : {})) }));
     return enrichPages({ schemaVersion: 1, title: parsed.title, pages, truncated: Math.max(0, groups.length - pages.length) });
   }
 
@@ -108,12 +110,20 @@
   }
   /** 1.6.11 cast-aware paging: start a new page when the next panel would bring a 3rd main character onto a page
    * that already has 2+ panels (doc rule: ≤2 main characters a page); then fold 1-panel leftovers into a neighbour. */
-  function castGroups(panels, perPage) {
+  function castGroups(panels, perPage, offscreen) {
     const out = []; let cur = [], cast = [];
-    const castOf = g => Array.from(new Set([].concat.apply([], g.map(q => q.characters || []))));
+    const castOf = g => Array.from(new Set([].concat.apply([], g.map(q => q.cast || q.characters || []))));
     panels.forEach(q => {
       const next = Array.from(new Set(cast.concat(q.characters || [])));
-      if (cur.length && (cur.length >= perPage || (next.length > 2 && cur.length >= 2))) { out.push(cur); cur = []; cast = []; }
+      // 1.6.12: a short line from a 3rd person becomes an off-panel voice (listeners react on screen), once per page,
+      // instead of opening a new page — keeps ≤2 visible main characters without inflating the page count
+      const line = q.dialogue.length === 1 && !q.narr ? q.dialogue[0] : null;
+      if (offscreen !== false && next.length > 2 && cast.length === 2 && cur.length && cur.length < perPage && line && Array.from(line.content).length <= 12 &&
+          !cur.some(x => x.offscreen) && cast.indexOf(line.speaker) < 0) {
+        q.offscreen = true; q.cast = cast.slice(); q.description = q.description + '（画外音，画面里是' + cast.join('、') + '的反应）';
+        cur.push(q); return;
+      }
+      if (cur.length && (cur.length >= perPage || (next.length > 2 && (cur.length >= 2 || cast.length >= 2)))) { out.push(cur); cur = []; cast = []; }
       cur.push(q); cast = castOf(cur);
     });
     if (cur.length) out.push(cur);
@@ -153,7 +163,9 @@
   function lintStory(plan) {
     const P = root.MangaPagePlanCore;
     if (!P || !P.lintPlan) return { ok: true, errors: [], warnings: [] };
-    return P.lintPlan(toLintPages(plan));
+    const L = P.lintPlan(toLintPages(plan));
+    if (plan && plan.castDna) L.warnings = L.warnings.concat(dnaWarnings(castDna(castOf(plan), plan.castDna)));
+    return L;
   }
 
   /** All speaking / listed names in a plan (for the character preset table). */
@@ -184,11 +196,54 @@
     return out;
   }
 
+  /** 1.6.12 cast DNA: role words → gender/age so 妈妈 is never drawn as a man; distinctness check across the cast. */
+  const FEMALE = /妈|母|婆|奶|姐|妹|姑|姨|嫂|妻|女|娘|婉|雪|美|莉|娜|拉|咲|婷|芳|丽|花|子$/, MALE = /爸|父|爷|公$|哥|弟|叔|伯|舅|夫|男|先生|少爷|王子|队长|警长|管家|教练|裁判/;
+  const OLD = /婆|奶|爷|外公|祖|老先生|老太/, MID = /妈|爸|父|母|叔|姨|伯|舅|警长|管家|教练|店长|老师|队长|经纪人|面试官/, KID = /小学生|孩子|宝宝|弟弟|妹妹/;
+  function roleGuess(name) {
+    name = clean(name);
+    const g = MALE.test(name) ? 'male' : FEMALE.test(name) ? 'female' : '';
+    const age = OLD.test(name) ? 'elderly' : KID.test(name) ? 'child' : MID.test(name) ? 'adult' : '';
+    return { gender: g, age };
+  }
+  const GTAG = { female: { child: '1girl, child', teen: '1girl, teenage', adult: '1girl, mature female', elderly: '1girl, old woman, grey hair', '': '1girl' },
+    male: { child: '1boy, child', teen: '1boy, teenage', adult: '1boy, mature male', elderly: '1boy, old man, grey hair', '': '1boy' } };
+  /** Merge director cast_dna with role guesses; returns {name: tags}. Role-word gender wins over a contradicting director tag. */
+  function castDna(cast, directorDna) {
+    const out = {}, by = {};
+    (directorDna || []).forEach(d => { if (d && d.name) by[clean(d.name)] = d; });
+    (cast || []).forEach(n => {
+      const g = roleGuess(n), d = by[n] || {};
+      let gender = g.gender || (/female|woman|girl/i.test(d.gender || d.tags || '') ? 'female' : /male|man|boy/i.test(d.gender || d.tags || '') ? 'male' : '');
+      const age = g.age || clean(d.age || '');
+      let tags = clean(d.tags || '').split(/\s*,\s*/).filter(Boolean).filter(t => !/^(1|2)?(girl|boy|woman|man|girls|boys)$|^(adult|old) (woman|man)$|^(mature )?(female|male)$|^(child|teenage|grey hair)$/i.test(t));
+      const head = gender ? (GTAG[gender][age] || GTAG[gender]['']) : '';
+      out[n] = [head].concat(tags).filter(Boolean).join(', ');
+    });
+    return out;
+  }
+  /** Distinct-cast check: role-word gender conflicts and look-alike pairs (same gender+age head and no differing hair/outfit). */
+  function dnaWarnings(dna) {
+    const w = [], names = Object.keys(dna || {});
+    names.forEach(n => {
+      const g = roleGuess(n).gender, t = dna[n] || '';
+      if (g === 'female' && /\b1?(boy|man)\b|\bmale\b/i.test(t.replace(/female/gi, '')) && !/\b1?(girl|woman)\b|female/i.test(t)) w.push('角色「' + n + '」看名字是女性，但外貌 tag 写成了男性。');
+      if (g === 'male' && /\b1?(girl|woman)\b|female/i.test(t) && !/\b1?(boy|man)\b|\bmale\b/i.test(t.replace(/female/gi, ''))) w.push('角色「' + n + '」看名字是男性，但外貌 tag 写成了女性。');
+    });
+    const hair = t => (t.match(/[a-z ]*hair[a-z ]*/gi) || []).join('|').toLowerCase();
+    for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) {
+      const a = dna[names[i]] || '', b = dna[names[j]] || '';
+      if (!a || !b) continue;
+      const key = t => (t.match(/\b1?(girl|boy)\b/i) || [''])[0].toLowerCase() + '/' + (t.match(/mature|old|child|teenage/i) || [''])[0].toLowerCase();
+      if (key(a) === key(b) && hair(a) === hair(b)) w.push('「' + names[i] + '」和「' + names[j] + '」外貌太像（同性别同发型），请给其中一人换发型或年龄。');
+    }
+    return w;
+  }
+
   /** Character consistency: prepend each present character's fixed tags to the panel prompt (once). */
   function applyPresets(plan, presets) {
     presets = presets || {};
     (plan.pages || []).forEach(p => p.panels.forEach(q => {
-      const add = (q.characters || []).map(c => clean(presets[c])).filter(Boolean);
+      const add = ((q.cast && q.cast.length ? q.cast : q.characters) || []).map(c => clean(presets[c]).split(/\s*,\s*/).slice(0, 6).join(', ')).filter(Boolean); // 1.6.12: visible cast only, ≤6 tags each
       if (!add.length) return;
       const base = String(q.prompt || q.description || '').split(/\s*,\s*/).filter(Boolean);
       const tags = add.join(', ').split(/\s*,\s*/).filter(Boolean);
@@ -213,7 +268,7 @@
 
   const api = Object.freeze({
     parseStory, buildPlan, enrichPages, summarizePurpose, pageBeats, toLintPages, lintStory,
-    castOf, applyPresets, presetsFromBible, mergePresets,
+    castOf, applyPresets, presetsFromBible, mergePresets, roleGuess, castDna, dnaWarnings,
     makeQueue, nextPending, retryFailed, canRedecompose, queueRedecompose, summary
   });
   root.StoryModeCore = api;

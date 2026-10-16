@@ -162,7 +162,7 @@
     const all = src.map(tagsOf), shared = src.length > 1 ? all[0].filter(t => all.every(a => a.includes(t))) : [];
     const panels = src.map((q, qi) => {
       const tags = all[qi].filter(t => !shared.includes(t));
-      const desc = [q.shot].concat(tags).filter(Boolean).filter((t, i, a) => a.indexOf(t) === i).slice(0, 14).join(', ') || clean(q.description);
+      const desc = [q.shot].concat(tags).filter(Boolean).filter((t, i, a) => a.indexOf(t) === i).slice(0, 18).join(', ') || clean(q.description);
       const d = (q.dialogue || [])[0];
       return { description: desc, text: d ? clean(d.content || d.text || '') : '', speaker: d ? clean(d.speaker) : '', mustShow: q.mustShow || [], mustNotShow: q.mustNotShow || [] };
     });

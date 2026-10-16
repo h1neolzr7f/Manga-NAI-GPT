@@ -82,7 +82,7 @@
 
   async function renderCast() {
     const box = $('storyModeCast'), cast = S.castOf(state.plan);
-    const bible = S.presetsFromBible(cast, await loadBibleCards());
+    const bible = Object.assign({}, S.castDna(cast, state.plan.castDna), S.presetsFromBible(cast, await loadBibleCards()));
     const pre = S.mergePresets(loadPresets(), bible);
     box.hidden = !cast.length;
     box.innerHTML = '<div class="ui-muted">角色外貌（英文 tag；有角色库 DNA 会自动带上，可改；每页都会带上）</div>' +
@@ -185,7 +185,7 @@
     const D = window.MangaPageDecompose, C = window.MangaPageDecomposeCore;
     if (!D || !D.generateSpecPage || !C) throw new Error('整页生成模块还没加载。');
     if (!window.NaiEngine || !window.NaiEngine.configured()) throw new Error('请先在「服务设置」填写 NovelAI Token。');
-    const bible = S.presetsFromBible(S.castOf(state.plan), await loadBibleCards());
+    const cast0 = S.castOf(state.plan), bible = Object.assign({}, S.castDna(cast0, state.plan.castDna), S.presetsFromBible(cast0, await loadBibleCards()));
     S.applyPresets(state.plan, S.mergePresets(loadPresets(), bible));
     state.running = true; state.stop = false;
     $('storyModeRun').disabled = true; $('storyModeStop').disabled = false;

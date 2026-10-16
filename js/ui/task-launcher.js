@@ -840,7 +840,7 @@ TASKS.forEach(function(t){if(t.hidden)Commands.register({id:'task.'+t.id,label:t
 function privacyOn(){try{return localStorage.getItem('mnai.privacyBlur')==='1';}catch(e){return false;}}
 function setPrivacy(on){try{localStorage.setItem('mnai.privacyBlur',on?'1':'0');}catch(e){/* private window */}document.body.classList.toggle('privacy-blur',!!on);}
 
-var WHATSNEW_KEY='mnai.whatsNew.1.6.11';
+var WHATSNEW_KEY='mnai.whatsNew.1.6.12';
 function showWhatsNew(force){
 try{if(!force&&localStorage.getItem(WHATSNEW_KEY)==='1')return;}catch(e){}
 if($('taskWhatsNew'))return;
@@ -854,8 +854,8 @@ setTimeout(function(){showWhatsNew(false);},800);return;
 }
 // Compact tip (Desu card tokens) — not a full-screen tour modal
 var tip=el('div',{id:'taskWhatsNew',class:'task-whatsnew-tip ui-card',role:'status','aria-labelledby':'taskWhatsNewTitle'});
-tip.innerHTML='<strong id="taskWhatsNewTitle">1.6.11</strong>'+
-'<p>故事模式分页更聪明：每页主要人物不超过 2 个、长台词自动拆成两句、「然后」自动拆格、旁白里提到的人也算出场；导演可把第三人改成画外音。</p>'+
+tip.innerHTML='<strong id="taskWhatsNewTitle">1.6.12</strong>'+
+'<p>角色更不会画混：导演给每个角色定外貌 DNA，性别按称呼自动纠正（妈妈不会画成男的），外貌太像会提示；第三人的短台词改成画外音，页数更少。</p>'+
 '<button type="button" class="ui-btn ui-btn-primary" id="taskWhatsNewGo">知道了</button>';
 document.body.appendChild(tip);
 function done(){try{localStorage.setItem(WHATSNEW_KEY,'1');}catch(e){}tip.remove();}
