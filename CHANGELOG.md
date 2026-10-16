@@ -4,6 +4,19 @@ Version numbers apply to **this fork only**, not to upstream Manga Editor Desu.
 
 ## Unreleased
 
+## 1.6.7 — 2026-10-16（新手界面回归原版画风）
+
+### 中文
+- **首页**：去掉「常用 / 进阶 / 专业」重分组卡片，回到原版平铺任务格；仅保留浅分隔标签，新任务带小「新」角标。
+- **导览**：全屏导览改为右下角小提示条（Desu 主题色），文案更短。
+- **能力保留**：拆成可编辑页、剧情出分镜、实验开关等功能不变。
+- **截图**：本机实拍浅色 / 深色主题，不再用蓝灰预览稿。
+
+### English
+- Novice home returns to flat Desu tiles with light rail labels only.
+- Whats-new is a compact corner tip (theme tokens), not a full-screen tour.
+- New capabilities kept; screenshots taken on the real app.
+
 ## 1.6.6 — 2026-10-16（新手分区 + 遗留修复）
 
 ### 中文

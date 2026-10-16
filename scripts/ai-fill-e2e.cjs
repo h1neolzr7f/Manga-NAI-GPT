@@ -46,7 +46,7 @@ async function startServer() {
     });
     if (process.env.AIFILL_REAL_LAMA !== '1') await p.route('**/manga-smart/lama-inpaint', async r => { const b = r.request().postDataJSON(); lama.push(1); r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, image: b.image }) }); });
 
-    await p.addInitScript(() => { try { localStorage.setItem('mnai.whatsNew.1.6.6', '1'); } catch (e) {} });
+    await p.addInitScript(() => { try { localStorage.setItem('mnai.whatsNew.1.6.6', '1'); localStorage.setItem('mnai.whatsNew.1.6.7', '1'); } catch (e) {} });
     await p.goto(SERVER + '/index.html', { waitUntil: 'domcontentloaded' });
     await p.waitForFunction(() => typeof canvas !== 'undefined' && canvas.getWidth() > 0 && window.AiFill && window.MangaGPTRegionEditor, null, { timeout: 60000 });
     await p.evaluate(u => { const i = document.getElementById('mangaGptUrl'); i.value = u; i.dispatchEvent(new Event('change')); }, GPT_URL);
