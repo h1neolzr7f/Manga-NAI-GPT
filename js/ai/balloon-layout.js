@@ -207,5 +207,32 @@
     return true;
   }
   if (typeof document !== 'undefined') { let n = 0; const t = setInterval(() => { if (register() || ++n > 40) clearInterval(t); }, 250); }
-  root.BalloonLayout = { analyze, layoutPage, arrange, showOrder, hideOrder, splitLines, dir, setDir };
+  /** Expected lettering of a page: the printed text of every balloon (markup stripped). */
+  function expectedText(lines) {
+    const out = []; (lines || []).forEach(l => splitLines(l).forEach(t => { const x = C.kindOf ? C.kindOf(t).text : t; if (x) out.push(x); })); return out;
+  }
+  /** Final-image OCR recheck (AUDIT-v2 #12, hint only): re-read the finished page with the local OCR and compare with
+   *  the script. Returns null when the OCR service or the plan core is unavailable; never edits the page. */
+  async function recheck(lines) {
+    const P = root.MangaPagePlanCore, c = root.canvas; const want = expectedText(lines);
+    if (!P || !P.recheckText || !c || !want.length || typeof fetch !== 'function') return null;
+    try {
+      const image = c.toDataURL({ format: 'png', multiplier: 1 });
+      const r = await fetch('/manga-smart/ocr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image, language: 'chi_sim+jpn', refine: false }) });
+      const j = await r.json(); if (!j || !j.ok) return null;
+      const found = (j.regions || []).map(g => g.text || '');
+      if (!found.some(t => /[\u3040-\u30ff\u4e00-\u9fff]/.test(t))) return null;   // OCR could not read this page at all: no hint
+      const res = P.recheckText(want, found);
+      // Tesseract misses single lines on busy art: only hint when at least half the lines are missing (local 6-page set:
+      // false alarms 0/6, hidden line caught 4/6; mismatches are OCR noise and are not reported)
+      res.hint = res.missing.length > 0 && res.missing.length >= want.length / 2;
+      return res;
+    } catch (e) { return null; }
+  }
+  function recheckMessage(res) {
+    if (!res || !res.hint) return '';
+    const miss = res.missing.slice(0, 3).map(t => '「' + t + '」').join('、');
+    return '终图复核（仅提示，OCR 可能看错）：' + res.missing.length + ' 句台词在成图里没读到：' + miss + '，请检查是否被遮挡或溢出。';
+  }
+  root.BalloonLayout = { analyze, layoutPage, arrange, showOrder, hideOrder, splitLines, dir, setDir, recheck, recheckMessage, expectedText };
 })(typeof window !== 'undefined' ? window : globalThis);

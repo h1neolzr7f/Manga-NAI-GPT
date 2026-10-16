@@ -694,7 +694,7 @@ canvas.renderAll();
 if(!sameTarget())return;
 if(lines.some(Boolean)&&current()&&window.BalloonLayout){
 status('正在排对白气泡（避开人脸，按阅读顺序）…');
-try{var info=await BalloonLayout.analyze();if(!current())return;var bl=await BalloonLayout.layoutPage(rects,lines,info);window.__lastBalloonLayout=bl;}
+try{var info=await BalloonLayout.analyze();if(!current())return;var bl=await BalloonLayout.layoutPage(rects,lines,info);window.__lastBalloonLayout=bl;if(BalloonLayout.recheck)BalloonLayout.recheck(lines).then(function(rc){window.__lastLetteringRecheck=rc;var msg=BalloonLayout.recheckMessage(rc);if(msg&&current())status(msg);});}
 catch(error){status('对白气泡没排好：'+(error.message||error),true);}
 }
 if(!sameTarget())return;
