@@ -16,6 +16,7 @@ const FIX = fs.readFileSync(path.join(__dirname, 'fixtures/danbooru-sample.csv')
     await p.route('https://tags.example/danbooru.csv', r => { tagFetches++; r.fulfill({ contentType: 'text/csv', body: FIX }); });
     await p.route(/\/director-proxy\/chat-completions/, r => { const body = r.request().postDataJSON(); llm.push({ body, headers: r.request().headers() });
       r.fulfill({ contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: 'PROMPT:\n1girl, serafuku, red umbrella, rain, train station\nshe holds the umbrella over her head\nbest quality, absurdres\n\nCHARACTER:\n1|C3| togawa sakiko, girl, smile\n\nUC:\nlowres' } }] }) }); });
+    await p.addInitScript(() => { try { localStorage.setItem('mnai.whatsNew.1.6.6', '1'); } catch (e) {} });
     await p.goto('http://127.0.0.1:' + PORT + '/index.html'); await p.waitForFunction(() => window.TaskLauncher && window.PromptAssist, null, { timeout: 60000 }); await p.waitForTimeout(800);
     // off by default: nothing extra on the 改一块 prompt box
     await p.locator('#imageInput').setInputFiles(path.join(ROOT, 'docs/images/comic-page.jpg')); await p.waitForFunction(() => canvas.getObjects().some(o => o.type === 'image'), null, { timeout: 30000 });

@@ -51,7 +51,7 @@ function mockIdentify(body) {
   const errors = []; const gptCalls = []; const names = ['小美', '阿明'];
   const report = { mode: REAL ? 'real' : 'mock', steps: [] };
   try {
-    const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'zh-CN' });
+    const context = const __ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'zh-CN' });
     const page = await context.newPage();
     page.on('pageerror', e => errors.push(e.message));
     page.on('console', m => { if (process.env.CHARLIB_DEBUG) console.log('PAGE', m.type(), m.text().slice(0, 160)); });
@@ -68,6 +68,7 @@ function mockIdentify(body) {
       gptCalls.push({ refs: (p.references || []).length, prompt: p.prompt || '' });
       r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, image: p.image }) });
     });
+    await page.addInitScript(() => { try { localStorage.setItem('mnai.whatsNew.1.6.6', '1'); } catch (e) {} });
     await page.goto(SERVER + '/index.html', { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => typeof canvas !== 'undefined' && canvas.getWidth() > 0 && window.CharacterLibrary && window.MangaCharacterBibleUI, null, { timeout: 60000 });
     await page.locator('#imageInput').setInputFiles(PAGES);

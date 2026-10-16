@@ -29,6 +29,7 @@ const REAL = false; // real SFW calls are run by hand, never in CI
       if (['config', 'trust'].includes(body.operation)) return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, envKey: true, trustedBaseUrl: 'https://api.openai.com/v1' }) });
       return route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ ok: false, error: 'Your request was rejected as a result of our safety system.' }) });
     });
+    await p.addInitScript(() => { try { localStorage.setItem('mnai.whatsNew.1.6.6', '1'); } catch (e) {} });
     await p.goto('http://127.0.0.1:' + PORT + '/index.html'); await p.waitForFunction(() => window.TaskLauncher && window.NaiEngine && document.querySelector('[data-task]'), null, { timeout: 60000 }); await p.waitForTimeout(1000);
     // settings: GPT + NAI token; model + safe-mode controls live in 服务设置
     await p.locator('#taskMore').click(); await p.locator('#taskServiceSettings').click();

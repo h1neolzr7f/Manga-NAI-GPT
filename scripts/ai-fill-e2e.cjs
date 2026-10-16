@@ -27,7 +27,7 @@ async function startServer() {
   const errors = [], gpt = [], lama = [];
   const report = { clicks: {} };
   try {
-    const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'zh-CN', acceptDownloads: true });
+    const context = const __ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'zh-CN', acceptDownloads: true });
     const p = await context.newPage();
     p.on('pageerror', e => errors.push(e.message));
     p.on('dialog', d => d.accept());
@@ -46,6 +46,7 @@ async function startServer() {
     });
     if (process.env.AIFILL_REAL_LAMA !== '1') await p.route('**/manga-smart/lama-inpaint', async r => { const b = r.request().postDataJSON(); lama.push(1); r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, image: b.image }) }); });
 
+    await p.addInitScript(() => { try { localStorage.setItem('mnai.whatsNew.1.6.6', '1'); } catch (e) {} });
     await p.goto(SERVER + '/index.html', { waitUntil: 'domcontentloaded' });
     await p.waitForFunction(() => typeof canvas !== 'undefined' && canvas.getWidth() > 0 && window.AiFill && window.MangaGPTRegionEditor, null, { timeout: 60000 });
     await p.evaluate(u => { const i = document.getElementById('mangaGptUrl'); i.value = u; i.dispatchEvent(new Event('change')); }, GPT_URL);

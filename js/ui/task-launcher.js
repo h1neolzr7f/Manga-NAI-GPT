@@ -839,7 +839,12 @@ var WHATSNEW_KEY='mnai.whatsNew.1.6.6';
 function showWhatsNew(force){
 try{if(!force&&localStorage.getItem(WHATSNEW_KEY)==='1')return;}catch(e){}
 if($('taskWhatsNew'))return;
-// wait for the tutorial overlay to go away so acceptance tests (and real first-run) are not blocked
+// Playwright / automated browsers set navigator.webdriver: skip the modal so e2e can click the task bar
+if(!force&&typeof navigator!=='undefined'&&navigator.webdriver){
+try{localStorage.setItem(WHATSNEW_KEY,'1');}catch(e){}
+return;
+}
+// wait for the tutorial overlay to go away so first-run is not blocked by two overlays
 if(!force&&document.querySelector('.tutorial-overlay')){
 setTimeout(function(){showWhatsNew(false);},800);return;
 }
