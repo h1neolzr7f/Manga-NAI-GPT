@@ -4,6 +4,21 @@ Version numbers apply to **this fork only**, not to upstream Manga Editor Desu.
 
 ## Unreleased
 
+## 1.6.9 — 2026-10-17（故事模式吃满 + OCR/读序）
+
+### 中文
+- **故事分镜可编辑**：拆分镜后可改每页「必须说明什么」、进入/重点/离开三拍与格描述，再一键出整章。
+- **分镜检查**：lintPlan 警告/错误显示在故事模式面板。
+- **角色库 DNA**：有角色档案时自动带上 appearance/outfit/distinct（可改）。
+- **失败页只重拆**：出图成功但拆解失败时整页图保留，可一点「只重拆」。
+- **故事模式进常用**：与「画一页漫画」并列。
+- **OCR**：竖排中文 RapidOCR 双旋转取优；RapidOCR 已够好时跳过慢的 Tesseract。
+- **读序统一**：页面结构切格读序改用 BalloonLayoutCore。
+
+### English
+- Story mode: editable purpose + enter/focus/leave beats, bible DNA, lintPlan in UI, re-decompose on failed pages, beginner-home entry.
+- Faster vertical-CJK OCR; unified reading order.
+
 ## 1.6.7 — 2026-10-16（新手界面回归原版画风）
 
 ### 中文

@@ -218,7 +218,7 @@ body.pa-on .pa-bar{display:flex}
 .task-whatsnew-tip p { margin: 0; color: var(--ui-text-muted); font-size: 12px; line-height: 1.45; }
 .task-whatsnew-tip .ui-btn { justify-self: end; min-height: 28px; }
 /* 故事模式 */
-.story-mode { position: fixed; z-index: 12004; top: 80px; right: 18px; width: min(460px, calc(100vw - 28px)); max-height: calc(100vh - 100px); overflow: auto; padding: var(--ui-space-3); display: grid; gap: var(--ui-space-2); }
+.story-mode { position: fixed; z-index: 12004; top: 80px; right: 18px; width: min(520px, calc(100vw - 28px)); max-height: calc(100vh - 100px); overflow: auto; padding: var(--ui-space-3); display: grid; gap: var(--ui-space-2); }
 .story-mode[hidden] { display: none; }
 .story-mode-head { display: flex; justify-content: space-between; align-items: center; }
 .story-mode-head strong { font: var(--ui-font-title); font-size: 16px; }
@@ -232,3 +232,18 @@ body.pa-on .pa-bar{display:flex}
 .story-mode-page.is-done { border-color: var(--ui-ok); }
 .story-mode-page.is-failed { border-color: var(--ui-danger); color: var(--ui-danger); }
 #storyModeStatus.is-error { color: var(--ui-danger); }
+
+.story-mode { width: min(520px, calc(100vw - 28px)); }
+.story-mode-board { display: grid; gap: 6px; max-height: 42vh; overflow: auto; }
+.story-mode-card { border: 1px solid var(--ui-border); border-radius: var(--ui-radius-sm); padding: 4px 8px; background: var(--ui-surface-2); font-size: 12px; }
+.story-mode-card summary { cursor: pointer; font-weight: 600; }
+.story-mode-field { display: grid; gap: 2px; margin-top: 4px; color: var(--ui-text-muted); }
+.story-mode-field textarea, .story-mode-field input { width: 100%; box-sizing: border-box; font-size: 12px; }
+.story-mode-beats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin-top: 4px; }
+.story-mode-beats label { display: grid; gap: 2px; color: var(--ui-text-muted); font-size: 11px; }
+.story-mode-beats textarea { width: 100%; box-sizing: border-box; font-size: 11px; min-height: 36px; }
+.story-mode-lint { font-size: 12px; display: grid; gap: 4px; }
+.story-mode-lint ul { margin: 2px 0 0; padding-left: 16px; }
+.story-mode-lint-err { color: var(--ui-danger); }
+.story-mode-lint-warn { color: var(--ui-text-muted); }
+.story-mode-page .story-rede { margin-top: 4px; min-height: 24px; font-size: 11px; padding: 0 6px; }

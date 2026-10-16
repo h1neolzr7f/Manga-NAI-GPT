@@ -1,14 +1,16 @@
-# Manga-NAI-GPT 1.6.8
+# Manga-NAI-GPT 1.6.9
 
-红黑主题（去掉奶油色）+ 故事模式：粘贴一整段故事，一键出成可编辑整章；并修了 CTD 崩溃与批量导演兜底。
+故事模式吃满：可编辑页说明与进入/重点/离开、角色库 DNA、分镜检查提示、失败页只重拆；竖排中文 OCR 更快；读序统一。
 
 ## 更新
 
-- **红黑主题**：底色 #141414 / #212121，强调色 #a31515；去掉奶油浅色主题与切换。
-- **故事模式**：粘贴散文/剧本 → 拆分镜 → 角色外貌预设 → 一键出整章（NovelAI 免费档，不扣 Anlas）→ 自动拆成可编辑气泡页；支持暂停、重试失败页（复用已出图）、导出全部。
-- **CTD 修复**：文字检测 ONNX 固定 1024 输入，1.6.6 的 768 快路径会整页拆解崩溃，已改回安全尺寸。
-- **批量导演**：卡片标签锚点校验更稳；超时随格数缩放；失败有兜底。
-- **1.6.5–1.6.7 能力保留**：整页拆解、剧情出分镜、批量导演、实验选项（默认关）、透视文字、竖排气泡等。
+- **故事分镜可编辑**：拆分镜后可改每页「必须说明什么」、进入/重点/离开三拍与格描述，再一键出整章。
+- **分镜检查**：`lintPlan` 警告/错误直接显示在故事模式面板。
+- **角色库 DNA**：有角色档案时自动带上 appearance/outfit/distinct（可改）。
+- **失败页只重拆**：出图成功但拆解失败时整页图保留，可一点「只重拆」不重花 Anlas。
+- **故事模式进常用**：首页与「画一页漫画」并列，小白更容易找到。
+- **OCR**：竖排中文 RapidOCR 双旋转取优；RapidOCR 已够好时跳过慢的 Tesseract。
+- **读序统一**：页面结构切格读序改用 BalloonLayoutCore（与版式表一致）。
 
 ## 下载与验证
 
@@ -16,4 +18,4 @@ Windows 安装版与便携版内置基础运行环境和文字检测 CTD（约 9
 
 ## English
 
-Red-black theme (no cream) + Story Mode: paste a story → whole chapter of editable pages on free NAI tier (pause / retry / export). CTD fixed-input crash fix and batch director fallback.
+Story mode absorb: editable purpose + enter/focus/leave beats, bible DNA presets, lintPlan in UI, one-click re-decompose on failed pages, story mode in beginner home. Faster vertical-CJK OCR; unified reading order.
