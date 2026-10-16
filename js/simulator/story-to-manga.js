@@ -24,6 +24,11 @@ return beats;
 
 var MAX_PANELS_PER_PAGE=6;
 function layoutCells(width,height,count){
+var PL=root.PageLayoutCore;
+if(PL){
+if(PL.v2Enabled()&&Number(count)>=1&&Number(count)<=6){var v=PL.cells(count,{width:width,height:height,dir:'rtl'});return {cols:0,rows:0,code:v.code,cells:v.cells};}
+return PL.grid(count,width,height);
+}
 count=Math.max(1,Number(count)||1);
 width=Number(width)||1000;
 height=Number(height)||1400;

@@ -431,6 +431,13 @@ var ord=BalloonLayoutCore.readingOrder(rects.map(function(r){return {x:r.left,y:
 return ord.map(function(i){return rects[i];});
 }
 function layoutRects(n,w,h){
+if(window.PageLayoutCore&&n>=1&&n<=6){
+var P=window.PageLayoutCore,v2=P.v2Enabled(),recent=window.__pageLayoutRecent=window.__pageLayoutRecent||[];
+var r=P.cells(n,{width:w,height:h,dir:'ltr',recent:v2?recent:[]});recent.push(r.code);
+// dir ltr = table order; readingSorted() applies the user's reading direction afterwards, as before
+var byTable=P.TEMPLATES[r.id].r.map(function(c){var m=.04*Math.min(w,h),g=.012*Math.min(w,h),iw=w-2*m,ih=h-2*m;return {left:Math.round(m+c[0]*iw+g/2),top:Math.round(m+c[1]*ih+g/2),width:Math.round(c[2]*iw-g),height:Math.round(c[3]*ih-g)};});
+return byTable;
+}
 var m=.04*Math.min(w,h),g=.012*Math.min(w,h);
 var iw=w-2*m,ih=h-2*m;
 return (LAYOUTS[n]||LAYOUTS[3]).map(function(c){
