@@ -148,10 +148,10 @@ rect.scenePlanPanelIndex=panel.panel;
 return rect;
 }
 
-/* Batch director (behind localStorage mnai.batchDirector='1' until the user's blind pick): one call plans the whole
+/* Batch director (ON by default: r8 A/B lint errors 10→0, must_show 0/38→38/38; opt out with localStorage mnai.batchDirector='0'): one call plans the whole
  * story with a shared bible plus page purpose / continuity and per-panel shot, cast, must_show, must_not_show;
  * the merged plan is rechecked with MangaPagePlanCore.lintPlan. Falls back to the per-panel director. */
-function batchDirectorEnabled(){try{return!!(root.localStorage&&root.localStorage.getItem('mnai.batchDirector')==='1');}catch(e){return false;}}
+function batchDirectorEnabled(){try{return !(root.localStorage&&root.localStorage.getItem('mnai.batchDirector')==='0');}catch(e){return true;}}
 function batchContextFromPlan(plan){
 var names=[],panels=[];
 plan.pages.forEach(function(page){page.panels.forEach(function(panel){

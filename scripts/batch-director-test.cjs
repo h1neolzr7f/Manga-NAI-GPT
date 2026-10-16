@@ -1,4 +1,4 @@
-// Batch director path in story→manga (behind mnai.batchDirector): flag off by default, page fields merged, lint recheck, fallback.
+// Batch director path in story→manga (behind mnai.batchDirector): on by default, opt-out '0', page fields merged, lint recheck, fallback.
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
@@ -16,11 +16,12 @@ context.NovelAICompositionDirector = {
   draftLayerPromptAsync: () => { calls.panel++; return Promise.resolve({ prompt: 'p', negative_prompt: 'n', apiResult: {} }); }
 };
 (async () => {
-  // default: flag off → per-panel director
+  // opt-out '0' → per-panel director
+  store['mnai.batchDirector'] = '0';
   await M.enrichPlanWithDirector(M.storyToPlan(story, { v2: true }));
   assert.equal(calls.batch, 0); assert.ok(calls.panel > 0);
-  // flag on → one batch call, page + panel fields merged, lint run
-  store['mnai.batchDirector'] = '1'; calls = { batch: 0, panel: 0 };
+  // default (no flag) → one batch call, page + panel fields merged, lint run
+  delete store['mnai.batchDirector']; calls = { batch: 0, panel: 0 };
   batchResult = ctx => ({ series_positive_tags: ['manga'], series_negative_tags: ['text'], continuity_notes: 'rain',
     pages: Array.from({ length: ctx.page_count }, (_, i) => ({ page: i + 1, purpose: 'beat' + i, continuity_in: 'x', continuity_out: 'x' })),
     panels: ctx.panels.map(p => ({ page: p.page, panel: p.panel, prompt: 'scene', negative_prompt: '', shot: 'medium shot', cast: p.characters.concat(['Ghost']), must_show: ['umbrella'], must_not_show: [] })) });
