@@ -41,12 +41,21 @@
     const n = Array.from(text).length, perLine = n <= 9 ? n : Math.ceil(Math.sqrt(n * 1.6));
     const lines = root.CjkBreak ? root.CjkBreak.breakLines(text, perLine) : [text];
     const longest = Math.max.apply(null, lines.map(l => Array.from(l).length));
+    // doc direction rule: dialogue / thought read vertically (縦書き), narration / SFX stay horizontal
+    if (verticalOn() && C.verticalKind && C.verticalKind(kind || 'speech') && typeof root.fabric.VerticalTextbox === 'function') {
+      const vt = new root.fabric.VerticalTextbox(lines.join('\n'), { left: 0, top: 0, fontSize, fill: '#111', width: lines.length * fontSize * 1.2, height: longest * fontSize * 1.08,
+        fontFamily: '"Noto Sans SC","Microsoft YaHei",sans-serif', lineHeight: 1.15, textAlign: 'right' });
+      vt.setCoords(); const b = vt.getBoundingRect(true, true);
+      const vw = Math.max(b.width, lines.length * fontSize * 1.15), vh = Math.max(b.height, longest * fontSize);
+      return { w: Math.max(vw / 0.62, fontSize * 2.8), h: Math.max(vh / 0.66, fontSize * 4), tb: vt, vertical: true };
+    }
     const tb = new root.fabric.Textbox(lines.join('\n'), { width: longest * fontSize * 1.06, fontSize, textAlign: 'center', fill: '#111', splitByGrapheme: true,
       fontFamily: '"Noto Sans SC","Microsoft YaHei",sans-serif' });
     if (kind && C.textStyle) tb.set(Object.assign(C.textStyle(kind), { fontSize }));
     const w = Math.max(longest * fontSize * 1.08 / 0.66, fontSize * 4), h = Math.max(tb.height * 1.75, fontSize * 2.6);
     return { w, h, tb };
   }
+  function verticalOn() { try { return !(root.localStorage && root.localStorage.getItem('mnai.verticalBalloons') === '0'); } catch { return true; } }
   function kindsOn() { try { return !(root.localStorage && root.localStorage.getItem('mnai.bubbleKinds') === '0'); } catch { return true; } }
   function build(m, spot, meta) {
     const c = root.canvas, id = 'bl-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -63,6 +72,7 @@
     c.add(g);
     if (m.tb) {
       m.tb.set({ left: spot.x + (spot.w - m.tb.width) / 2, top: spot.y + (spot.h - m.tb.height) / 2, name: '对白 ' + meta.order });
+      if (m.vertical) { m.tb.setCoords(); const b = m.tb.getBoundingRect(true, true); m.tb.set({ left: m.tb.left + spot.x + spot.w / 2 - (b.left + b.width / 2), top: m.tb.top + spot.y + spot.h / 2 - (b.top + b.height / 2) }); }
       m.tb.balloon = Object.assign({ id, role: 'text' }, meta);
       if (!c.getObjects().includes(m.tb)) c.add(m.tb); else c.bringToFront(m.tb);
       m.tb.setCoords();

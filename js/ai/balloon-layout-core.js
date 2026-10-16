@@ -149,5 +149,7 @@
     if (kind === 'thought') return { fontStyle: 'normal', textAlign: 'center' };
     return { textAlign: 'center' };
   }
-  root.BalloonLayoutCore = Object.freeze({ readingOrder, energyMap, place, tail, metrics, progress, kindOf, pageFontSizes, textStyle });
+  /** Doc direction rule: which kinds are lettered vertically. */
+  function verticalKind(kind) { return /^(speech|thought|phone|distant|offscreen|crowd)$/.test(kind || 'speech'); }
+  root.BalloonLayoutCore = Object.freeze({ readingOrder, energyMap, place, tail, metrics, progress, kindOf, pageFontSizes, textStyle, verticalKind });
 })(typeof window !== 'undefined' ? window : globalThis);

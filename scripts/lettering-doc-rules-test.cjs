@@ -26,3 +26,8 @@ console.log('lettering doc rules ok');
   assert.ok(fs.readFileSync(path.join(__dirname, '../js/ui/task-launcher.js'), 'utf8').includes('BalloonLayout.recheck(lines)'));
   console.log('lettering recheck ok');
 }
+// L6 direction rule: dialogue / thought vertical, narration / SFX horizontal; opt-out mnai.verticalBalloons='0'
+assert.ok(['speech', 'thought', 'phone', 'crowd'].every(k => C.verticalKind(k)));
+assert.ok(!C.verticalKind('narration') && !C.verticalKind('sfx'));
+assert.ok(src.includes("getItem('mnai.verticalBalloons') === '0'") && src.includes('new root.fabric.VerticalTextbox('));
+console.log('lettering direction ok');
