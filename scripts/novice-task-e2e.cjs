@@ -1395,13 +1395,13 @@ async function main() {
       const st = await p.evaluate(() => {
         const o = canvas.getObjects();
         return { panels: o.filter(x => x.isPanel && x.type === 'polygon').length, images: o.filter(x => x.type === 'image').length,
-          clipped: o.filter(x => x.type === 'image' && x.clipPath).length, texts: o.filter(x => x.type === 'textbox').map(x => x.text),
+          clipped: o.filter(x => x.type === 'image' && x.clipPath).length, texts: o.filter(x => /textbox/.test(x.type)).map(x => x.text),
           bubbles: o.filter(x => x.balloon && x.balloon.role === 'shape').length, thumbs: document.querySelectorAll('#btm-image-container .btm-image').length };
       });
       const calls = wizCalls.slice(before);
       await snap('wizard-page');
       // the text sits inside its bubble
-      const inside = await p.evaluate(() => canvas.getObjects().filter(x => x.type === 'textbox').every(t => { const e = canvas.getObjects().find(x => x.balloon && x.balloon.role === 'shape' && t.balloon && x.balloon.id === t.balloon.id); const a = t.getBoundingRect(true), b = e.getBoundingRect(true); return a.left >= b.left && a.top >= b.top && a.left + a.width <= b.left + b.width && a.top + a.height <= b.top + b.height; }));
+      const inside = await p.evaluate(() => canvas.getObjects().filter(x => /textbox/.test(x.type)).every(t => { const e = canvas.getObjects().find(x => x.balloon && x.balloon.role === 'shape' && t.balloon && x.balloon.id === t.balloon.id); const a = t.getBoundingRect(true), b = e.getBoundingRect(true); return a.left >= b.left && a.top >= b.top && a.left + a.width <= b.left + b.width && a.top + a.height <= b.top + b.height; }));
       await p.locator('#taskWizardClose').click();
       await p.evaluate(() => document.activeElement && document.activeElement.blur());
       await op.key('Control+z', '撤销');
@@ -1432,7 +1432,7 @@ async function main() {
         for (let k = 0; k < 3; k++) { await p.locator(`[data-scene="${k}"]`).fill(pg[k][0]); await p.locator(`[data-line="${k}"]`).fill(pg[k][1]); cur.ops.push('格' + (k + 1)); }
         await op.click(p.locator('#taskPageGo'), '生成整页');
         await p.waitForFunction(() => /整页完成|没成功/.test(document.getElementById('taskPageStatus').textContent) && !document.getElementById('taskPageGo').disabled, null, { timeout: 60000 });
-        kinsoku.push(...await p.evaluate(() => canvas.getObjects().filter(x => x.type === 'textbox').map(t => t.text)));
+        kinsoku.push(...await p.evaluate(() => canvas.getObjects().filter(x => /textbox/.test(x.type)).map(t => t.text)));
       }
       const badStart = kinsoku.some(t => t.split('\n').slice(1).some(l => /^[，。！？…、」）]/.test(l)));
       const here = await p.evaluate(() => getCanvasGUID());
