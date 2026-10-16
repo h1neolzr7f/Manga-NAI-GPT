@@ -84,8 +84,14 @@
     return winner;
   }
   function sortedPanels(panels, direction) {
+    // One reading-order source: BalloonLayoutCore (same row-band overlap as PageLayoutCore / python).
+    const BL = root.BalloonLayoutCore;
+    if (BL && BL.readingOrder) {
+      const rects = panels.map(r => ({ x: r.x, y: r.y, w: r.width, h: r.height }));
+      return BL.readingOrder(rects, direction === 'ltr' ? 'ltr' : 'rtl').map(i => panels[i]);
+    }
     return panels.slice().sort((a,b) => {
-      const sameRow = Math.abs(a.y - b.y) <= Math.min(a.height,b.height) * .16;
+      const sameRow = Math.abs(a.y - b.y) <= Math.min(a.height,b.height) * .5;
       if (sameRow) return direction === 'ltr' ? a.x - b.x : b.x - a.x;
       return a.y - b.y || (direction === 'ltr' ? a.x - b.x : b.x - a.x);
     });

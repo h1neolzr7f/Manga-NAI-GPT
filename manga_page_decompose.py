@@ -306,7 +306,8 @@ _rapid = None
 
 
 def _rapid_text(crop, vertical):
-    """RapidOCR (PP-OCRv3 Chinese, Apache-2.0, ~14 MB bundled with the pip wheel). '' when unavailable."""
+    """RapidOCR (PP-OCRv3 Chinese, Apache-2.0, ~14 MB bundled with the pip wheel). '' when unavailable.
+    Vertical CJK: try both 90° rotations and keep the higher CJK score (manga columns vary)."""
     global _rapid
     cv2, np = _np()
     try:
@@ -317,17 +318,27 @@ def _rapid_text(crop, vertical):
         _rapid = False
     if not _rapid:
         return ""
-    # Vertical columns: rotate counter-clockwise so the right-most column becomes the first row.
-    c = np.ascontiguousarray(np.rot90(crop, 1)) if vertical else crop
-    c = cv2.copyMakeBorder(c, 16, 16, 16, 16, cv2.BORDER_CONSTANT, value=(255, 255, 255))
-    try:
-        res, _ = _rapid(c)
-    except Exception:
-        return ""
-    if not res:
-        return ""
-    res = sorted(res, key=lambda r: (r[0][0][1], r[0][0][0]))
-    return "".join(r[1] for r in res)
+
+    def run(img):
+        c = cv2.copyMakeBorder(img, 16, 16, 16, 16, cv2.BORDER_CONSTANT, value=(255, 255, 255))
+        try:
+            res, _ = _rapid(c)
+        except Exception:
+            return ""
+        if not res:
+            return ""
+        res = sorted(res, key=lambda r: (r[0][0][1], r[0][0][0]))
+        return "".join(r[1] for r in res)
+
+    if not vertical:
+        return run(crop)
+    best, best_score = "", -999
+    for k in (1, 3):  # 90° CCW and 90° CW
+        t = run(np.ascontiguousarray(np.rot90(crop, k)))
+        sc = _ocr_score(t)
+        if sc > best_score:
+            best, best_score = t, sc
+    return best
 
 
 def _ocr_score(text):
@@ -337,9 +348,9 @@ def _ocr_score(text):
 
 
 def read_text(rgb, box, vertical, use_manga_ocr=False):
-    """OCR one text block. RapidOCR first (fast on CJK); Tesseract only as fallback. Tesseract used to run
-    first with a 30s timeout per attempt — a page of vertical Chinese could stall for minutes when
-    jpn_vert returned empty and each block retried (weakness 5: one page took 342s)."""
+    """OCR one text block. RapidOCR first (fast on CJK); Tesseract only as fallback.
+    When RapidOCR already returns solid CJK (score >= 2), skip Tesseract entirely — vertical
+    Chinese pages used to stall for minutes on empty jpn_vert retries (weakness 5 / 342s)."""
     x0, y0, x1, y1 = box
     p = 4
     crop = rgb[max(0, y0 - p):y1 + p, max(0, x0 - p):x1 + p]
@@ -347,11 +358,21 @@ def read_text(rgb, box, vertical, use_manga_ocr=False):
     r_text = _rapid_text(crop, vertical)
     if r_text and _ocr_score(r_text) > 0:
         text, conf, engine = r_text, 0, "rapidocr"
-    if _ocr_score(text) < 1:  # RapidOCR empty / all-latin garbage → Tesseract fallback
-        lang = "jpn_vert" if vertical else "chi_sim"
-        t_text, t_conf = _tesseract_text(crop, vertical, lang)
-        if not t_text.strip():
-            t_text, t_conf = _tesseract_text(crop, False, "chi_sim", psm="7" if not vertical else "5")
+    # Skip slow Tesseract when RapidOCR already has enough CJK (≥2 net score).
+    if _ocr_score(text) < 2:
+        cv2, np = _np()
+        if vertical:
+            # Prefer chi_sim on a rotated crop for Chinese manga; jpn_vert is often empty/slow.
+            rotated = np.ascontiguousarray(np.rot90(crop, 1))
+            t_text, t_conf = _tesseract_text(rotated, False, "chi_sim", psm="6")
+            if _ocr_score(t_text) < 1:
+                t_text, t_conf = _tesseract_text(crop, True, "jpn_vert")
+            if _ocr_score(t_text) < 1:
+                t_text, t_conf = _tesseract_text(crop, False, "chi_sim", psm="5")
+        else:
+            t_text, t_conf = _tesseract_text(crop, False, "chi_sim")
+            if not t_text.strip():
+                t_text, t_conf = _tesseract_text(crop, False, "chi_sim", psm="7")
         if _ocr_score(t_text) > _ocr_score(text):
             text, conf, engine = t_text, t_conf, "tesseract"
     if use_manga_ocr:

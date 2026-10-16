@@ -27,6 +27,8 @@ fix:'Remove the unwanted object, mark or blemish inside the selected area and re
 var TASKS=[
 {id:'page',icon:'auto_stories',title:'画一页漫画',desc:'选格子数，写每格画面和对白，一键生成整页',kind:'page',section:'常用',
 steps:['选 3 格或 4 格','写每格的画面（和对白，可不填）','点「生成整页」：AI 画好每一格并放好对白气泡']},
+{id:'storymode',icon:'menu_book',title:'故事模式',desc:'贴一段故事，自动出整章可编辑漫画（免费档）',kind:'storymode',section:'常用',
+steps:['贴入故事','拆分镜：可改每页说明与进入/重点/离开，定角色外貌','一键出整章；失败页可只重拆']},
 {id:'swap',icon:'switch_account',title:'换角色',desc:'自动找出人物，点一下换成你的角色',kind:'autoswap',section:'常用',
 steps:['点一下要换掉的人物（已自动找出，橙色虚线）','上传新角色的参考图','点「生成」：自动擦掉原角色、补背景、按原姿势画新角色','满意就点「应用」；其他格里的同一角色可一键换掉'],
 manualSteps:['在画布上拖一个框，框住要换的人物','上传新角色的参考图（推荐）','点「生成预览」，可用「对比原图」看前后','满意就点「作为新图层应用」'],
@@ -43,8 +45,6 @@ steps:['点「开始框选」，在画布上框住要分出来的人物或物体
 {id:'custom',hidden:true,icon:'auto_fix_high',title:'自定义修改（框选 · 可加参考图）',desc:'框一块区域，用一句话描述怎么改，可加参考图（旧版向导）',kind:'gpt',
 steps:['在画布上拖一个框，框住要改的地方','写一句想怎么改（可加参考图）','点「生成预览」，满意就应用'],
 placeholder:'想怎么改？例如：把天空改成黄昏',preset:''},
-{id:'storymode',icon:'auto_stories',title:'故事模式',desc:'贴一段故事，自动出整章可编辑漫画（免费档）',kind:'storymode',section:'进阶',
-steps:['贴入故事','拆分镜并给角色定外貌','一键出整章：每页出图并拆成可编辑气泡']},
 {id:'decompose',icon:'dashboard_customize',title:'拆成可编辑页',desc:'把整页漫画拆成格子、气泡和文字层，方便改字改图',kind:'decompose',section:'进阶',
 steps:['导入或打开一页漫画','点「开始拆解」（本机识别，不花 Anlas）','检查分格和文字，标「待校对」的请核对']},
 {id:'story',icon:'menu_book',title:'剧情出分镜',desc:'写几句剧情，一键规划成漫画分镜（默认批量导演）',kind:'story',section:'进阶',
@@ -840,7 +840,7 @@ TASKS.forEach(function(t){if(t.hidden)Commands.register({id:'task.'+t.id,label:t
 function privacyOn(){try{return localStorage.getItem('mnai.privacyBlur')==='1';}catch(e){return false;}}
 function setPrivacy(on){try{localStorage.setItem('mnai.privacyBlur',on?'1':'0');}catch(e){/* private window */}document.body.classList.toggle('privacy-blur',!!on);}
 
-var WHATSNEW_KEY='mnai.whatsNew.1.6.8';
+var WHATSNEW_KEY='mnai.whatsNew.1.6.9';
 function showWhatsNew(force){
 try{if(!force&&localStorage.getItem(WHATSNEW_KEY)==='1')return;}catch(e){}
 if($('taskWhatsNew'))return;
@@ -854,8 +854,8 @@ setTimeout(function(){showWhatsNew(false);},800);return;
 }
 // Compact tip (Desu card tokens) — not a full-screen tour modal
 var tip=el('div',{id:'taskWhatsNew',class:'task-whatsnew-tip ui-card',role:'status','aria-labelledby':'taskWhatsNewTitle'});
-tip.innerHTML='<strong id="taskWhatsNewTitle">1.6.8</strong>'+
-'<p>红黑主题；任务栏多了「故事模式」：贴故事一键出整章。实验功能仍在「服务设置」里，默认关。</p>'+
+tip.innerHTML='<strong id="taskWhatsNewTitle">1.6.9</strong>'+
+'<p>故事模式升级：可编辑进入/重点/离开与页说明、角色库 DNA、分镜检查提示、失败页只重拆；故事模式进「常用」。实验功能仍默认关。</p>'+
 '<button type="button" class="ui-btn ui-btn-primary" id="taskWhatsNewGo">知道了</button>';
 document.body.appendChild(tip);
 function done(){try{localStorage.setItem(WHATSNEW_KEY,'1');}catch(e){}tip.remove();}

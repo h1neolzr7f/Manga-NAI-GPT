@@ -1,5 +1,14 @@
 const assert = require('node:assert/strict');
-require('../js/ai/story-mode-core.js'); const S = globalThis.StoryModeCore;
+const fs = require('node:fs'), vm = require('node:vm'), path = require('node:path');
+require('../js/ai/page-layout-core.js');
+require('../js/ai/manga-page-plan-core.js');
+require('../js/ai/story-mode-core.js');
+const S = globalThis.StoryModeCore;
+// bible core uses `this` as root — load via vm window
+const bctx = { window: {}, console };
+vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../js/ai/manga-character-bible-core.js'), 'utf8'), bctx);
+globalThis.MangaCharacterBibleCore = bctx.window.MangaCharacterBibleCore;
+const Core = globalThis.MangaCharacterBibleCore;
 const txt = `# 雨天车站
 傍晚的车站下着大雨。小雪抱着书包站在屋檐下。
 小雪：怎么办，没带伞……
@@ -13,14 +22,41 @@ assert.ok(p.beats.some(b => b.speaker === '阿凯'));
 assert.equal(p.beats.find(b => b.content === '谢谢你。').speaker, '阿凯');
 const plan = S.buildPlan(p, { perPage: 4 });
 assert.ok(plan.pages.length >= 1);
-plan.pages.forEach(pg => { assert.ok(pg.panels.length >= 1 && pg.panels.length <= 4); pg.panels.forEach(q => assert.ok(q.dialogue.length <= 2)); });
-assert.deepEqual(S.castOf(plan).sort(), ['小雪', '阿凯'].sort());
+plan.pages.forEach(pg => {
+  assert.ok(pg.panels.length >= 1 && pg.panels.length <= 4);
+  pg.panels.forEach(q => assert.ok(q.dialogue.length <= 2));
+  assert.ok(pg.purpose, 'purpose filled');
+  assert.ok(pg.beats && pg.beats.enter && pg.beats.focus && pg.beats.leave, '三拍 filled');
+  assert.ok(pg.cast && pg.pageType, 'cast/pageType');
+});
+const cast = S.castOf(plan);
+assert.equal(cast.length, 2);
+assert.ok(cast.includes('小雪') && cast.includes('阿凯'));
 S.applyPresets(plan, { 小雪: '1girl, long black hair, school uniform' });
 const withXue = plan.pages.flatMap(pg => pg.panels).filter(q => q.characters.includes('小雪'));
 assert.ok(withXue.length && withXue.every(q => q.prompt.startsWith('1girl, long black hair')));
 const long = S.buildPlan(S.parseStory(Array.from({ length: 80 }, (_, i) => '第' + i + '句。').join('\n')), { maxPages: 5 });
 assert.equal(long.pages.length, 5); assert.ok(long.truncated > 0);
-const q = S.makeQueue(3); q.pages[0].status = 'done'; q.pages[1].status = 'failed';
-assert.deepEqual(S.summary(q), { total: 3, done: 1, failed: 1, pending: 1 });
+const q = S.makeQueue(3); q.pages[0].status = 'done'; q.pages[1].status = 'failed'; q.pages[1].image = 'data:image/png;base64,xx';
+const sum = S.summary(q);
+assert.equal(sum.total, 3); assert.equal(sum.done, 1); assert.equal(sum.failed, 1); assert.equal(sum.pending, 1); assert.equal(sum.running, 0);
 S.retryFailed(q); assert.equal(S.nextPending(q).index, 1);
+assert.ok(S.canRedecompose(q.pages[1]));
+assert.ok(S.queueRedecompose(q, 1));
+assert.equal(q.pages[1].redecomposeOnly, true);
+
+const lint = S.lintStory(plan);
+assert.ok(lint && Array.isArray(lint.errors) && Array.isArray(lint.warnings));
+assert.ok(S.toLintPages(plan).every(pg => 'purpose' in pg));
+
+const png = 'data:image/png;base64,' + Buffer.from('not-a-real-image-bytes-because-contract-verifies-container-not-decoding').toString('base64');
+const card = Core.normalize({
+  id: 'xue1', name: '小雪', traits: 'fallback traits', notes: '', references: [png],
+  dna: { appearance: '1girl, long black hair', outfit: 'school uniform', distinct: ['red scarf'] }
+});
+const dnaPre = S.presetsFromBible(['小雪', '阿凯'], [card]);
+assert.ok(dnaPre['小雪'].includes('long black hair') && dnaPre['小雪'].includes('red scarf'));
+assert.ok(!dnaPre['阿凯']);
+const merged = S.mergePresets({ 小雪: 'user override tags' }, dnaPre);
+assert.equal(merged['小雪'], 'user override tags');
 console.log('story mode core ok');

@@ -1,4 +1,4 @@
-// 1.6.8 novice UI: Desu-styled flat home + light rail labels + compact tip (not heavy tour).
+// 1.6.9 novice UI: Desu-styled flat home + light rail labels + compact tip (not heavy tour).
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -10,7 +10,7 @@ assert.ok(tl.includes('task-rail-label'), 'light rail labels');
 assert.ok(!tl.includes('task-section-title'), 'no heavy section titles');
 assert.ok(!tl.includes('任务按「常用 / 进阶 / 专业」分组'), 'no heavy grouping copy');
 assert.ok(tl.includes('showWhatsNew'), 'whats-new tip');
-assert.ok(tl.includes("mnai.whatsNew.1.6.8"), '1.6.8 tip key');
+assert.ok(tl.includes("mnai.whatsNew.1.6.9"), '1.6.9 tip key');
 assert.ok(tl.includes('task-whatsnew-tip'), 'compact tip class');
 assert.ok(tl.includes('startDecompose') && tl.includes('startStory'), 'wizards');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
