@@ -159,13 +159,19 @@ var names=[],panels=[];
 plan.pages.forEach(function(page){page.panels.forEach(function(panel){
 (panel.characters||[]).forEach(function(n){if(n&&names.indexOf(n)<0)names.push(n);});
 if(panel.mode==='simulator')return;
-panels.push({page:page.page,panel:panel.panel,description:panel.description||'',characters:panel.characters||[],dialogue:(panel.dialogue||[]).map(function(d){return (d.speaker||'')+'：'+(d.content||'');})});
+panels.push({page:page.page,panel:panel.panel,description:panel.description||'',characters:panel.characters||[],offscreen_voice:panel.offscreen?(panel.characters||[]).filter(function(c){return (panel.cast||[]).indexOf(c)<0;}):undefined,dialogue:(panel.dialogue||[]).map(function(d){return (d.speaker||'')+'：'+(d.content||'');})});
 });});
 return {user_story:plan.title||'',page_count:plan.pages.length,panel_count:panels.length,characters:names,panels:panels,page_fields:true,
-requirements:['Keep each page 2-4 panels as given; do not add or remove panels.','Only characters listed in a panel may appear in that panel prompt.']};
+requirements:['Keep each page 2-4 panels as given; do not add or remove panels.','A panel with offscreen_voice: that speaker is NOT drawn (voice from off-panel); draw the other characters reacting.','Only characters listed in a panel may appear in that panel prompt.']};
 }
 function lintPages(plan){
 var P=root.MangaPagePlanCore;if(!P||!P.lintPlan)return null;
+var L=lintPagesBase(plan),SC=root.StoryModeCore;
+if(L&&SC&&SC.dnaWarnings&&plan.castDna){var raw={};plan.castDna.forEach(function(d){raw[d.name]=[d.gender==='female'?'1girl':d.gender==='male'?'1boy':'',d.tags].filter(Boolean).join(', ');});L.warnings=L.warnings.concat(SC.dnaWarnings(raw));}
+return L;
+}
+function lintPagesBase(plan){
+var P=root.MangaPagePlanCore;
 return P.lintPlan(plan.pages.map(function(p){var vis=function(q){return q.cast&&q.cast.length?q.cast:(q.characters||[]);};var cast=[];p.panels.forEach(function(q){vis(q).forEach(function(c){if(cast.indexOf(c)<0)cast.push(c);});});
 return {purpose:p.purpose||'',continuityIn:p.continuityIn||'',continuityOut:p.continuityOut||'',cast:cast,panels:p.panels.map(function(q){return {description:q.description,shot:q.shot,cast:vis(q),mustShow:q.mustShow,mustNotShow:q.mustNotShow,lines:(q.dialogue||[]).map(function(d){return d.content||'';})};})};}));
 }
@@ -178,10 +184,10 @@ var pg=pages[page.page];if(pg){page.purpose=pg.purpose;page.continuityIn=pg.cont
 page.panels.forEach(function(panel){var it=byKey[page.page+'-'+panel.panel];if(!it)return;
 var D=root.NovelAICompositionDirector,tags=[shared,it.prompt].filter(Boolean).join(', ').split(/\s*,\s*/).filter(Boolean);panel.prompt=(D&&D.docOrderParts?D.docOrderParts(tags):tags).join(', ');panel.negative_prompt=[sharedNeg,it.negative_prompt].filter(Boolean).join(', ');
 panel.shot=it.shot;panel.mustShow=it.must_show;panel.mustNotShow=it.must_not_show;
-var known=panel.characters||[];if(it.cast&&it.cast.length)panel.cast=it.cast.filter(function(c){return known.indexOf(c)>=0;});
+var known=panel.characters||[];if(panel.offscreen){/* keep listeners as the visible cast */}else if(it.cast&&it.cast.length)panel.cast=it.cast.filter(function(c){return known.indexOf(c)>=0;});
 panel.directorSource='api-batch';});
 });
-plan.continuityNotes=sb.continuity_notes||'';
+plan.continuityNotes=sb.continuity_notes||'';if(sb.cast_dna&&sb.cast_dna.length)plan.castDna=sb.cast_dna;
 return plan;
 }
 /* 1.6.10 craft repair: if lint finds issues, one extra batch call gets the issues + failure→fix table and
@@ -191,7 +197,7 @@ var lint=lintPages(plan),CC=root.DirectorCraftContext,director=root.NovelAICompo
 var count=function(L){return L?L.errors.length*10+L.warnings.length:0;};
 if(!lint||!CC||!CC.enabled()||(opts&&opts.craft===false)||!count(lint))return Promise.resolve({plan:plan,lint:lint,repaired:false});
 ctx.repair_issues=CC.repairIssues(lint).slice(0,12);
-ctx.previous_storyboard={pages:sb.pages,panels:sb.panels.map(function(p){return {page:p.page,panel:p.panel,prompt:p.prompt,shot:p.shot,cast:p.cast,must_show:p.must_show,must_not_show:p.must_not_show};})};
+ctx.previous_storyboard={cast_dna:sb.cast_dna,pages:sb.pages,panels:sb.panels.map(function(p){return {page:p.page,panel:p.panel,prompt:p.prompt,shot:p.shot,cast:p.cast,must_show:p.must_show,must_not_show:p.must_not_show};})};
 var backup=JSON.stringify(plan);
 return director.callBatchStoryboardApi(ctx).then(function(sb2){
 if(!sb2)return {plan:plan,lint:lint,repaired:false};

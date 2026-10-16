@@ -33,6 +33,7 @@
     { re: /景别相同/, fix: '把高点格改为 close-up，定场格改为 wide shot。' },
     { re: /continuity_out/, fix: '把下一页 continuity_in 改成与上一页 continuity_out 完全相同的句子。' },
     { re: /全身镜头/, fix: '把非定场的 full body 改为 cowboy shot 或 medium shot。' },
+    { re: /外貌太像|写成了/, fix: '修改 cast_dna：性别按称呼改对；外貌太像的两人给一人换发型/发色/年龄或服装，并同步各格 prompt。' },
     { re: /主要人物/, fix: '把第 3 个人改成画外音：从他说话那格的 cast 删掉（台词保留），prompt 里不画他的脸，必要时写 offscreen voice。' }
   ];
   // Image-side failures (guide/handbook): used as reference text for the repair step.
@@ -47,13 +48,14 @@
   function fixFor(msg) { msg = String(msg || ''); for (var i = 0; i < FIXES.length; i++) if (FIXES[i].re.test(msg)) return FIXES[i].fix; return '按提示修改该格，保持其他格不变。'; }
   function fixTableText() { return '【失败→修法参考】\n' + FIXES.map(function (f) { return '- ' + f.re.source.split('|')[0].replace(/[\\()]/g, '') + ' → ' + f.fix; }).join('\n') + '\n' + IMAGE_FIXES.map(function (s) { return '- ' + s; }).join('\n'); }
   function planContext() { return PLAN; }
+  var CAST_RULE = '顶层再加 "cast_dna":[{"name":"角色名","gender":"female|male","age":"child|teen|adult|elderly","tags":"英文 tag：1girl/1boy、年龄、发型发色、脸部特征、服装，6–10 个"}]，覆盖所有角色。性别按称呼判断（妈妈/外婆/姐是女性，爸爸/哥/爷是男性）；同性别同年龄段的两人必须发型或服装明显不同；每格 prompt 里出场角色的外貌要和 cast_dna 一致。';
   var BEATS_RULE = 'pages 每一项再加 "beats":{"enter":"中文","focus":"中文","leave":"中文"}（本页进入/重点/离开三拍，各一短句），并让重点拍落在景别最近或最大的那一格。';
   function repairIssues(lint) {
     if (!lint) return [];
     return lint.errors.map(function (m) { return { level: 'error', issue: m, fix: fixFor(m) }; })
       .concat(lint.warnings.map(function (m) { return { level: 'warning', issue: m, fix: fixFor(m) }; }));
   }
-  var api = { enabled: enabled, planContext: planContext, beatsRule: BEATS_RULE, fixFor: fixFor, fixTableText: fixTableText, repairIssues: repairIssues };
+  var api = { enabled: enabled, planContext: planContext, beatsRule: BEATS_RULE, castRule: CAST_RULE, fixFor: fixFor, fixTableText: fixTableText, repairIssues: repairIssues };
   root.DirectorCraftContext = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
