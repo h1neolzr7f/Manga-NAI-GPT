@@ -15,9 +15,15 @@
 
 </div>
 
-Manga-NAI-GPT 是基于 [Manga Editor Desu](https://github.com/new-sankaku/manga-editor-desu)（new-sankaku，GPL-3.0）**修改而来**的非官方版本。编辑器本体来自上游，我们在上面加了故事模式和 AI 功能。
+**关于本项目**
 
-Manga-NAI-GPT 基于 [Manga Editor Desu](https://github.com/new-sankaku/manga-editor-desu) 的漫画编辑器，把常见工作做成「任务卡」：打开页面、点一个任务、按 1-2-3 做完。文字识别、去字、抠图、找格子都在**你自己的电脑上用 CPU 运行**；需要重画的部分（换角色、画一页）调用**你自己设置的** OpenAI 兼容图像服务，AI 生图用 NovelAI。所有结果都是新图层，原图不动，`Ctrl+Z` 一步撤销。
+Manga-NAI-GPT 是 [Manga Editor Desu](https://github.com/new-sankaku/manga-editor-desu)（作者 new-sankaku，GPL-3.0）的下游 fork。原版的分镜、气泡、网点、多页等编辑功能全部保留，在此基础上加入了故事模式、AI 导演、自动嵌字、换角色、改字幕等功能。
+
+本 fork 由我一个人独立维护，跟上游项目及原作者没有合作或隶属关系。上游的更新会视情况合并进来，本 fork 新加的改动不会主动提交回上游。
+
+**问题请在本仓库反馈。** 使用 Manga-NAI-GPT 遇到的 bug 或需求，请到本仓库的 [Issues](https://github.com/h1neolzr7f/Manga-NAI-GPT/issues) 提，不要去打扰原作者。感谢 new-sankaku 做出这么好的基础。
+
+Manga-NAI-GPT 把常见工作做成「任务卡」：打开页面、点一个任务、按 1-2-3 做完。文字识别、去字、抠图、找格子都在**你自己的电脑上用 CPU 运行**；需要重画的部分（换角色、画一页）调用**你自己设置的** OpenAI 兼容图像服务，AI 生图用 NovelAI。所有结果都是新图层，原图不动，`Ctrl+Z` 一步撤销。
 
 ## 功能
 
