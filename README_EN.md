@@ -15,9 +15,15 @@
 
 </div>
 
-Manga-NAI-GPT is an unofficial **modified version** of [Manga Editor Desu](https://github.com/new-sankaku/manga-editor-desu) (new-sankaku, GPL-3.0). The editor itself comes from upstream; this fork adds story mode and AI features.
+**About this project**
 
-Manga-NAI-GPT is built on [Manga Editor Desu](https://github.com/new-sankaku/manga-editor-desu) and turns common jobs into task cards: open a page, pick a task, follow steps 1-2-3. Text detection, OCR, text removal, cutouts and panel detection run **on your own computer, CPU only**. Redrawing (character swap, drawing a page) uses **the OpenAI-compatible image service you configure**; image generation uses NovelAI. Every result lands on a new layer — the original stays untouched and `Ctrl+Z` undoes it in one step. The UI is Chinese-first (Japanese, English, Korean and others are available).
+Manga-NAI-GPT is a downstream fork of [Manga Editor Desu](https://github.com/new-sankaku/manga-editor-desu) (by new-sankaku, GPL-3.0). All of the original editing features (panel layout, speech balloons, screentones, multi-page and more) are kept, with story mode, an AI director, auto-lettering, character swap, caption editing and other features added on top.
+
+This fork is maintained independently by me alone and has no partnership or affiliation with the upstream project or its author. Upstream updates are merged in when appropriate; changes made in this fork are not proactively submitted back upstream.
+
+**Please report problems in this repository.** For bugs or feature requests about Manga-NAI-GPT, open an issue in this repo's [Issues](https://github.com/h1neolzr7f/Manga-NAI-GPT/issues), and please don't bother the original author. Many thanks to new-sankaku for such a great foundation.
+
+Manga-NAI-GPT turns common jobs into task cards: open a page, pick a task, follow steps 1-2-3. Text detection, OCR, text removal, cutouts and panel detection run **on your own computer, CPU only**. Redrawing (character swap, drawing a page) uses **the OpenAI-compatible image service you configure**; image generation uses NovelAI. Every result lands on a new layer — the original stays untouched and `Ctrl+Z` undoes it in one step. The UI is Chinese-first (Japanese, English, Korean and others are available).
 
 ## Features
 
