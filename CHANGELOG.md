@@ -4,6 +4,35 @@ Version numbers apply to **this fork only**, not to upstream Manga Editor Desu.
 
 ## Unreleased
 
+## 1.6.12 — 2026-10-17（角色外貌 DNA + 画外音减页）
+
+### 中文
+- 导演返回角色 DNA（性别/年龄/发型/服装），每格只带画面可见角色 DNA（≤6 tag）。
+- 称呼判性别（妈妈/爸爸等）并纠正；外貌太像、性别冲突进分镜检查与修法表。
+- 每格 tag 上限 14→18。
+- 第三人短台词改画外音（每页一次），不新开页。12 故事页数 35→31。
+
+### English
+- Cast DNA, kinship-based gender fix, look-alike lint, panel tag cap 14→18, off-screen voice for third-character short lines (35→31 pages).
+
+## 1.6.11 — 2026-10-17（按人物分页 + 修复环改进）
+
+### 中文
+- 每页主要人物 ≤2（`castAware:false` 可退回）；画外音允许；独白/画外音当旁白。
+- >30 字台词拆两句；「然后」拆格；修复丢 must_show 时保留初稿。12 故事人物过多提示 9→0。
+
+### English
+- Cast-aware paging (≤2 main characters/page), long-line and 「然后」 splitting, repair keeps must_show.
+
+## 1.6.10 — 2026-10-17（导演写法上下文注入 + 失败自动修）
+
+### 中文
+- 六拍（定场→触发→反应→推进→高点→余韵）、页三拍、失败→修法表注入批量导演与故事模式。
+- lint 有问题时带修法表重试一次，问题变少才采用。默认开，`mnai.craftContext='0'` 关闭。
+
+### English
+- Craft context injection + one lint repair pass kept only if it reduces problems. Flag `mnai.craftContext`.
+
 ## 1.6.9 — 2026-10-17（故事模式吃满 + OCR/读序）
 
 ### 中文

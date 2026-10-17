@@ -2,7 +2,7 @@
 
 # Manga-NAI-GPT
 
-**A beginner-friendly manga editing and lettering tool**: swap characters, rewrite captions, remove objects, split layers and draw whole pages — most jobs take 2–4 clicks.
+**Turn a story into a manga**: paste a whole story and the AI breaks it into pages and panels, draws them and letters the balloons. Then edit like a photo editor — swap characters, rewrite captions, remove objects, split layers. Beginner-friendly.
 
 [![Release](https://img.shields.io/github/v/release/h1neolzr7f/Manga-NAI-GPT)](https://github.com/h1neolzr7f/Manga-NAI-GPT/releases/latest)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
@@ -15,13 +15,28 @@
 
 </div>
 
+Manga-NAI-GPT is an unofficial **modified version** of [Manga Editor Desu](https://github.com/new-sankaku/manga-editor-desu) (new-sankaku, GPL-3.0). The editor itself comes from upstream; this fork adds story mode and AI features.
+
 Manga-NAI-GPT is built on [Manga Editor Desu](https://github.com/new-sankaku/manga-editor-desu) and turns common jobs into task cards: open a page, pick a task, follow steps 1-2-3. Text detection, OCR, text removal, cutouts and panel detection run **on your own computer, CPU only**. Redrawing (character swap, drawing a page) uses **the OpenAI-compatible image service you configure**; image generation uses NovelAI. Every result lands on a new layer — the original stays untouched and `Ctrl+Z` undoes it in one step. The UI is Chinese-first (Japanese, English, Korean and others are available).
 
 ## Features
 
-Current version **1.6.3**: six tasks on the home screen, plus a character library, automatic speech balloons, a Ctrl+K command palette, a history panel with thumbnails, and PSD import/export. Since 1.6, *Edit an area* and *Draw a page* can also use NovelAI (V5 supported), with the Anlas cost shown before generating. This repair adds stable canvas layout, bounded character replacement masks, context review, cancellation guards and per-panel cast controls. Local Windows startup, offline regressions and browser layout checks were verified; real image-service inference was not configured for this repair. See [CHANGELOG](CHANGELOG.md).
+Current version **1.6.12**. See [CHANGELOG](CHANGELOG.md).
 
-**Local backends (1.6.3):** Caption OCR defaults to post-detect manga-ocr refine when weights are cached (first use asks before ~400MB download). Remove-object / erase-text defaults to LaMa `auto` (manga-finetuned weights when present, else stock). The 1.6.2 audit closed 120/120 findings; this release is quality polish — see `docs/dev/smoke-163/`.
+### Main feature: story → manga (Story mode)
+
+Click **故事模式 Story mode** on the home screen:
+
+1. **Paste a story** — prose or `Name: line` both work.
+2. **Storyboard** — the AI director splits it into pages and panels, each page with an editable purpose and enter / focus / exit beats; at most 2 main characters per page, extra short lines become off-screen voices.
+3. **Character DNA** — the director sets gender, age, hair and outfit per character; kinship words (妈妈/爸爸…) fix gender; look-alikes are flagged. Character-library entries are used when present.
+4. **Generate the whole chapter** — pages are queued, drawn with NovelAI or GPT, and split into editable panels and balloons with lettering. If a page fails to split, re-split just that page without redrawing.
+
+Line markup picks the balloon kind (never printed): 「…」 speech, `*…*` thought, 【…】 SFX, {…} narration, a leading （电话） for phone (also （画外）（远处）（众人）).
+
+The director uses built-in craft notes (six beats, a failure→fix table); when the storyboard check finds issues it runs one repair pass and keeps it only if it has fewer problems.
+
+### Editing features
 
 | Task | What it does | Needs |
 |---|---|---|
@@ -92,7 +107,7 @@ The browser opens `http://127.0.0.1:8000/index.html`. The launcher window is the
 ### New in 1.6 (NovelAI)
 
 - NovelAI route for *Edit an area* and *Draw a page / script → page*, with an engine switch; when GPT refuses, you are offered NovelAI instead.
-- The editor does **not** filter NovelAI prompts — your NovelAI account rules apply. An optional *safe mode* is off by default.
+- The editor does **not** filter NovelAI prompts — your NovelAI account rules apply. An optional *safe mode* is off by default. The tool itself does no filtering; with third-party services such as GPT it only reminds you to follow that provider's rules.
 - Anlas estimate before each call, marked "free" inside the Opus free range (≤1024×1024, ≤28 steps, 1 image).
 - A timeout or dropped connection after sending is reported as "unknown" and **never retried automatically** (no double charge).
 - Privacy mode (⋯ menu) blurs history / file / candidate thumbnails.
